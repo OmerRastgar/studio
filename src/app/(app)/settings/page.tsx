@@ -6,22 +6,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ThemeSwitcher } from '@/components/theme-toggle';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plug, Server, KeyRound, Bot } from 'lucide-react';
+import { Plug, Server, KeyRound, Bot, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useState } from 'react';
+import { Textarea } from '@/components/ui/textarea';
 
 function ProfileSettings() {
+  const [certifications, setCertifications] = useState(['CISA', 'CISSP']);
+  const [newCert, setNewCert] = useState('');
+
+  const handleAddCert = () => {
+    if (newCert && !certifications.includes(newCert)) {
+      setCertifications([...certifications, newCert]);
+      setNewCert('');
+    }
+  };
+
+  const handleRemoveCert = (certToRemove: string) => {
+    setCertifications(certifications.filter(cert => cert !== certToRemove));
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="font-headline">Profile</CardTitle>
-        <CardDescription>Manage your public profile and account settings.</CardDescription>
+        <CardDescription>Manage your public profile and professional information.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="name">Full Name</Label>
           <Input id="name" defaultValue="Admin Auditor" />
@@ -30,52 +44,42 @@ function ProfileSettings() {
           <Label htmlFor="email">Email</Label>
           <Input id="email" type="email" defaultValue="admin@cybergaar.com" />
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="bio">Bio</Label>
+          <Textarea id="bio" placeholder="Tell us a little about yourself" defaultValue="Experienced lead auditor with a decade of experience in cybersecurity and compliance for SaaS companies." />
+        </div>
+         <div className="space-y-2">
+          <Label htmlFor="previous-career">Previous Career</Label>
+          <Textarea id="previous-career" placeholder="Describe your previous roles and experience" defaultValue="Senior Security Engineer at TechCorp, focusing on infrastructure security and threat modeling."/>
+        </div>
+        <div className="space-y-4">
+          <Label>Certifications</Label>
+           <div className="flex flex-wrap gap-2">
+            {certifications.map(cert => (
+              <Badge key={cert} variant="secondary" className="flex items-center gap-2">
+                {cert}
+                <button onClick={() => handleRemoveCert(cert)} className="rounded-full hover:bg-muted-foreground/20 p-0.5">
+                  <Trash2 className="h-3 w-3" />
+                  <span className="sr-only">Remove {cert}</span>
+                </button>
+              </Badge>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={newCert}
+              onChange={(e) => setNewCert(e.target.value)}
+              placeholder="e.g., CISM"
+            />
+            <Button onClick={handleAddCert} variant="outline">Add</Button>
+          </div>
+        </div>
         <Button>Save Changes</Button>
       </CardContent>
     </Card>
   );
 }
 
-function AppearanceSettings() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-headline">Appearance</CardTitle>
-        <CardDescription>Customize the look and feel of the application.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label>Theme</Label>
-          <p className='text-sm text-muted-foreground'>Select the theme for the dashboard.</p>
-        </div>
-        <ThemeSwitcher />
-      </CardContent>
-    </Card>
-  );
-}
-
-function ApiKeysSettings() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-headline">API Keys</CardTitle>
-        <CardDescription>Manage your API keys for integrations.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
-          <div>
-            <p className="font-mono text-sm">prod_************************1234</p>
-            <p className="text-xs text-muted-foreground">Last used: 2 hours ago</p>
-          </div>
-          <Button variant="destructive" size="sm">
-            Revoke
-          </Button>
-        </div>
-        <Button>Generate New Key</Button>
-      </CardContent>
-    </Card>
-  );
-}
 
 function IntegrationsSettings() {
   const [aiProvider, setAiProvider] = useState('gemini');
@@ -255,10 +259,8 @@ function IntegrationsSettings() {
 export default function SettingsPage() {
   return (
     <Tabs defaultValue="profile" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="profile">Profile</TabsTrigger>
-        <TabsTrigger value="appearance">Appearance</TabsTrigger>
-        <TabsTrigger value="api-keys">API Keys</TabsTrigger>
         <TabsTrigger value="integrations">
             <Plug className="mr-2 h-4 w-4"/>
             Integrations
@@ -267,17 +269,9 @@ export default function SettingsPage() {
       <TabsContent value="profile">
         <ProfileSettings />
       </TabsContent>
-      <TabsContent value="appearance">
-        <AppearanceSettings />
-      </TabsContent>
-      <TabsContent value="api-keys">
-        <ApiKeysSettings />
-      </TabsContent>
       <TabsContent value="integrations">
         <IntegrationsSettings />
       </TabsContent>
     </Tabs>
   );
 }
-
-    
