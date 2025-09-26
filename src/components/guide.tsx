@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
+import { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
 import Joyride, { CallBackProps, STATUS, Step, ACTIONS } from 'react-joyride';
 import { mainTourSteps } from '@/lib/guide-steps';
 
@@ -65,13 +65,20 @@ export const useGuide = () => useContext(TourContext);
 
 export function GuideProvider({ children }: { children: React.ReactNode }) {
     const [state, dispatch] = useReducer(tourReducer, initialState);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        const mainTourCompleted = localStorage.getItem('mainTourCompleted');
-        if (mainTourCompleted !== 'true') {
-            dispatch({ type: 'START_TOUR', payload: { steps: mainTourSteps, tourId: 'mainTour' } });
-        }
+        setIsMounted(true);
     }, []);
+
+    useEffect(() => {
+        if (isMounted) {
+            const mainTourCompleted = localStorage.getItem('mainTourCompleted');
+            if (mainTourCompleted !== 'true') {
+                startTour(mainTourSteps, 'mainTour');
+            }
+        }
+    }, [isMounted]);
 
     const startTour = useCallback((steps: Step[], tourId: string, force = false) => {
         const tourCompleted = localStorage.getItem(`${tourId}Completed`);
@@ -108,7 +115,7 @@ export function GuideProvider({ children }: { children: React.ReactNode }) {
     return (
         <TourContext.Provider value={{ startTour }}>
             {children}
-            <Joyride
+            {isMounted && <Joyride
                 run={state.run}
                 steps={state.steps}
                 stepIndex={state.stepIndex}
@@ -151,7 +158,7 @@ export function GuideProvider({ children }: { children: React.ReactNode }) {
                       borderRadius: 'var(--radius)',
                     },
                 }}
-            />
+            />}
         </TourContext.Provider>
     );
 };
