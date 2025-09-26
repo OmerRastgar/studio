@@ -44,6 +44,7 @@ interface ReportChatPanelProps {
   onOpenChange: (isOpen: boolean) => void;
   reportRows: ReportRow[];
   onApplySuggestion: (rowId: string, field: keyof ReportRow, value: any) => void;
+  onReferenceClick: (rowId: string) => void;
 }
 
 type Message = {
@@ -72,7 +73,7 @@ const initialAiMessages: Message[] = [
 const initialTeamMessages: Message[] = [
     {
         id: 'team-1',
-        text: 'Can you double-check the evidence for the Access Control Policy?',
+        text: 'Can you double-check the evidence for the [Ref: Access Control Policy]?',
         sender: 'Jane Doe',
     },
     {
@@ -88,7 +89,13 @@ const mockTeamMembers = [
 ];
 
 
-export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySuggestion }: ReportChatPanelProps) {
+export function ReportChatPanel({ 
+    isOpen, 
+    onOpenChange, 
+    reportRows, 
+    onApplySuggestion,
+    onReferenceClick 
+}: ReportChatPanelProps) {
   const [aiMessages, setAiMessages] = useState<Message[]>(initialAiMessages);
   const [teamMessages, setTeamMessages] = useState<Message[]>(initialTeamMessages);
   const [inputValue, setInputValue] = useState('');
@@ -152,6 +159,30 @@ export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySugge
       if (sender === 'ai') return 'AI';
       return sender.split(' ').map(n => n[0]).join('');
   }
+
+  const renderMessageText = (text: string) => {
+    const parts = text.split(/(\[Ref: .*?\])/g);
+    return parts.map((part, index) => {
+      const match = part.match(/\[Ref: (.*?)\]/);
+      if (match) {
+        const controlName = match[1];
+        const row = reportRows.find(r => r.control === controlName);
+        if (row) {
+          return (
+            <Button
+              key={index}
+              variant="link"
+              className="p-0 h-auto text-base"
+              onClick={() => onReferenceClick(row.id)}
+            >
+              {controlName}
+            </Button>
+          );
+        }
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
 
   return (
     <>
@@ -223,7 +254,7 @@ export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySugge
                         )}
                     >
                         {message.sender !== 'user' && message.sender !== 'ai' && <p className="font-bold mb-1">{message.sender}</p>}
-                        <p>{message.text}</p>
+                        <p>{renderMessageText(message.text)}</p>
                     </div>
                     {message.sender === 'user' && (
                         <Avatar className="h-8 w-8 bg-secondary text-secondary-foreground flex-shrink-0">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ReportChatPanel } from '@/components/report-chat-panel';
+import { cn } from '@/lib/utils';
 
 export type ReportRow = {
   id: string;
@@ -51,7 +52,15 @@ export default function ReportsPage() {
   const [selectedProject, setSelectedProject] = useState(mockProjects[0].id);
   const [reportRows, setReportRows] = useState<ReportRow[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [highlightedRow, setHighlightedRow] = useState<string | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (highlightedRow) {
+      const timer = setTimeout(() => setHighlightedRow(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedRow]);
 
   const projectEvidence = mockEvidence.filter(e => e.projectId === selectedProject);
 
@@ -198,7 +207,7 @@ export default function ReportsPage() {
                         </TableRow>
                     ) : (
                         reportRows.map(row => (
-                            <TableRow key={row.id} className="align-top">
+                            <TableRow key={row.id} className={cn("align-top transition-colors duration-500", highlightedRow === row.id ? 'bg-primary/20' : '')}>
                                 <TableCell>
                                     <Textarea 
                                         placeholder="e.g., Access Control" 
@@ -277,6 +286,7 @@ export default function ReportsPage() {
         onOpenChange={setIsChatOpen} 
         reportRows={reportRows}
         onApplySuggestion={updateReportRow}
+        onReferenceClick={setHighlightedRow}
     />
     </>
   );
