@@ -1,4 +1,4 @@
-import type { Evidence, AuditLog, Project } from '@/lib/types';
+import type { Evidence, AuditLog, Project, Auditor } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const userAvatar1 = PlaceHolderImages.find(img => img.id === 'user-avatar-1')?.imageUrl || '';
@@ -15,6 +15,39 @@ export const mockProjects: Project[] = [
     { id: 'proj-001', name: 'SOC 2 Compliance Audit' },
     { id: 'proj-002', name: 'ISO 27001 Certification' },
     { id: 'proj-003', name: 'Internal Security Review' },
+];
+
+export const mockAuditors: Auditor[] = [
+    {
+      id: 'AUD001',
+      name: 'Jane Doe',
+      avatarUrl: userAvatar1,
+      projects: ['SOC 2 Compliance Audit'],
+      progress: 75,
+      status: 'Active',
+      experience: '5 years in cloud security auditing.',
+      certifications: ['CISA', 'CISSP'],
+    },
+    {
+      id: 'AUD002',
+      name: 'John Smith',
+      avatarUrl: userAvatar2,
+      projects: ['ISO 27001 Certification', 'Internal Security Review'],
+      progress: 40,
+      status: 'Delayed',
+      experience: '8 years in financial and tech audits.',
+      certifications: ['CISM', ' CRISC'],
+    },
+    {
+        id: 'AUD003',
+        name: 'Alex Johnson',
+        avatarUrl: 'https://picsum.photos/seed/user3/100/100',
+        projects: ['SOC 2 Compliance Audit'],
+        progress: 90,
+        status: 'Active',
+        experience: 'Lead auditor with 10+ years of experience.',
+        certifications: ['CISA', 'CISM', 'CISSP'],
+    },
 ];
 
 export const mockEvidence: Evidence[] = [

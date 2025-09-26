@@ -36,6 +36,17 @@ export type AuditLog = {
   severity: 'Low' | 'Medium' | 'High';
 };
 
+export type Auditor = {
+    id: string;
+    name: string;
+    avatarUrl: string;
+    projects: string[];
+    progress: number;
+    status: 'Active' | 'Delayed' | 'On Hold';
+    experience: string;
+    certifications: string[];
+}
+
 export type NavItem = {
   href: string;
   title: string;

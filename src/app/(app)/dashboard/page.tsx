@@ -1,6 +1,12 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -11,7 +17,14 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpRight, FileText, FolderOpen, ShieldCheck, CheckCircle } from 'lucide-react';
+import {
+  ArrowUpRight,
+  FileText,
+  FolderOpen,
+  ShieldCheck,
+  CheckCircle,
+  Search,
+} from 'lucide-react';
 import {
   ChartContainer,
   ChartTooltip,
@@ -19,8 +32,11 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
-import { dashboardStats, activityChartData, mockAuditLogs } from '@/lib/data';
+import { dashboardStats, activityChartData, mockAuditLogs, mockAuditors } from '@/lib/data';
 import { formatDistanceToNow } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 
 const chartConfig = {
   reports: {
@@ -33,64 +49,191 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const StatCard = ({ title, value, change, icon: Icon }: { title: string; value: string | number; change: number, icon: React.ElementType }) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground">
-          <span className={change >= 0 ? 'text-green-500' : 'text-red-500'}>
-            {change >= 0 ? '+' : ''}{change}% from last month
-          </span>
-        </p>
-      </CardContent>
-    </Card>
+const StatCard = ({
+  title,
+  value,
+  change,
+  icon: Icon,
+}: {
+  title: string;
+  value: string | number;
+  change: number;
+  icon: React.ElementType;
+}) => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      <Icon className="h-4 w-4 text-muted-foreground" />
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-bold">{value}</div>
+      <p className="text-xs text-muted-foreground">
+        <span className={change >= 0 ? 'text-green-500' : 'text-red-500'}>
+          {change >= 0 ? '+' : ''}
+          {change}% from last month
+        </span>
+      </p>
+    </CardContent>
+  </Card>
 );
 
-
 export default function DashboardPage() {
-  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('');
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .map((n) => n[0])
+      .join('');
 
   return (
     <div className="grid gap-6">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Reports Generated" value={dashboardStats.reportsGenerated.value} change={dashboardStats.reportsGenerated.change} icon={FileText} />
-        <StatCard title="Evidence Uploaded" value={dashboardStats.evidenceUploaded.value} change={dashboardStats.evidenceUploaded.change} icon={FolderOpen} />
-        <StatCard title="Active Audits" value={dashboardStats.activeAudits.value} change={dashboardStats.activeAudits.change} icon={ShieldCheck} />
-        <StatCard title="Findings Resolved" value={dashboardStats.findingsResolved.value} change={dashboardStats.findingsResolved.change} icon={CheckCircle} />
+        <StatCard
+          title="Reports Generated"
+          value={dashboardStats.reportsGenerated.value}
+          change={dashboardStats.reportsGenerated.change}
+          icon={FileText}
+        />
+        <StatCard
+          title="Evidence Uploaded"
+          value={dashboardStats.evidenceUploaded.value}
+          change={dashboardStats.evidenceUploaded.change}
+          icon={FolderOpen}
+        />
+        <StatCard
+          title="Active Audits"
+          value={dashboardStats.activeAudits.value}
+          change={dashboardStats.activeAudits.change}
+          icon={ShieldCheck}
+        />
+        <StatCard
+          title="Findings Resolved"
+          value={dashboardStats.findingsResolved.value}
+          change={dashboardStats.findingsResolved.change}
+          icon={CheckCircle}
+        />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-headline">Auditor Overview</CardTitle>
+          <CardDescription>
+            Search and manage auditors across all projects.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="relative mb-4">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search auditors by name, ID, or keyword..."
+              className="pl-8 w-full"
+            />
+          </div>
+          <div className="border rounded-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Auditor</TableHead>
+                  <TableHead>Current Projects</TableHead>
+                  <TableHead>Progress</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mockAuditors.map((auditor) => (
+                  <TableRow key={auditor.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage
+                            src={auditor.avatarUrl}
+                            alt={auditor.name}
+                          />
+                          <AvatarFallback>
+                            {getInitials(auditor.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{auditor.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {auditor.id}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {auditor.projects.join(', ')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={auditor.progress} className="w-24" />
+                        <span className="text-sm text-muted-foreground">{auditor.progress}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          auditor.status === 'Active'
+                            ? 'secondary'
+                            : auditor.status === 'Delayed'
+                              ? 'destructive'
+                              : 'outline'
+                        }
+                      >
+                        {auditor.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <Button variant="outline" size="sm">Assign</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className='font-headline'>Recent Activity</CardTitle>
+            <CardTitle className="font-headline">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-             <ChartContainer config={chartConfig} className="h-64 w-full">
-                <BarChart accessibilityLayer data={activityChartData}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                    tickFormatter={(value) => value.slice(0, 3)}
-                    />
-                    <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                    />
-                    <Bar dataKey="reports" fill="var(--color-reports)" radius={4} />
-                    <Bar dataKey="evidence" fill="var(--color-evidence)" radius={4} />
-                </BarChart>
+            <ChartContainer config={chartConfig} className="h-64 w-full">
+              <BarChart accessibilityLayer data={activityChartData}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  tickFormatter={(value) => value.slice(0, 3)}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent indicator="dot" />}
+                />
+                <Bar
+                  dataKey="reports"
+                  fill="var(--color-reports)"
+                  radius={4}
+                />
+                <Bar
+                  dataKey="evidence"
+                  fill="var(--color-evidence)"
+                  radius={4}
+                />
+              </BarChart>
             </ChartContainer>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className='font-headline'>Recent Audit Logs</CardTitle>
+            <CardTitle className="font-headline">Recent Audit Logs</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -107,17 +250,32 @@ export default function DashboardPage() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={log.user.avatarUrl} alt={log.user.name} />
-                          <AvatarFallback>{getInitials(log.user.name)}</AvatarFallback>
+                          <AvatarImage
+                            src={log.user.avatarUrl}
+                            alt={log.user.name}
+                          />
+                          <AvatarFallback>
+                            {getInitials(log.user.name)}
+                          </AvatarFallback>
                         </Avatar>
                         <span className="font-medium">{log.user.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={log.action.includes('Generated') ? 'default' : 'secondary'}>{log.action}</Badge>
+                      <Badge
+                        variant={
+                          log.action.includes('Generated')
+                            ? 'default'
+                            : 'secondary'
+                        }
+                      >
+                        {log.action}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(log.timestamp), {
+                        addSuffix: true,
+                      })}
                     </TableCell>
                   </TableRow>
                 ))}
