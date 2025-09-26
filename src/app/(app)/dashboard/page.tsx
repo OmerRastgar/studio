@@ -156,7 +156,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="flex flex-col items-center justify-center">
+            <div className="relative flex flex-col items-center justify-center">
                <ChartContainer
                 config={progressChartConfig}
                 className="mx-auto aspect-square h-64"
@@ -182,8 +182,10 @@ export default function DashboardPage() {
                     </Pie>
                 </PieChart>
                </ChartContainer>
-                <div className="text-center text-3xl font-bold -mt-24">
-                  {overallProgress}%
+                <div className="absolute flex flex-col items-center justify-center">
+                    <div className="text-center text-3xl font-bold">
+                        {overallProgress}%
+                    </div>
                 </div>
                 <p className="text-center text-muted-foreground mt-2">
                   {complianceProgress.acceptedEvidence} of {complianceProgress.totalEvidence} evidence items accepted.
