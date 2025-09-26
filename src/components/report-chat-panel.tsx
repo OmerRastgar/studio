@@ -29,7 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Bot, User, Edit } from 'lucide-react';
+import { Send, Bot, User, Edit, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import type { ReportRow } from '@/app/(app)/reports/page';
@@ -44,11 +44,13 @@ interface ReportChatPanelProps {
 type Message = {
   id: string;
   text: string;
-  sender: 'user' | 'ai';
+  sender: 'user' | 'ai' | string; // sender can be a user name in team chat
   isSuggestion?: boolean;
 };
 
-const initialMessages: Message[] = [
+type ChatMode = 'ai' | 'team';
+
+const initialAiMessages: Message[] = [
     {
       id: '1',
       text: 'Hello! How can I help you with this audit report?',
@@ -62,13 +64,36 @@ const initialMessages: Message[] = [
     },
 ];
 
+const initialTeamMessages: Message[] = [
+    {
+        id: 'team-1',
+        text: 'Can you double-check the evidence for the Access Control Policy?',
+        sender: 'Jane Doe',
+    },
+    {
+        id: 'team-2',
+        text: 'On it. Looks correct on my end.',
+        sender: 'user',
+    }
+];
+
+const mockTeamMembers = [
+    { id: 'user-jane', name: 'Jane Doe' },
+    { id: 'user-john', name: 'John Smith' },
+];
+
 
 export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySuggestion }: ReportChatPanelProps) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [aiMessages, setAiMessages] = useState<Message[]>(initialAiMessages);
+  const [teamMessages, setTeamMessages] = useState<Message[]>(initialTeamMessages);
   const [inputValue, setInputValue] = useState('');
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [chatMode, setChatMode] = useState<ChatMode>('ai');
+
+  const currentMessages = chatMode === 'ai' ? aiMessages : teamMessages;
+  const setCurrentMessages = chatMode === 'ai' ? setAiMessages : setTeamMessages;
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,18 +105,20 @@ export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySugge
       sender: 'user',
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setCurrentMessages(prev => [...prev, userMessage]);
     setInputValue('');
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: `msg-${Date.now() + 1}`,
-        text: "That's a great question. Let me look into that for you...",
-        sender: 'ai',
-      };
-      setMessages(prev => [...prev, aiResponse]);
-    }, 1500);
+    if (chatMode === 'ai') {
+        // Simulate AI response
+        setTimeout(() => {
+          const aiResponse: Message = {
+            id: `msg-${Date.now() + 1}`,
+            text: "That's a great question. Let me look into that for you...",
+            sender: 'ai',
+          };
+          setAiMessages(prev => [...prev, aiResponse]);
+        }, 1500);
+    }
   };
 
   const openApplyModal = (suggestion: string) => {
@@ -110,22 +137,57 @@ export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySugge
       setSelectedRowId(null);
     }
   };
+  
+  const getSenderInitials = (sender: string) => {
+      if (sender === 'user') return 'You';
+      if (sender === 'ai') return 'AI';
+      return sender.split(' ').map(n => n[0]).join('');
+  }
 
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
         <SheetContent className="w-full sm:w-[480px] flex flex-col p-0">
-          <SheetHeader className="p-6">
+          <SheetHeader className="p-6 pb-2">
             <SheetTitle className="font-headline flex items-center gap-2">
               <Bot /> AI Report Assistant
             </SheetTitle>
             <SheetDescription>
-              Ask questions, get explanations, or request help with your report.
+              Ask questions, get explanations, or collaborate with your team.
             </SheetDescription>
           </SheetHeader>
+
+          <div className='px-6 py-2 border-b'>
+             <div className="flex space-x-1 rounded-md bg-muted p-1">
+                <Button variant={chatMode === 'ai' ? 'secondary' : 'ghost'} className="w-full" onClick={() => setChatMode('ai')}>
+                    <Bot className="mr-2 h-4 w-4" />
+                    AI Assistant
+                </Button>
+                <Button variant={chatMode === 'team' ? 'secondary' : 'ghost'} className="w-full" onClick={() => setChatMode('team')}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Team Chat
+                </Button>
+            </div>
+          </div>
+
+           {chatMode === 'team' && (
+             <div className="px-6 py-4 border-b">
+                <Select defaultValue={mockTeamMembers[0].id}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select team members..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {mockTeamMembers.map(member => (
+                            <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+             </div>
+           )}
+
           <ScrollArea className="flex-1 px-6">
-            <div className="space-y-4">
-              {messages.map(message => (
+            <div className="space-y-4 py-4">
+              {currentMessages.map(message => (
                 <div key={message.id}>
                     <div
                     className={cn(
@@ -133,10 +195,13 @@ export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySugge
                         message.sender === 'user' ? 'justify-end' : 'justify-start'
                     )}
                     >
-                    {message.sender === 'ai' && (
-                        <Avatar className="h-8 w-8 bg-primary text-primary-foreground flex-shrink-0">
+                    {message.sender !== 'user' && (
+                        <Avatar className={cn(
+                            "h-8 w-8 flex-shrink-0",
+                            message.sender === 'ai' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
+                        )}>
                         <AvatarFallback>
-                            <Bot size={20}/>
+                           {getSenderInitials(message.sender)}
                         </AvatarFallback>
                         </Avatar>
                     )}
@@ -148,6 +213,7 @@ export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySugge
                             : 'bg-muted'
                         )}
                     >
+                        {message.sender !== 'user' && message.sender !== 'ai' && <p className="font-bold mb-1">{message.sender}</p>}
                         <p>{message.text}</p>
                     </div>
                     {message.sender === 'user' && (
@@ -158,7 +224,7 @@ export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySugge
                         </Avatar>
                     )}
                   </div>
-                  {message.isSuggestion && (
+                  {message.isSuggestion && chatMode === 'ai' && (
                     <div className="flex justify-start ml-11 mt-2">
                         <TooltipProvider>
                             <Tooltip>
@@ -183,7 +249,7 @@ export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySugge
             <form onSubmit={handleSendMessage} className="flex w-full space-x-2">
               <Input
                 type="text"
-                placeholder="Ask the AI..."
+                placeholder={chatMode === 'ai' ? "Ask the AI..." : "Message your team..."}
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
               />
