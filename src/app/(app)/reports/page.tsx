@@ -180,12 +180,27 @@ export default function ReportsPage() {
     });
 
     try {
-        const qaReportRows = reportRows.map(row => ({
+        const qaReportRows = reportRows.map(row => {
+          const evidenceDetails = row.evidence
+            .map(id => {
+              const evidence = mockEvidence.find(e => e.id === id);
+              if (!evidence) return null;
+              return {
+                name: evidence.name,
+                type: evidence.type,
+                tags: evidence.tags,
+              };
+            })
+            .filter((e): e is NonNullable<typeof e> => e !== null);
+
+          return {
             id: row.id,
             control: row.control,
             observation: row.observation,
-            evidence: row.evidence.map(id => mockEvidence.find(e => e.id === id)?.name || id)
-        }))
+            evidence: evidenceDetails,
+          };
+        });
+
         const result = await reviewReport({ reportRows: qaReportRows });
         console.log("AI QA Result:", result);
 
