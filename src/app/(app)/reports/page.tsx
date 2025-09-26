@@ -66,6 +66,15 @@ export default function ReportsPage() {
   const { toast } = useToast();
   const [isQaRunning, setIsQaRunning] = useState(false);
 
+  // State for the flag/comment dialog
+  const [dialogState, setDialogState] = useState<{
+    isOpen: boolean;
+    rowId: string | null;
+    isFlagging: boolean; // true if we are adding a flag, false if we are resolving
+    comment: string;
+  }>({ isOpen: false, rowId: null, isFlagging: true, comment: '' });
+
+
   useEffect(() => {
     if (highlightedRow) {
       const timer = setTimeout(() => setHighlightedRow(null), 3000);
@@ -165,24 +174,67 @@ export default function ReportsPage() {
     setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, observation: newObservation } : row)));
   };
 
-  const toggleFlag = (rowId: string, comment?: string) => {
-    setReportRows(rows => rows.map(row => {
-        if (row.id === rowId) {
-            const isCurrentlyFlagged = row.isFlagged;
-            return {
-                ...row,
-                isFlagged: !isCurrentlyFlagged,
-                isResolved: isCurrentlyFlagged ? row.isResolved : false,
-                flagComment: !isCurrentlyFlagged ? (comment || "Flagged for manual review.") : undefined,
-            };
-        }
-        return row;
-    }));
+  // Opens the dialog to either flag (and comment) or resolve a flag
+  const handleFlagButtonClick = (row: ReportRow) => {
+    if (row.isFlagged) {
+      // If already flagged, open dialog in "resolve" mode
+      setDialogState({
+        isOpen: true,
+        rowId: row.id,
+        isFlagging: false,
+        comment: row.flagComment || '',
+      });
+    } else {
+      // If not flagged, open dialog in "flagging" mode
+      setDialogState({
+        isOpen: true,
+        rowId: row.id,
+        isFlagging: true,
+        comment: '',
+      });
+    }
   };
 
-  const resolveFlag = (rowId: string) => {
-    setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, isFlagged: false, isResolved: true } : row)));
+  // Handles the submission from the flag/comment dialog
+  const submitFlagDialog = () => {
+    const { rowId, isFlagging, comment } = dialogState;
+    if (!rowId) return;
+
+    if (isFlagging) {
+      // Logic to add a new flag
+      if (comment.trim() === '') {
+        toast({
+          variant: 'destructive',
+          title: 'Comment required',
+          description: 'Please provide a reason for flagging this row.',
+        });
+        return;
+      }
+      setReportRows(rows =>
+        rows.map(row =>
+          row.id === rowId
+            ? { ...row, isFlagged: true, isResolved: false, flagComment: comment }
+            : row
+        )
+      );
+      toast({ title: 'Row Flagged', description: 'The item has been flagged for review.' });
+    } else {
+      // This case is now handled by the resolve button in the dialog
+    }
+    setDialogState({ isOpen: false, rowId: null, isFlagging: true, comment: '' }); // Reset and close
   };
+
+  const resolveFlag = (rowId: string | null) => {
+    if (!rowId) return;
+    setReportRows(rows =>
+      rows.map(row =>
+        row.id === rowId ? { ...row, isFlagged: false, isResolved: true } : row
+      )
+    );
+    toast({ title: 'Flag Resolved', description: 'The item has been marked as resolved.' });
+    setDialogState({ isOpen: false, rowId: null, isFlagging: true, comment: '' }); // Reset and close
+  };
+  
 
   const handleAiQa = async () => {
     setIsQaRunning(true);
@@ -217,8 +269,8 @@ export default function ReportsPage() {
 
         // Flag rows with issues found by the AI
         result.issues.forEach(issue => {
-            const comment = `Issue: ${issue.issue}\nSuggestion: ${issue.suggestion}`;
-            toggleFlag(issue.rowId, comment);
+            const comment = `AI Issue: ${issue.issue}\n\nSuggestion: ${issue.suggestion}`;
+            setReportRows(rows => rows.map(r => r.id === issue.rowId ? { ...r, isFlagged: true, isResolved: false, flagComment: comment } : r));
         });
         
         toast({
@@ -352,54 +404,12 @@ export default function ReportsPage() {
                             )}>
                                 <TableCell>
                                     <div className='flex items-start gap-2'>
-                                     {row.isFlagged && (
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <button>
-                                                    <Flag className="h-4 w-4 mt-2 text-orange-500 cursor-pointer" />
-                                                </button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-80">
-                                                <div className="grid gap-4">
-                                                    <div className="space-y-2">
-                                                        <h4 className="font-medium leading-none">Flagged for Review</h4>
-                                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                                           {row.flagComment || "No comment provided."}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <Button size="sm" variant="outline" onClick={() => resolveFlag(row.id)}>
-                                                            <CheckCircle className="mr-2 h-4 w-4" />
-                                                            Resolve
-                                                        </Button>
-                                                         <Button size="sm" variant="ghost">
-                                                            <MessageCircle className="mr-2 h-4 w-4" />
-                                                            Comment
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </PopoverContent>
-                                        </Popover>
-                                    )}
-                                    {row.isResolved && (
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <button>
-                                                    <CheckCircle className="h-4 w-4 mt-2 text-green-500 cursor-pointer" />
-                                                </button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-80">
-                                                <div className="grid gap-4">
-                                                    <div className="space-y-2">
-                                                        <h4 className="font-medium leading-none">Resolved</h4>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            This item was marked as resolved by Admin.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </PopoverContent>
-                                        </Popover>
-                                    )}
+                                     {(row.isFlagged || row.isResolved) && (
+                                        <button onClick={() => handleFlagButtonClick(row)}>
+                                            {row.isFlagged && <Flag className="h-4 w-4 mt-2 text-orange-500 cursor-pointer" />}
+                                            {row.isResolved && <CheckCircle className="h-4 w-4 mt-2 text-green-500 cursor-pointer" />}
+                                        </button>
+                                     )}
                                     <Textarea 
                                         placeholder="e.g., Access Control" 
                                         value={row.control} 
@@ -498,7 +508,7 @@ export default function ReportsPage() {
                                             Generate
                                         </Button>
                                         <div className="flex items-center">
-                                            <Button variant="ghost" size="icon" onClick={() => toggleFlag(row.id)}>
+                                            <Button variant="ghost" size="icon" onClick={() => handleFlagButtonClick(row)}>
                                                 <Flag className={cn("h-4 w-4", row.isFlagged ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
                                                  <span className="sr-only">{row.isResolved ? "Re-flag" : "Flag"}</span>
                                             </Button>
@@ -529,6 +539,62 @@ export default function ReportsPage() {
         onApplySuggestion={updateReportRow}
         onReferenceClick={setHighlightedRow}
     />
+     {/* Dialog for flagging and resolving */}
+      <Dialog
+        open={dialogState.isOpen}
+        onOpenChange={(isOpen) => setDialogState((prev) => ({ ...prev, isOpen }))}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {dialogState.isFlagging
+                ? 'Flag Item for Review'
+                : 'Review Flagged Item'}
+            </DialogTitle>
+            <DialogDescription>
+              {dialogState.isFlagging
+                ? 'Please provide a comment explaining why this item is being flagged.'
+                : 'Review the comment below and resolve the flag.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {dialogState.isFlagging ? (
+              <Textarea
+                id="flag-comment"
+                placeholder="Type your comment here..."
+                value={dialogState.comment}
+                onChange={(e) =>
+                  setDialogState((prev) => ({ ...prev, comment: e.target.value }))
+                }
+                className="min-h-[100px]"
+              />
+            ) : (
+              <div className="p-3 bg-muted rounded-md text-sm text-muted-foreground whitespace-pre-wrap">
+                <p>
+                  <strong>Comment:</strong>
+                </p>
+                <p>{dialogState.comment || 'No comment provided.'}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Cancel
+              </Button>
+            </DialogClose>
+            {dialogState.isFlagging ? (
+              <Button onClick={submitFlagDialog}>
+                <Flag className="mr-2 h-4 w-4" /> Flag Item
+              </Button>
+            ) : (
+              <Button onClick={() => resolveFlag(dialogState.rowId)}>
+                <CheckCircle className="mr-2 h-4 w-4" /> Resolve Flag
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
