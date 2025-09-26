@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown } from 'lucide-react';
+import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown, ShieldCheck } from 'lucide-react';
 import { mockProjects, mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
@@ -170,6 +170,13 @@ export default function ReportsPage() {
     setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, isFlagged: false, isResolved: true } : row)));
   };
 
+  const handleAiQa = () => {
+    toast({
+        title: "AI QA in Progress",
+        description: "The AI is reviewing the report for quality and consistency.",
+    });
+  };
+
   return (
     <>
     <Card>
@@ -243,6 +250,10 @@ export default function ReportsPage() {
             <Button variant="secondary" onClick={loadSampleData}>
               <FileQuestion className="mr-2 h-4 w-4" />
               Load Sample
+            </Button>
+             <Button onClick={handleAiQa}>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                AI QA
             </Button>
           </div>
         </div>
