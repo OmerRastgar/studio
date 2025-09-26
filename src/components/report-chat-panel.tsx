@@ -19,6 +19,11 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -29,7 +34,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Bot, User, Edit, Users } from 'lucide-react';
+import { Send, Bot, User, Edit, Users, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import type { ReportRow } from '@/app/(app)/reports/page';
@@ -137,6 +142,10 @@ export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySugge
       setSelectedRowId(null);
     }
   };
+
+  const handleReferenceControl = (controlName: string) => {
+    setInputValue(prev => `${prev} [Ref: ${controlName}] `.trimStart());
+  }
   
   const getSenderInitials = (sender: string) => {
       if (sender === 'user') return 'You';
@@ -247,6 +256,36 @@ export function ReportChatPanel({ isOpen, onOpenChange, reportRows, onApplySugge
           </ScrollArea>
           <SheetFooter className="p-6 bg-background border-t">
             <form onSubmit={handleSendMessage} className="flex w-full space-x-2">
+              {chatMode === 'team' && (
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <LinkIcon className="h-4 w-4" />
+                            <span className="sr-only">Reference Control</span>
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                        <div className="grid gap-4">
+                            <h4 className="font-medium leading-none">Reference a Control</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Select a control to reference in your message.
+                            </p>
+                            <div className="grid gap-2">
+                                {reportRows.length > 0 ? reportRows.map(row => (
+                                    <Button 
+                                        key={row.id} 
+                                        variant="ghost" 
+                                        className="justify-start"
+                                        onClick={() => handleReferenceControl(row.control)}
+                                    >
+                                        {row.control || `Row ID: ${row.id.substring(0,6)}`}
+                                    </Button>
+                                )) : <p className="text-sm text-muted-foreground">No controls in the report yet.</p>}
+                            </div>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+              )}
               <Input
                 type="text"
                 placeholder={chatMode === 'ai' ? "Ask the AI..." : "Message your team..."}
