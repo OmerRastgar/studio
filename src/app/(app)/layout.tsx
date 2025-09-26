@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeProvider } from '@/components/providers';
+import { cn } from '@/lib/utils';
 
 // Mock user data for layout
 const user: User = {
