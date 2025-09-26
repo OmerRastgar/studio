@@ -1,9 +1,62 @@
+
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useReducer, useMemo } from 'react';
 import Joyride, { CallBackProps, STATUS, EVENTS, Step } from 'react-joyride';
 import { useRouter, usePathname } from 'next/navigation';
 import { mainTourSteps, getPathForStep, reportGenerationTourSteps, dashboardTourSteps } from '@/lib/guide-steps';
+
+interface TourState {
+  run: boolean;
+  steps: Step[];
+  stepIndex: number;
+  tourId: string | null;
+}
+
+type TourAction =
+  | { type: 'START_TOUR'; payload: { steps: Step[]; tourId: string } }
+  | { type: 'STOP_TOUR' }
+  | { type: 'SET_STEP'; payload: number }
+  | { type: 'RESET' };
+
+const initialState: TourState = {
+  run: false,
+  steps: [],
+  stepIndex: 0,
+  tourId: null,
+};
+
+function tourReducer(state: TourState, action: TourAction): TourState {
+  switch (action.type) {
+    case 'START_TOUR':
+      return {
+        ...state,
+        run: true,
+        steps: action.payload.steps,
+        tourId: action.payload.tourId,
+        stepIndex: 0,
+      };
+    case 'STOP_TOUR':
+      return {
+        ...state,
+        run: false,
+      };
+    case 'RESET':
+      return {
+        ...state,
+        run: false,
+        stepIndex: 0,
+        tourId: null,
+      };
+    case 'SET_STEP':
+      return {
+        ...state,
+        stepIndex: action.payload,
+      };
+    default:
+      return state;
+  }
+}
 
 const TourContext = createContext<{
   startTour: (steps: Step[], tourId: string) => void;
@@ -18,10 +71,7 @@ interface GuideProviderProps {
 }
 
 export const GuideProvider = ({ children }: GuideProviderProps) => {
-    const [run, setRun] = useState(false);
-    const [steps, setSteps] = useState<Step[]>([]);
-    const [stepIndex, setStepIndex] = useState(0);
-    const [tourId, setTourId] = useState<string | null>(null);
+    const [state, dispatch] = useReducer(tourReducer, initialState);
     const router = useRouter();
     const pathname = usePathname();
     const [isMounted, setIsMounted] = useState(false);
@@ -33,10 +83,7 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
     const startTour = useCallback((tourSteps: Step[], id: string) => {
         const tourCompleted = localStorage.getItem(`${id}Completed`);
         if (tourCompleted !== 'true') {
-            setSteps(tourSteps);
-            setTourId(id);
-            setStepIndex(0);
-            setRun(true);
+            dispatch({ type: 'START_TOUR', payload: { steps: tourSteps, tourId: id } });
         }
     }, []);
     
@@ -54,46 +101,43 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
         const { status, type, index, action } = data;
         
         if (([STATUS.FINISHED, STATUS.SKIPPED] as string[]).includes(status) || action === 'close') {
-            setRun(false);
-            setStepIndex(0);
-            if (tourId) {
-                localStorage.setItem(`${tourId}Completed`, 'true');
+            if (state.tourId) {
+                localStorage.setItem(`${state.tourId}Completed`, 'true');
             }
+            dispatch({ type: 'RESET' });
             return;
         }
 
         if (type === EVENTS.STEP_AFTER) {
             const nextStepIndex = index + (action === 'prev' ? -1 : 1);
-            const currentSteps = steps; // Use the steps from the state
-            const nextStep = currentSteps[nextStepIndex];
+            const nextStep = state.steps[nextStepIndex];
             
             if (nextStep) {
                 const nextPath = getPathForStep(nextStep.target);
                 if (nextPath && nextPath !== pathname) {
-                    setRun(false);
+                    dispatch({ type: 'STOP_TOUR' });
                     router.push(nextPath);
                     setTimeout(() => {
-                        setStepIndex(nextStepIndex);
-                        setRun(true);
+                        dispatch({ type: 'SET_STEP', payload: nextStepIndex });
+                        dispatch({ type: 'START_TOUR', payload: { steps: state.steps, tourId: state.tourId! } });
                     }, 500); // Delay to allow page transition
                 } else {
-                     setStepIndex(nextStepIndex);
+                     dispatch({ type: 'SET_STEP', payload: nextStepIndex });
                 }
             }
         }
     };
     
-    // Determine which steps to use based on the tourId
-    const allSteps = tourId === 'reportGenTour' ? reportGenerationTourSteps : (tourId === 'dashboardTour' ? dashboardTourSteps : mainTourSteps);
+    const memoizedSteps = useMemo(() => state.steps, [state.steps]);
     
     return (
         <TourContext.Provider value={{ startTour }}>
             {children}
             {isMounted && (
                 <Joyride
-                    run={run}
-                    steps={steps}
-                    stepIndex={stepIndex}
+                    run={state.run}
+                    steps={memoizedSteps}
+                    stepIndex={state.stepIndex}
                     continuous
                     showProgress
                     showSkipButton
