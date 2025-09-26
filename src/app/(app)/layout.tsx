@@ -45,8 +45,8 @@ function Nav() {
     { href: '/agents', title: 'Agents', icon: Bot, tourId: 'agents' },
     { href: '/learning', title: 'Learning', icon: BookOpen, tourId: 'learning' },
     { href: '/evidence', title: 'Evidence', icon: Database, tourId: 'evidence' },
-    { href: '/audit-log', title: 'Audit Log', icon: ScrollText, tourId: 'audit-log' },
     { href: '/users', title: 'Users', icon: Users, tourId: 'users' },
+    { href: '/audit-log', title: 'Audit Log', icon: ScrollText, tourId: 'audit-log' },
   ];
 
   return (
