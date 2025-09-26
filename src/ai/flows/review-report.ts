@@ -52,7 +52,7 @@ export async function reviewReport(
 
 const reviewReportPrompt = ai.definePrompt({
   name: 'reviewReportPrompt',
-  input: { schema: ReviewReportInputSchema },
+  input: { schema: z.object({ reportJson: z.string() }) },
   output: { schema: ReviewReportOutputSchema },
   prompt: `You are an expert lead auditor responsible for quality assurance.
     Your task is to review the provided audit report data.
@@ -71,7 +71,7 @@ const reviewReportPrompt = ai.definePrompt({
 
     Here is the report data to review:
     \`\`\`json
-    {{{jsonStringify reportRows}}}
+    {{{reportJson}}}
     \`\`\`
     `,
 });
@@ -83,7 +83,8 @@ const reviewReportFlow = ai.defineFlow(
     outputSchema: ReviewReportOutputSchema,
   },
   async (input) => {
-    const { output } = await reviewReportPrompt(input);
+    const reportJson = JSON.stringify(input.reportRows, null, 2);
+    const { output } = await reviewReportPrompt({ reportJson });
     return output!;
   }
 );
