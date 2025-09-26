@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ThemeSwitcher } from '@/components/ui/theme-toggle';
+import { ThemeSwitcher } from '@/components/theme-toggle';
 
 function ProfileSettings() {
   return (
