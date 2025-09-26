@@ -7,19 +7,28 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { User } from '@/lib/types';
-import { LogOut, Settings, User as UserIcon } from 'lucide-react';
+import { LogOut, Settings, User as UserIcon, Bell, CheckCheck } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeToggle } from './theme-toggle';
+import { Badge } from '@/components/ui/badge';
 
 interface HeaderProps {
   user: User;
   pageTitle: string;
 }
+
+const mockNotifications = [
+    { id: 1, title: "New evidence uploaded", description: "John Smith uploaded 'Admin Panel Login Attempt Screenshot'.", time: "5m ago" },
+    { id: 2, title: "Report section generated", description: "AI completed the analysis for 'Access Control Policy'.", time: "25m ago" },
+    { id: 3, title: "Team Chat Mention", description: "Jane Doe mentioned you in the 'ISO 27001 Certification' report.", time: "1h ago" },
+];
+
 
 export function Header({ user, pageTitle }: HeaderProps) {
   const getInitials = (name: string) => {
@@ -35,8 +44,48 @@ export function Header({ user, pageTitle }: HeaderProps) {
         <SidebarTrigger />
       </div>
       <h1 className="text-xl font-semibold tracking-tight md:text-2xl font-headline">{pageTitle}</h1>
-      <div className="ml-auto flex items-center gap-4">
+      <div className="ml-auto flex items-center gap-2 md:gap-4">
         <ThemeToggle />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Bell className="h-5 w-5" />
+              {mockNotifications.length > 0 && (
+                <Badge className="absolute top-2 right-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full p-0">
+                  {mockNotifications.length}
+                </Badge>
+              )}
+              <span className="sr-only">Toggle notifications</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-80" align="end">
+            <DropdownMenuLabel>
+              <div className="flex items-center justify-between">
+                <span>Notifications</span>
+                <Button variant="outline" size="sm" className="h-7 gap-1">
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    <span className="text-muted-foreground">Mark all as read</span>
+                </Button>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+                {mockNotifications.map(notification => (
+                    <DropdownMenuItem key={notification.id} className="flex flex-col items-start gap-1">
+                        <p className='font-medium'>{notification.title}</p>
+                        <p className='text-xs text-muted-foreground'>{notification.description}</p>
+                        <p className='text-xs text-muted-foreground/70'>{notification.time}</p>
+                    </DropdownMenuItem>
+                ))}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="justify-center text-sm font-medium text-primary">
+              <Link href="/audit-log">View all notifications</Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-10 rounded-full">
