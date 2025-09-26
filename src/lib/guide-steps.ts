@@ -63,6 +63,46 @@ export const dashboardTourSteps: Step[] = [
   },
 ];
 
+export const reportGenerationTourSteps: Step[] = [
+    {
+      target: '[data-tour-id="report-project-selector"]',
+      content: 'Start by selecting the project you want to generate a report for. All evidence and settings will be scoped to this project.',
+      placement: 'bottom',
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour-id="report-ai-qa-button"]',
+      content: 'Use the AI QA button to have our AI automatically review the entire report for clarity, consistency, and evidence sufficiency. It will flag potential issues for you.',
+      placement: 'bottom',
+    },
+    {
+      target: '[data-tour-id="report-table"]',
+      content: 'This is the main report-building area. Each row represents a control. Fill in your observations and link the relevant evidence.',
+      placement: 'top',
+    },
+    {
+      target: '[data-tour-id="report-evidence-selector"]',
+      content: 'Click here to search and select one or more pieces of evidence from the Evidence Locker that support your observation for this control.',
+      placement: 'bottom',
+    },
+    {
+      target: '[data-tour-id="report-generate-button"]',
+      content: 'After providing your observation and evidence, click "Generate" to have the AI write a detailed analysis in this column.',
+      placement: 'left',
+    },
+    {
+      target: '[data-tour-id="report-flag-button"]',
+      content: 'If you find an issue with a row or need a peer to review it, use the flag button. You can add comments and track its resolution.',
+      placement: 'left',
+    },
+    {
+      target: '[data-tour-id="report-chat-button"]',
+      content: 'Need help or want to collaborate? Open the AI Report Assistant to ask questions, get suggestions, or chat with your team in real-time.',
+      placement: 'bottom',
+    },
+];
+
+
 // Helper to get the path for a given step target
 export const getPathForStep = (target: string | HTMLElement) => {
     if (!target) return null;

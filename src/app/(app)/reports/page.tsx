@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown, ShieldCheck } from 'lucide-react';
+import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown, ShieldCheck, HelpCircle } from 'lucide-react';
 import { mockProjects, mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
@@ -24,6 +24,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { reviewReport } from '@/ai/flows/review-report';
+import { useGuide } from '@/components/guide';
+import { reportGenerationTourSteps } from '@/lib/guide-steps';
 
 export type ReportRow = {
   id: string;
@@ -65,6 +67,7 @@ export default function ReportsPage() {
   const [highlightedRow, setHighlightedRow] = useState<string | null>(null);
   const { toast } = useToast();
   const [isQaRunning, setIsQaRunning] = useState(false);
+  const { startTour } = useGuide();
 
   // State for the flag/comment dialog
   const [dialogState, setDialogState] = useState<{
@@ -301,7 +304,11 @@ export default function ReportsPage() {
             <CardDescription>Select a project and build your audit report.</CardDescription>
           </div>
           <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
+             <Button variant="outline" size="sm" onClick={() => startTour(reportGenerationTourSteps, 'reportGenTour')}>
+              <HelpCircle className="mr-2 h-4 w-4" />
+              Start Tour
+            </Button>
+            <Select value={selectedProject} onValueChange={setSelectedProject} data-tour-id="report-project-selector">
                 <SelectTrigger className="w-full sm:w-[200px]">
                     <SelectValue placeholder="Select a project" />
                 </SelectTrigger>
@@ -357,7 +364,7 @@ export default function ReportsPage() {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="outline" onClick={() => setIsChatOpen(true)}>
+            <Button variant="outline" onClick={() => setIsChatOpen(true)} data-tour-id="report-chat-button">
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Chat
             </Button>
@@ -365,7 +372,7 @@ export default function ReportsPage() {
               <FileQuestion className="mr-2 h-4 w-4" />
               Load Sample
             </Button>
-             <Button onClick={handleAiQa} disabled={isQaRunning}>
+             <Button onClick={handleAiQa} disabled={isQaRunning} data-tour-id="report-ai-qa-button">
                 {isQaRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
                 AI QA
             </Button>
@@ -373,7 +380,7 @@ export default function ReportsPage() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="border rounded-md overflow-x-auto">
+        <div className="border rounded-md overflow-x-auto" data-tour-id="report-table">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -435,6 +442,7 @@ export default function ReportsPage() {
                                               buttonVariants({ variant: 'outline', size: 'default' }),
                                               'w-full justify-between h-auto cursor-pointer flex-wrap'
                                             )}
+                                            data-tour-id="report-evidence-selector"
                                           >
                                             <div className="flex gap-1 flex-wrap">
                                                 {row.evidence.length > 0 ? row.evidence.map(evidenceId => {
@@ -503,12 +511,12 @@ export default function ReportsPage() {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className='flex flex-col gap-2 items-end'>
-                                        <Button size="sm" onClick={() => handleGenerate(row.id)} disabled={row.isGenerating}>
+                                        <Button size="sm" onClick={() => handleGenerate(row.id)} disabled={row.isGenerating} data-tour-id="report-generate-button">
                                             <Sparkles className="mr-2 h-4 w-4" />
                                             Generate
                                         </Button>
                                         <div className="flex items-center">
-                                            <Button variant="ghost" size="icon" onClick={() => handleFlagButtonClick(row)}>
+                                            <Button variant="ghost" size="icon" onClick={() => handleFlagButtonClick(row)} data-tour-id="report-flag-button">
                                                 <Flag className={cn("h-4 w-4", row.isFlagged ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
                                                  <span className="sr-only">{row.isResolved ? "Re-flag" : "Flag"}</span>
                                             </Button>
