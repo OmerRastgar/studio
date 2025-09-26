@@ -35,7 +35,7 @@ export default function LoginPage() {
       <Card className="mx-auto max-w-sm w-full bg-card/80 backdrop-blur-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center gap-2 mb-4">
-             <Image src="/logo.png" alt="Audit Gar Logo" width={150} height={50} />
+             <Image src="/Logo.png" alt="" width={150} height={50} />
           </div>
           <CardTitle className="text-2xl font-headline">Login</CardTitle>
           <CardDescription>Enter your email below to login to your account</CardDescription>
