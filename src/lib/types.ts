@@ -75,6 +75,7 @@ export type Course = {
   description: string;
   status: 'Not Started' | 'In Progress' | 'Completed';
   progress: number;
+  completionDate: string | null;
 };
 
 export type CustomerCourse = {
@@ -85,4 +86,5 @@ export type CustomerCourse = {
   status: 'Not Started' | 'In Progress' | 'Completed';
   progress: number;
   thumbnailUrl: string;
+  completionDate: string | null;
 };

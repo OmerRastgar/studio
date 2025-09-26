@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Accordion,
@@ -7,6 +8,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   ChartContainer,
   ChartTooltip,
@@ -16,11 +25,14 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { mockLearningData, mockCustomerCourses } from '@/lib/data';
 import type { ChartConfig } from '@/components/ui/chart';
-import { Flag, CheckCircle, Clock, BarChart3, Target, Lightbulb, BookCopy, BookMarked, Trophy, BookCheck, Clock3 } from 'lucide-react';
+import { Flag, CheckCircle, Clock, BarChart3, Target, Lightbulb, BookCopy, BookMarked, Trophy, BookCheck, Clock3, Search, Download, FileDown } from 'lucide-react';
 import type { Course, CustomerCourse, User } from '@/lib/types';
 import Image from 'next/image';
+import { format } from 'date-fns';
 
 const chartConfig = {
   count: {
@@ -53,6 +65,19 @@ const CourseStatusBadge = ({ status }: { status: Course['status'] }) => {
 
 const AuditorLearningPage = () => {
   const { performanceStats, commonErrors, learningInsights, recommendedCourses } = mockLearningData;
+  const allCourses = recommendedCourses;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const filteredCourses = useMemo(() => {
+    return allCourses.filter(course => {
+        const term = searchTerm.toLowerCase();
+        const statusMatch = statusFilter === 'all' || course.status === statusFilter;
+        const searchMatch = course.title.toLowerCase().includes(term) || course.description.toLowerCase().includes(term);
+        return statusMatch && searchMatch;
+    });
+  }, [allCourses, searchTerm, statusFilter]);
+
   return (
     <div className="grid gap-6">
       <Card>
@@ -135,41 +160,93 @@ const AuditorLearningPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline flex items-center gap-2"><BookMarked /> Recommended Courses</CardTitle>
+          <CardTitle className="font-headline flex items-center gap-2"><BookMarked /> My Learning</CardTitle>
           <CardDescription>
-            Courses recommended for you based on your performance analysis.
+            Manage your recommended courses and track your progress.
           </CardDescription>
         </CardHeader>
-        <CardContent className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-          {recommendedCourses.map(course => (
-            <Card key={course.id} className="flex flex-col">
-              <CardHeader>
-                <CardTitle className='text-lg'>{course.title}</CardTitle>
-                <CardDescription>{course.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <CourseStatusBadge status={course.status} />
-                    {course.status === 'Completed' ? (
-                      <div className="flex items-center text-sm font-medium text-green-500">
-                        <Trophy className="mr-1 h-4 w-4" />
-                        Completed
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">{course.progress}% Complete</span>
-                    )}
-                  </div>
-                  <Progress value={course.progress} className="h-2" />
+        <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        placeholder="Search courses..."
+                        className="pl-8 sm:w-full"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
-              </CardContent>
-              <div className="p-6 pt-0">
-                <Button className="w-full">
-                  {course.status === 'Completed' ? 'View Certificate' : course.status === 'In Progress' ? 'Continue Course' : 'Enroll Now'}
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="Not Started">Not Started</SelectItem>
+                        <SelectItem value="In Progress">In Progress</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                    </SelectContent>
+                </Select>
+                 <Button variant="outline">
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export History
                 </Button>
-              </div>
-            </Card>
-          ))}
+            </div>
+            <div className="border rounded-md">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Course</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Progress</TableHead>
+                            <TableHead>Completed On</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredCourses.map(course => (
+                            <TableRow key={course.id}>
+                                <TableCell>
+                                    <div className="font-medium">{course.title}</div>
+                                    <div className="text-sm text-muted-foreground">{course.description}</div>
+                                </TableCell>
+                                <TableCell>
+                                    <CourseStatusBadge status={course.status} />
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2">
+                                        <Progress value={course.progress} className="w-24" />
+                                        <span>{course.progress}%</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                    {course.completionDate ? format(new Date(course.completionDate), 'PPP') : 'N/A'}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    {course.status === 'Completed' ? (
+                                        <Button variant="outline" size="sm">
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Certificate
+                                        </Button>
+                                    ) : (
+                                        <Button size="sm">
+                                            {course.status === 'In Progress' ? 'Continue' : 'Enroll'}
+                                        </Button>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                         {filteredCourses.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                    No courses found.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
         </CardContent>
       </Card>
     </div>
@@ -177,6 +254,19 @@ const AuditorLearningPage = () => {
 };
 
 const CustomerLearningPage = () => {
+  const allCourses = mockCustomerCourses;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const filteredCourses = useMemo(() => {
+    return allCourses.filter(course => {
+        const term = searchTerm.toLowerCase();
+        const statusMatch = statusFilter === 'all' || course.status === statusFilter;
+        const searchMatch = course.title.toLowerCase().includes(term) || course.description.toLowerCase().includes(term);
+        return statusMatch && searchMatch;
+    });
+  }, [allCourses, searchTerm, statusFilter]);
+
   return (
     <Card>
       <CardHeader>
@@ -187,44 +277,97 @@ const CustomerLearningPage = () => {
           Complete these required training modules to ensure your organization stays compliant.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {mockCustomerCourses.map(course => (
-          <Card key={course.id} className="flex flex-col overflow-hidden">
-            <div className="relative h-40 w-full">
-              <Image
-                src={course.thumbnailUrl}
-                alt={course.title}
-                data-ai-hint="training video"
-                fill
-                className="object-cover"
-              />
+      <CardContent>
+         <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search trainings..."
+                    className="pl-8 sm:w-full"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
             </div>
-            <CardHeader>
-              <CardTitle>{course.title}</CardTitle>
-              <CardDescription>{course.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow space-y-4">
-              <div className="flex items-center text-sm text-muted-foreground gap-4">
-                <div className="flex items-center gap-1.5">
-                  <Clock3 className="h-4 w-4" />
-                  <span>{course.duration}</span>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1 text-sm">
-                  <span className="text-muted-foreground">Progress</span>
-                  <span className="font-medium">{course.progress}%</span>
-                </div>
-                <Progress value={course.progress} />
-              </div>
-            </CardContent>
-            <div className="p-6 pt-0">
-              <Button className="w-full" disabled={course.status === 'Completed'}>
-                {course.status === 'Completed' ? 'Completed' : course.status === 'In Progress' ? 'Continue Training' : 'Start Training'}
-              </Button>
-            </div>
-          </Card>
-        ))}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="Not Started">Not Started</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                </SelectContent>
+            </Select>
+            <Button variant="outline">
+                <FileDown className="mr-2 h-4 w-4" />
+                Export History
+            </Button>
+        </div>
+        <div className="border rounded-md">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Training Module</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Completed On</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {filteredCourses.map(course => (
+                        <TableRow key={course.id}>
+                            <TableCell>
+                                <div className="flex items-center gap-4">
+                                     <Image
+                                        src={course.thumbnailUrl}
+                                        alt={course.title}
+                                        width={120}
+                                        height={68}
+                                        className="rounded-md object-cover aspect-video"
+                                        data-ai-hint="training video"
+                                    />
+                                    <div>
+                                        <div className="font-medium">{course.title}</div>
+                                        <div className="text-sm text-muted-foreground">{course.description}</div>
+                                    </div>
+                                </div>
+                            </TableCell>
+                            <TableCell>
+                                <CourseStatusBadge status={course.status} />
+                            </TableCell>
+                             <TableCell className="text-muted-foreground">
+                                {course.duration}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                                {course.completionDate ? format(new Date(course.completionDate), 'PPP') : 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                                {course.status === 'Completed' ? (
+                                    <Button variant="outline" size="sm" disabled>
+                                        <Trophy className="mr-2 h-4 w-4" />
+                                        Completed
+                                    </Button>
+                                ) : (
+                                    <Button size="sm">
+                                        {course.status === 'In Progress' ? 'Continue' : 'Start Training'}
+                                    </Button>
+                                )}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                    {filteredCourses.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={5} className="h-24 text-center">
+                                No trainings found.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </div>
       </CardContent>
     </Card>
   );

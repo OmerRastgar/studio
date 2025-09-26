@@ -352,23 +352,26 @@ export const mockLearningData = {
     {
       id: 'course-1',
       title: 'Advanced Compliance Documentation',
-      description: 'Learn to write clear, concise, and defensible audit observations. Recommended due to "Vague Observation" errors.',
+      description: 'Learn to write clear, concise, and defensible audit observations.',
       status: 'In Progress' as const,
       progress: 60,
+      completionDate: null,
     },
     {
       id: 'course-2',
       title: 'Evidence Management Best Practices',
-      description: 'Master the art of linking and managing evidence to support your audit findings effectively.',
+      description: 'Master the art of linking and managing evidence to support your audit findings.',
       status: 'Not Started' as const,
       progress: 0,
+      completionDate: null,
     },
     {
       id: 'course-3',
       title: 'CISSP Certification Prep Course',
-      description: 'Prepare for the industry-standard CISSP certification to enhance your security expertise.',
+      description: 'Prepare for the industry-standard CISSP certification.',
       status: 'Completed' as const,
       progress: 100,
+      completionDate: '2023-08-20T10:00:00Z',
     },
   ]
 };
@@ -382,6 +385,7 @@ export const mockCustomerCourses: CustomerCourse[] = [
     status: 'In Progress' as const,
     progress: 75,
     thumbnailUrl: courseThumbnail,
+    completionDate: null,
   },
   {
     id: 'cust-course-2',
@@ -391,6 +395,7 @@ export const mockCustomerCourses: CustomerCourse[] = [
     status: 'Not Started' as const,
     progress: 0,
     thumbnailUrl: courseThumbnail,
+    completionDate: null,
   },
   {
     id: 'cust-course-3',
@@ -400,5 +405,6 @@ export const mockCustomerCourses: CustomerCourse[] = [
     status: 'Completed' as const,
     progress: 100,
     thumbnailUrl: courseThumbnail,
+    completionDate: '2023-10-15T14:30:00Z',
   },
 ];
