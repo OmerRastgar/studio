@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -346,11 +346,13 @@ export default function ReportsPage() {
                                 <TableCell>
                                     <Popover>
                                         <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
+                                          <div
                                             role="combobox"
-                                            className="w-full justify-between h-auto"
-                                        >
+                                            className={cn(
+                                              buttonVariants({ variant: 'outline', size: 'default' }),
+                                              'w-full justify-between h-auto cursor-pointer flex-wrap'
+                                            )}
+                                          >
                                             <div className="flex gap-1 flex-wrap">
                                                 {row.evidence.length > 0 ? row.evidence.map(evidenceId => {
                                                     const evidence = projectEvidence.find(e => e.id === evidenceId);
@@ -361,7 +363,7 @@ export default function ReportsPage() {
                                                         className="mr-1"
                                                     >
                                                         {evidence?.name}
-                                                        <button
+                                                        <div
                                                             className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -369,13 +371,13 @@ export default function ReportsPage() {
                                                             }}
                                                         >
                                                             <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                                                        </button>
+                                                        </div>
                                                     </Badge>
                                                     );
                                                 }) : <span>Select evidence...</span>}
                                             </div>
                                             <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
+                                          </div>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-[200px] p-0" align="start">
                                         <Command>
@@ -457,3 +459,4 @@ export default function ReportsPage() {
     </>
   );
 }
+    
