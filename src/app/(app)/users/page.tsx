@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -50,6 +51,8 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [roleFilter, setRoleFilter] = React.useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [editingUser, setEditingUser] = React.useState<UserProfile | null>(null);
   const [newUser, setNewUser] = React.useState({ name: '', email: '', role: 'customer' as User['role'] });
   const { toast } = useToast();
 
@@ -91,6 +94,37 @@ export default function UsersPage() {
     toast({
       title: 'User Created',
       description: `${createdUser.name} has been added to the system.`,
+    });
+  };
+
+  const handleEditClick = (user: UserProfile) => {
+    setEditingUser(user);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateUser = () => {
+    if (!editingUser) return;
+
+    if (!editingUser.name || !editingUser.email) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Information',
+        description: 'User name and email cannot be empty.',
+      });
+      return;
+    }
+
+    setUsers(prevUsers =>
+      prevUsers.map(user =>
+        user.email === editingUser.email ? editingUser : user
+      )
+    );
+
+    setIsEditDialogOpen(false);
+    setEditingUser(null);
+    toast({
+      title: 'User Updated',
+      description: `${editingUser.name}'s information has been updated.`,
     });
   };
 
@@ -241,7 +275,10 @@ export default function UsersPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem><Edit className="mr-2 h-4 w-4" />Edit User</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleEditClick(user)}>
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Edit User
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem><KeyRound className="mr-2 h-4 w-4" />Reset Password</DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem className="text-destructive">
@@ -257,7 +294,63 @@ export default function UsersPage() {
             </TableBody>
             </Table>
         </div>
+        {/* Edit User Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit User</DialogTitle>
+                    <DialogDescription>
+                        Update the user's information and role.
+                    </DialogDescription>
+                </DialogHeader>
+                {editingUser && (
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="edit-user-name" className="text-right">Name</Label>
+                            <Input
+                                id="edit-user-name"
+                                value={editingUser.name}
+                                onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                                className="col-span-3"
+                            />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="edit-user-email" className="text-right">Email</Label>
+                            <Input
+                                id="edit-user-email"
+                                type="email"
+                                value={editingUser.email}
+                                disabled // Typically email is not editable as it's a primary identifier
+                                className="col-span-3"
+                            />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="edit-user-role" className="text-right">Role</Label>
+                            <Select
+                                value={editingUser.role}
+                                onValueChange={(value: User['role']) => setEditingUser({ ...editingUser, role: value })}
+                            >
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Select a role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {userRoles.map(role => (
+                                        <SelectItem key={role} value={role} className="capitalize">{role}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                )}
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleUpdateUser}>Save Changes</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
 }
+
+    
