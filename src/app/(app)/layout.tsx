@@ -94,7 +94,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <ShieldCheck className="w-8 h-8 text-primary" />
                 <h2 className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">AuditAce</h2>
               </div>
-               <SidebarTrigger className="hidden md:flex" />
             </div>
           </SidebarHeader>
           <SidebarContent>
