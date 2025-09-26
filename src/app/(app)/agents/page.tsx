@@ -334,7 +334,7 @@ export default function AgentsPage() {
                         <div className='space-y-2'>
                             <h4 className="font-semibold">Installation Instructions</h4>
                             <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
-                                <li>Download the <code>AuditAceAgent.msi</code> installer.</li>
+                                <li>Download the <code>AuditGarAgent.msi</code> installer.</li>
                                 <li>Run the installer with administrator privileges.</li>
                                 <li>Follow the on-screen instructions to complete the installation.</li>
                                 <li>The agent will start automatically and register with the server.</li>
@@ -357,7 +357,7 @@ export default function AgentsPage() {
                             <div className='space-y-2'>
                             <h4 className="font-semibold">Installation Instructions</h4>
                             <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
-                                <li>Download the <code>AuditAceAgent.pkg</code> file.</li>
+                                <li>Download the <code>AuditGarAgent.pkg</code> file.</li>
                                 <li>Open the installer package and follow the prompts.</li>
                                 <li>You may need to grant permissions in System Settings {'>'} Privacy & Security.</li>
                                 <li>The agent will launch upon successful installation.</li>
@@ -385,9 +385,9 @@ export default function AgentsPage() {
                         </div>
                         <div className='space-y-2'>
                             <h4 className="font-semibold">Installation Instructions (Debian/Ubuntu)</h4>
-                            <CodeBlock text="sudo dpkg -i AuditAceAgent.deb" />
+                            <CodeBlock text="sudo dpkg -i AuditGarAgent.deb" />
                                 <h4 className="font-semibold pt-2">Installation Instructions (CentOS/Fedora)</h4>
-                            <CodeBlock text="sudo rpm -i AuditAceAgent.rpm" />
+                            <CodeBlock text="sudo rpm -i AuditGarAgent.rpm" />
                         </div>
                     </CardContent>
                 </Card>

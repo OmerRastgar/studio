@@ -21,7 +21,7 @@ function ProfileSettings() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" defaultValue="admin@auditace.com" />
+          <Input id="email" type="email" defaultValue="admin@auditgar.com" />
         </div>
         <Button>Save Changes</Button>
       </CardContent>
