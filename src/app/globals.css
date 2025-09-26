@@ -87,40 +87,48 @@
 
 /* Custom Intro.js styles */
 .custom-tooltip {
-  --intro-bg-color: hsl(var(--card));
-  --intro-text-color: hsl(var(--card-foreground));
-  --intro-btn-color: hsl(var(--primary-foreground));
-  --intro-btn-bg-color: hsl(var(--primary));
-  --intro-btn-hover-bg-color: hsl(var(--primary) / 0.9);
-  
-  background-color: var(--intro-bg-color);
-  color: var(--intro-text-color);
-  padding: 1rem;
-  border-radius: var(--radius);
+  background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
+  color: hsl(var(--card-foreground));
+  border-radius: var(--radius);
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  max-width: 350px;
 }
 
 .introjs-tooltiptext {
-  color: var(--intro-text-color);
+  color: hsl(var(--card-foreground));
+  line-height: 1.5;
 }
 
 .introjs-button {
-  background-color: var(--intro-btn-bg-color);
-  color: var(--intro-btn-color) !important;
   border-radius: var(--radius);
   padding: 0.5rem 1rem;
   text-shadow: none;
   font-weight: 500;
   transition: background-color 0.2s;
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground)) !important;
 }
 
 .introjs-button:hover {
-  background-color: var(--intro-btn-hover-bg-color);
+  background-color: hsl(var(--primary) / 0.9);
 }
 
 .introjs-button.introjs-disabled {
     background-color: hsl(var(--muted));
     color: hsl(var(--muted-foreground)) !important;
     cursor: not-allowed;
+}
+
+.introjs-prevbutton {
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground)) !important;
+}
+
+.introjs-prevbutton:hover {
+    background-color: hsl(var(--secondary) / 0.9);
+}
+
+.introjs-progressbar {
+    background-color: hsl(var(--primary));
 }

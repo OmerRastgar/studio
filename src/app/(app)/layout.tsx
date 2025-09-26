@@ -32,7 +32,7 @@ import { usePathname } from 'next/navigation';
 import { ThemeProvider } from '@/components/providers';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import { Guide, GuideProvider } from '@/components/guide';
+import { Guide, GuideProvider, useGuide } from '@/components/guide';
 
 
 // Mock user data for layout
@@ -65,7 +65,7 @@ function Nav() {
   return (
     <SidebarMenu>
       {navItems.map((item) => (
-        <SidebarMenuItem key={item.href} data-tour-id={item.title.toLowerCase().replace(' ', '-')}>
+        <SidebarMenuItem key={item.href} data-tour-id={item.title.toLowerCase().replace(/\\s+/g, '-')}>
           <SidebarMenuButton
             asChild
             isActive={pathname.startsWith(item.href)}
@@ -82,10 +82,20 @@ function Nav() {
   );
 }
 
+function HeaderWrapper({ user, pageTitle }: { user: User; pageTitle: string }) {
+  const { setTourEnabled, setInitialStep } = useGuide();
+  const startTour = () => {
+    setInitialStep(0);
+    setTourEnabled(true);
+  };
+  return <Header user={user} pageTitle={pageTitle} onStartTour={startTour} />;
+}
+
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const pageTitle =
-    pathname.split('/').pop()?.replace('-', ' ')?.replace(/\b\w/g, (l) => l.toUpperCase()) ||
+    pathname.split('/').pop()?.replace('-', ' ')?.replace(/\\b\\w/g, (l) => l.toUpperCase()) ||
     'Dashboard';
   const [tourEnabled, setTourEnabled] = useState(false);
   const [initialStep, setInitialStep] = useState(0);
@@ -97,7 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <GuideProvider setTourEnabled={setTourEnabled}>
+      <GuideProvider setTourEnabled={setTourEnabled} setInitialStep={setInitialStep}>
         <SidebarProvider>
           <Sidebar>
             <SidebarHeader className="p-4">
@@ -132,7 +142,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               initialStep={initialStep}
               setInitialStep={setInitialStep}
             />
-            <Header user={user} pageTitle={pageTitle} />
+            <HeaderWrapper user={user} pageTitle={pageTitle} />
             <main className="flex-1 p-4 md:p-6" data-tour-id="main-content">
               {children}
             </main>

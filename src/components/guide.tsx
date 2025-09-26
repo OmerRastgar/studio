@@ -1,14 +1,16 @@
 'use client';
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect, useRef } from 'react';
 import { Steps } from 'intro.js-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { steps as allSteps } from '@/lib/guide-steps';
 
 const GuideContext = createContext<{
   setTourEnabled: (enabled: boolean) => void;
+  setInitialStep: (step: number) => void;
 }>({
   setTourEnabled: () => {},
+  setInitialStep: () => {},
 });
 
 export const useGuide = () => useContext(GuideContext);
@@ -16,12 +18,14 @@ export const useGuide = () => useContext(GuideContext);
 export const GuideProvider = ({
   children,
   setTourEnabled,
+  setInitialStep
 }: {
   children: React.ReactNode;
   setTourEnabled: (enabled: boolean) => void;
+  setInitialStep: (step: number) => void;
 }) => {
   return (
-    <GuideContext.Provider value={{ setTourEnabled }}>
+    <GuideContext.Provider value={{ setTourEnabled, setInitialStep }}>
       {children}
     </GuideContext.Provider>
   );
@@ -42,6 +46,11 @@ export function Guide({
 }: GuideProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const isNavigating = useRef(false);
+
+  useEffect(() => {
+    isNavigating.current = false;
+  }, [pathname]);
 
   const onExit = () => {
     setTourEnabled(false);
@@ -49,22 +58,31 @@ export function Guide({
   };
 
   const onBeforeChange = (nextStepIndex: number) => {
-    const currentStep = allSteps[nextStepIndex];
-    if (currentStep && currentStep.path && currentStep.path !== pathname) {
-      router.push(currentStep.path);
-      setTourEnabled(false);
-      setTimeout(() => {
-        setInitialStep(nextStepIndex);
-        setTourEnabled(true);
-      }, 500);
-      return false;
+    if (isNavigating.current) {
+        return false;
     }
+    
+    // Check if a step is provided (it can be null)
+    if (nextStepIndex === null || nextStepIndex === undefined) {
+      return true;
+    }
+
+    const nextStep = allSteps[nextStepIndex];
+    if (nextStep && nextStep.path && nextStep.path !== pathname) {
+      isNavigating.current = true;
+      router.push(nextStep.path);
+      
+      // We need to keep track of the step we are going to
+      setInitialStep(nextStepIndex);
+      return false; // Prevent intro.js from moving to the next step immediately
+    }
+    
     return true;
   };
 
   return (
     <Steps
-      enabled={tourEnabled}
+      enabled={tourEnabled && !isNavigating.current}
       steps={allSteps}
       initialStep={initialStep}
       onExit={onExit}

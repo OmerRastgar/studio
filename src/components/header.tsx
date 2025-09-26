@@ -22,6 +22,7 @@ import { useGuide } from './guide';
 interface HeaderProps {
   user: User;
   pageTitle: string;
+  onStartTour: () => void;
 }
 
 const mockNotifications = [
@@ -31,8 +32,7 @@ const mockNotifications = [
 ];
 
 
-export function Header({ user, pageTitle }: HeaderProps) {
-  const { setTourEnabled } = useGuide();
+export function Header({ user, pageTitle, onStartTour }: HeaderProps) {
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -49,7 +49,7 @@ export function Header({ user, pageTitle }: HeaderProps) {
       <div className="ml-auto flex items-center gap-2 md:gap-4">
         <ThemeToggle />
 
-        <Button variant="ghost" className="h-10 w-10 rounded-full" onClick={() => setTourEnabled(true)}>
+        <Button variant="ghost" className="h-10 w-10 rounded-full" onClick={onStartTour}>
           <HelpCircle className="h-5 w-5" />
           <span className="sr-only">Start Tour</span>
         </Button>
