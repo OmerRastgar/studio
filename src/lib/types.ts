@@ -52,6 +52,15 @@ export type Auditor = {
     certifications: string[];
 }
 
+export type Agent = {
+  id: string;
+  name: string;
+  platform: 'windows' | 'macos' | 'linux';
+  status: 'Active' | 'Inactive' | 'Pending';
+  lastSync: string;
+  version: string;
+};
+
 export type NavItem = {
   href: string;
   title: string;

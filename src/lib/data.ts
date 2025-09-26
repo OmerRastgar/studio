@@ -1,4 +1,4 @@
-import type { Evidence, AuditLog, Project, Auditor, UserProfile } from '@/lib/types';
+import type { Evidence, AuditLog, Project, Auditor, UserProfile, Agent } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const userAvatar1 = PlaceHolderImages.find(img => img.id === 'user-avatar-1')?.imageUrl || '';
@@ -85,6 +85,50 @@ export const mockAuditors: Auditor[] = [
         certifications: ['CISA', 'CISM', 'CISSP'],
     },
 ];
+
+export const mockAgents: Agent[] = [
+  {
+    id: 'AGENT-001',
+    name: 'Primary DC Server',
+    platform: 'windows',
+    status: 'Active',
+    lastSync: new Date(Date.now() - 1.8e+6).toISOString(),
+    version: '1.2.3',
+  },
+  {
+    id: 'AGENT-002',
+    name: 'Design Team iMac',
+    platform: 'macos',
+    status: 'Active',
+    lastSync: new Date(Date.now() - 3.6e+6).toISOString(),
+    version: '1.2.3',
+  },
+  {
+    id: 'AGENT-003',
+    name: 'Ubuntu Jenkins Runner',
+    platform: 'linux',
+    status: 'Inactive',
+    lastSync: new Date(Date.now() - 8.64e+7).toISOString(),
+    version: '1.1.0',
+  },
+  {
+    id: 'AGENT-004',
+    name: 'Staging Web Server',
+    platform: 'linux',
+    status: 'Pending',
+    lastSync: new Date(Date.now() - 6.048e+8).toISOString(),
+    version: '1.2.0',
+  },
+  {
+    id: 'AGENT-005',
+    name: 'Marketing Laptop',
+    platform: 'windows',
+    status: 'Active',
+    lastSync: new Date(Date.now() - 6e4).toISOString(),
+    version: '1.2.3',
+  },
+];
+
 
 export const mockEvidence: Evidence[] = [
   {
