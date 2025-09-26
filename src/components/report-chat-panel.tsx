@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -34,7 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Bot, User, Edit, Users, Link as LinkIcon } from 'lucide-react';
+import { Send, Bot, User, Edit, Users, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import type { ReportRow } from '@/app/(app)/reports/page';
@@ -103,6 +104,7 @@ export function ReportChatPanel({
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode>('ai');
+  const [isAiThinking, setIsAiThinking] = useState(false);
 
   const currentMessages = chatMode === 'ai' ? aiMessages : teamMessages;
   const setCurrentMessages = chatMode === 'ai' ? setAiMessages : setTeamMessages;
@@ -121,14 +123,24 @@ export function ReportChatPanel({
     setInputValue('');
 
     if (chatMode === 'ai') {
+        setIsAiThinking(true);
         // Simulate AI response
         setTimeout(() => {
+          const controlRefMatch = userMessage.text.match(/\[Ref: (.*?)\]/);
+          let aiText = "That's a great question. Let me look into that for you...";
+
+          if (controlRefMatch) {
+            const controlName = controlRefMatch[1];
+            aiText = `Regarding the control "${controlName}", the current best practice is to ensure all evidence is dated within the audit period. Can I help you draft a better observation?`;
+          }
+
           const aiResponse: Message = {
             id: `msg-${Date.now() + 1}`,
-            text: "That's a great question. Let me look into that for you...",
+            text: aiText,
             sender: 'ai',
           };
           setAiMessages(prev => [...prev, aiResponse]);
+          setIsAiThinking(false);
         }, 1500);
     }
   };
@@ -283,47 +295,56 @@ export function ReportChatPanel({
                   )}
                 </div>
               ))}
+               {isAiThinking && (
+                 <div className="flex items-start gap-3 justify-start">
+                    <Avatar className="h-8 w-8 flex-shrink-0 bg-primary text-primary-foreground">
+                        <AvatarFallback>AI</AvatarFallback>
+                    </Avatar>
+                    <div className="max-w-[75%] rounded-lg p-3 text-sm bg-muted flex items-center">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                 </div>
+                )}
             </div>
           </ScrollArea>
           <SheetFooter className="p-6 bg-background border-t">
             <form onSubmit={handleSendMessage} className="flex w-full space-x-2">
-              {chatMode === 'team' && (
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" size="icon">
-                            <LinkIcon className="h-4 w-4" />
-                            <span className="sr-only">Reference Control</span>
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80">
-                        <div className="grid gap-4">
-                            <h4 className="font-medium leading-none">Reference a Control</h4>
-                            <p className="text-sm text-muted-foreground">
-                                Select a control to reference in your message.
-                            </p>
-                            <div className="grid gap-2">
-                                {reportRows.length > 0 ? reportRows.map(row => (
-                                    <Button 
-                                        key={row.id} 
-                                        variant="ghost" 
-                                        className="justify-start"
-                                        onClick={() => handleReferenceControl(row.control)}
-                                    >
-                                        {row.control || `Row ID: ${row.id.substring(0,6)}`}
-                                    </Button>
-                                )) : <p className="text-sm text-muted-foreground">No controls in the report yet.</p>}
-                            </div>
-                        </div>
-                    </PopoverContent>
-                </Popover>
-              )}
+              <Popover>
+                  <PopoverTrigger asChild>
+                      <Button variant="outline" size="icon">
+                          <LinkIcon className="h-4 w-4" />
+                          <span className="sr-only">Reference Control</span>
+                      </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80">
+                      <div className="grid gap-4">
+                          <h4 className="font-medium leading-none">Reference a Control</h4>
+                          <p className="text-sm text-muted-foreground">
+                              Select a control to reference in your message.
+                          </p>
+                          <div className="grid gap-2">
+                              {reportRows.length > 0 ? reportRows.map(row => (
+                                  <Button 
+                                      key={row.id} 
+                                      variant="ghost" 
+                                      className="justify-start"
+                                      onClick={() => handleReferenceControl(row.control)}
+                                  >
+                                      {row.control || `Row ID: ${row.id.substring(0,6)}`}
+                                  </Button>
+                              )) : <p className="text-sm text-muted-foreground">No controls in the report yet.</p>}
+                          </div>
+                      </div>
+                  </PopoverContent>
+              </Popover>
               <Input
                 type="text"
                 placeholder={chatMode === 'ai' ? "Ask the AI..." : "Message your team..."}
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
+                disabled={isAiThinking}
               />
-              <Button type="submit" size="icon">
+              <Button type="submit" size="icon" disabled={isAiThinking}>
                 <Send className="h-4 w-4" />
                 <span className="sr-only">Send</span>
               </Button>
