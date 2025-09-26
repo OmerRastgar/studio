@@ -377,10 +377,10 @@ const CustomerLearningPage = () => {
 export default function LearningPage() {
   // In a real app, this would come from an auth context or API call
   const currentUser: User = {
-    name: 'Customer Client',
-    email: 'client@customer.com',
+    name: 'Admin Auditor',
+    email: 'admin@auditace.com',
     avatarUrl: '...',
-    role: 'customer',
+    role: 'auditor',
   };
 
   if (currentUser.role === 'customer') {
