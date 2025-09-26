@@ -4,7 +4,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useReducer, useMemo } from 'react';
 import Joyride, { CallBackProps, STATUS, EVENTS, Step } from 'react-joyride';
 import { useRouter, usePathname } from 'next/navigation';
-import { mainTourSteps, getPathForStep, reportGenerationTourSteps, dashboardTourSteps } from '@/lib/guide-steps';
+import { mainTourSteps, getPathForStep } from '@/lib/guide-steps';
 
 interface TourState {
   run: boolean;
