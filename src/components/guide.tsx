@@ -79,12 +79,12 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
     }, []);
     
     const startTour = useCallback((tourSteps: Step[], id: string, force: boolean = false) => {
-        const tourCompleted = isMounted ? localStorage.getItem(`${id}Completed`) : 'true';
+        if (!isMounted) return;
+        
+        const tourCompleted = localStorage.getItem(`${id}Completed`);
 
-        // Always stop the current tour before starting a new one if forced
         if (force) {
             dispatch({ type: 'STOP_TOUR' }); 
-            // Use a timeout to ensure the state updates before starting the new tour
             setTimeout(() => {
                 dispatch({ type: 'START_TOUR', payload: { steps: tourSteps, tourId: id } });
             }, 100);
@@ -97,16 +97,15 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
     }, [isMounted]);
     
     useEffect(() => {
-        if (isMounted) {
-            // Check for tour state in session storage for multi-page navigation
-            const sessionTourState = sessionStorage.getItem('tourState');
-            if (sessionTourState) {
-                const { tourId, stepIndex, steps } = JSON.parse(sessionTourState);
-                sessionStorage.removeItem('tourState');
-                dispatch({ type: 'START_TOUR', payload: { steps, tourId, stepIndex } });
-            } else {
-                startTour(mainTourSteps, 'mainTour');
-            }
+        if (!isMounted) return;
+
+        const sessionTourState = sessionStorage.getItem('tourState');
+        if (sessionTourState) {
+            const { tourId, stepIndex, steps } = JSON.parse(sessionTourState);
+            sessionStorage.removeItem('tourState');
+            dispatch({ type: 'START_TOUR', payload: { steps, tourId, stepIndex } });
+        } else {
+            startTour(mainTourSteps, 'mainTour');
         }
     }, [isMounted, startTour]);
 
@@ -129,7 +128,6 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
                 const nextPath = getPathForStep(nextStep.target);
 
                 if (nextPath && nextPath !== pathname) {
-                    // Save tour state to session storage before navigating
                     const tourStateToSave = {
                         tourId: state.tourId,
                         stepIndex: nextStepIndex,
@@ -137,7 +135,7 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
                     };
                     sessionStorage.setItem('tourState', JSON.stringify(tourStateToSave));
                     router.push(nextPath);
-                    dispatch({ type: 'STOP_TOUR' }); // Stop tour on current page
+                    dispatch({ type: 'STOP_TOUR' }); 
                 } else {
                      dispatch({ type: 'SET_STEP', payload: nextStepIndex });
                 }
