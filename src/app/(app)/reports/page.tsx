@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2 } from 'lucide-react';
+import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag } from 'lucide-react';
 import { mockProjects, mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ReportChatPanel } from '@/components/report-chat-panel';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 export type ReportRow = {
   id: string;
@@ -25,9 +27,10 @@ export type ReportRow = {
   evidence: string[];
   analysis: string;
   isGenerating: boolean;
+  isFlagged: boolean;
 };
 
-const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating'>[] = [
+const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged'>[] = [
   {
     control: 'Access Control Policy',
     observation: 'The company has a documented access control policy that is reviewed annually.',
@@ -70,6 +73,7 @@ export default function ReportsPage() {
         ...row,
         id: `sample-${index}-${Date.now()}`,
         isGenerating: false,
+        isFlagged: false,
       }))
     );
     toast({
@@ -88,6 +92,7 @@ export default function ReportsPage() {
         evidence: [],
         analysis: '',
         isGenerating: false,
+        isFlagged: false,
       },
     ]);
   };
@@ -150,6 +155,9 @@ export default function ReportsPage() {
     setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, observation: newObservation } : row)));
   };
 
+  const toggleFlag = (rowId: string) => {
+    setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, isFlagged: !row.isFlagged } : row)));
+  };
 
   return (
     <>
@@ -184,6 +192,7 @@ export default function ReportsPage() {
       </CardHeader>
       <CardContent>
         <div className="border rounded-md overflow-x-auto">
+            <TooltipProvider>
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -207,14 +216,29 @@ export default function ReportsPage() {
                         </TableRow>
                     ) : (
                         reportRows.map(row => (
-                            <TableRow key={row.id} className={cn("align-top transition-colors duration-500", highlightedRow === row.id ? 'bg-primary/20' : '')}>
+                            <TableRow key={row.id} className={cn("align-top transition-colors duration-500", 
+                                highlightedRow === row.id ? 'bg-primary/20' : '',
+                                row.isFlagged ? 'bg-orange-100 dark:bg-orange-900/30' : ''
+                            )}>
                                 <TableCell>
+                                    <div className='flex items-start gap-2'>
+                                     {row.isFlagged && (
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <Flag className="h-4 w-4 mt-2 text-orange-500" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>This row is flagged for review.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
                                     <Textarea 
                                         placeholder="e.g., Access Control" 
                                         value={row.control} 
                                         onChange={(e) => handleControlChange(row.id, e.target.value)}
                                         className="min-h-[100px]" 
                                     />
+                                    </div>
                                 </TableCell>
                                 <TableCell>
                                      <Textarea 
@@ -262,9 +286,21 @@ export default function ReportsPage() {
                                             <Sparkles className="mr-2 h-4 w-4" />
                                             Generate
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeRow(row.id)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        <div className="flex items-center">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="ghost" size="icon" onClick={() => toggleFlag(row.id)}>
+                                                        <Flag className={cn("h-4 w-4", row.isFlagged ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{row.isFlagged ? 'Unflag' : 'Flag'} for review</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeRow(row.id)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -272,6 +308,7 @@ export default function ReportsPage() {
                     )}
                 </TableBody>
             </Table>
+            </TooltipProvider>
         </div>
         <div className="flex justify-start mt-4">
             <Button variant="outline" onClick={addRow}>
