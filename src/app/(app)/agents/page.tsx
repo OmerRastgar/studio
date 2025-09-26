@@ -17,6 +17,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,10 +37,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 import { mockAgents } from '@/lib/data';
 import type { Agent } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, PlusCircle, Search, Settings, Download, Trash2, Bot } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Search, Settings, Download, Trash2, Bot, Copy } from 'lucide-react';
 
 const PlatformIcon = ({ platform }: { platform: Agent['platform'] }) => {
   switch (platform) {
@@ -68,10 +78,35 @@ const StatusBadge = ({ status }: { status: Agent['status'] }) => {
   return <Badge variant={variant} className="capitalize">{status}</Badge>;
 };
 
+const CodeBlock = ({ text }: { text: string }) => {
+    const { toast } = useToast();
+    const handleCopy = () => {
+        navigator.clipboard.writeText(text);
+        toast({ title: "Copied!", description: "Installation command copied to clipboard." });
+    };
+
+    return (
+        <div className="relative font-mono text-sm p-3 bg-muted rounded-md">
+            <pre className="whitespace-pre-wrap">{text}</pre>
+            <Button
+                size="icon"
+                variant="ghost"
+                className="absolute top-2 right-2 h-7 w-7"
+                onClick={handleCopy}
+            >
+                <Copy className="h-4 w-4" />
+                <span className="sr-only">Copy</span>
+            </Button>
+        </div>
+    );
+};
+
+
 export default function AgentsPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [platformFilter, setPlatformFilter] = React.useState('all');
   const [statusFilter, setStatusFilter] = React.useState('all');
+  const { toast } = useToast();
 
   const filteredAgents = React.useMemo(() => {
     return mockAgents.filter(agent => {
@@ -82,6 +117,13 @@ export default function AgentsPage() {
         return platformMatch && statusMatch && searchMatch;
     });
   }, [searchTerm, platformFilter, statusFilter]);
+
+  const handleDownload = (platform: string) => {
+    toast({
+        title: "Download Started",
+        description: `Downloading agent for ${platform}...`
+    })
+  }
   
   return (
     <Card>
@@ -91,10 +133,101 @@ export default function AgentsPage() {
                 <CardTitle className="font-headline">Agent Management</CardTitle>
                 <CardDescription>Configure, deploy, and monitor your compliance agents.</CardDescription>
             </div>
-            <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Deploy Agent
-            </Button>
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Deploy Agent
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Deploy New Agent</DialogTitle>
+                        <DialogDescription>
+                            Select a platform to download the agent and view installation instructions.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Tabs defaultValue="windows" className="w-full">
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="windows">Windows</TabsTrigger>
+                            <TabsTrigger value="macos">macOS</TabsTrigger>
+                            <TabsTrigger value="linux">Linux</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="windows">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Windows Agent</CardTitle>
+                                    <CardDescription>Download the installer for Windows Server and Desktop.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <Button onClick={() => handleDownload('Windows')} className="w-full">
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Download Agent (.msi)
+                                    </Button>
+                                    <div className='space-y-2'>
+                                        <h4 className="font-semibold">Installation Instructions</h4>
+                                        <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                                            <li>Download the <code>AuditAceAgent.msi</code> installer.</li>
+                                            <li>Run the installer with administrator privileges.</li>
+                                            <li>Follow the on-screen instructions to complete the installation.</li>
+                                            <li>The agent will start automatically and register with the server.</li>
+                                        </ol>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                         <TabsContent value="macos">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>macOS Agent</CardTitle>
+                                    <CardDescription>Download the installer for macOS.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <Button onClick={() => handleDownload('macOS')} className="w-full">
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Download Agent (.pkg)
+                                    </Button>
+                                     <div className='space-y-2'>
+                                        <h4 className="font-semibold">Installation Instructions</h4>
+                                        <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                                            <li>Download the <code>AuditAceAgent.pkg</code> file.</li>
+                                            <li>Open the installer package and follow the prompts.</li>
+                                            <li>You may need to grant permissions in System Settings {'>'} Privacy & Security.</li>
+                                            <li>The agent will launch upon successful installation.</li>
+                                        </ol>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                         <TabsContent value="linux">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Linux Agent</CardTitle>
+                                    <CardDescription>Download the agent for Debian-based or RPM-based systems.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Button onClick={() => handleDownload('Linux (.deb)')} className="w-full">
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Download (.deb)
+                                        </Button>
+                                        <Button onClick={() => handleDownload('Linux (.rpm)')} className="w-full">
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Download (.rpm)
+                                        </Button>
+                                    </div>
+                                    <div className='space-y-2'>
+                                        <h4 className="font-semibold">Installation Instructions (Debian/Ubuntu)</h4>
+                                        <CodeBlock text="sudo dpkg -i AuditAceAgent.deb" />
+                                         <h4 className="font-semibold pt-2">Installation Instructions (CentOS/Fedora)</h4>
+                                        <CodeBlock text="sudo rpm -i AuditAceAgent.rpm" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
+                </DialogContent>
+            </Dialog>
         </div>
       </CardHeader>
       <CardContent>
@@ -207,3 +340,5 @@ export default function AgentsPage() {
     </Card>
   );
 }
+
+    
