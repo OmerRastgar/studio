@@ -10,6 +10,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
   SidebarInset,
+  SidebarTrigger
 } from '@/components/ui/sidebar';
 import { Header } from '@/components/header';
 import {
@@ -86,9 +87,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarProvider>
         <Sidebar>
           <SidebarHeader className="p-4">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-8 h-8 text-primary" />
-              <h2 className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">AuditAce</h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-8 h-8 text-primary" />
+                <h2 className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">AuditAce</h2>
+              </div>
+               <SidebarTrigger className="hidden md:flex" />
             </div>
           </SidebarHeader>
           <SidebarContent>
