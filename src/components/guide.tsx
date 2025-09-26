@@ -4,6 +4,17 @@
 import { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
 import Joyride, { CallBackProps, STATUS, Step, ACTIONS } from 'react-joyride';
 import { mainTourSteps } from '@/lib/guide-steps';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { HelpCircle } from 'lucide-react';
 
 interface TourState {
   run: boolean;
@@ -66,6 +77,7 @@ export const useGuide = () => useContext(TourContext);
 export function GuideProvider({ children }: { children: React.ReactNode }) {
     const [state, dispatch] = useReducer(tourReducer, initialState);
     const [isMounted, setIsMounted] = useState(false);
+    const [showStartDialog, setShowStartDialog] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
@@ -75,7 +87,7 @@ export function GuideProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) {
             const mainTourCompleted = localStorage.getItem('mainTourCompleted');
             if (mainTourCompleted !== 'true') {
-                startTour(mainTourSteps, 'mainTour');
+                setShowStartDialog(true);
             }
         }
     }, [isMounted]);
@@ -112,53 +124,84 @@ export function GuideProvider({ children }: { children: React.ReactNode }) {
         }
     };
     
+    const handleStartTutorial = () => {
+        setShowStartDialog(false);
+        startTour(mainTourSteps, 'mainTour', true);
+    }
+
+    const handleSkipTutorial = () => {
+        setShowStartDialog(false);
+        localStorage.setItem('mainTourCompleted', 'true');
+    }
+
     return (
         <TourContext.Provider value={{ startTour }}>
             {children}
-            {isMounted && <Joyride
-                run={state.run}
-                steps={state.steps}
-                stepIndex={state.stepIndex}
-                continuous
-                showProgress
-                showSkipButton
-                callback={handleJoyrideCallback}
-                styles={{
-                    options: {
-                      arrowColor: 'hsl(var(--card))',
-                      zIndex: 10000,
-                    },
-                    tooltip: {
-                      backgroundColor: 'hsl(var(--card))',
-                      color: 'hsl(var(--card-foreground))',
-                      borderRadius: 'var(--radius)',
-                      border: '1px solid hsl(var(--border))',
-                    },
-                    tooltipContainer: {
-                      textAlign: 'left',
-                    },
-                    tooltipContent: {
-                      padding: '1rem',
-                    },
-                    buttonNext: {
-                      backgroundColor: 'hsl(var(--primary))',
-                      color: 'hsl(var(--primary-foreground))',
-                      borderRadius: 'var(--radius)',
-                    },
-                    buttonBack: {
-                      color: 'hsl(var(--muted-foreground))',
-                    },
-                    buttonSkip: {
-                      color: 'hsl(var(--muted-foreground))',
-                    },
-                    buttonClose: {
-                        color: 'hsl(var(--card-foreground))',
-                    },
-                    spotlight: {
-                      borderRadius: 'var(--radius)',
-                    },
-                }}
-            />}
+            {isMounted && (
+                <>
+                    <AlertDialog open={showStartDialog} onOpenChange={setShowStartDialog}>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle className="flex items-center gap-2">
+                                    <HelpCircle className="h-6 w-6" />
+                                    Welcome to CyberGaar!
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Would you like to take a short tutorial to learn about the key features of the platform?
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel onClick={handleSkipTutorial}>Skip</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleStartTutorial}>Start Tutorial</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <Joyride
+                        run={state.run}
+                        steps={state.steps}
+                        stepIndex={state.stepIndex}
+                        continuous
+                        showProgress
+                        showSkipButton
+                        callback={handleJoyrideCallback}
+                        styles={{
+                            options: {
+                              arrowColor: 'hsl(var(--card))',
+                              zIndex: 10000,
+                            },
+                            tooltip: {
+                              backgroundColor: 'hsl(var(--card))',
+                              color: 'hsl(var(--card-foreground))',
+                              borderRadius: 'var(--radius)',
+                              border: '1px solid hsl(var(--border))',
+                            },
+                            tooltipContainer: {
+                              textAlign: 'left',
+                            },
+                            tooltipContent: {
+                              padding: '1rem',
+                            },
+                            buttonNext: {
+                              backgroundColor: 'hsl(var(--primary))',
+                              color: 'hsl(var(--primary-foreground))',
+                              borderRadius: 'var(--radius)',
+                            },
+                            buttonBack: {
+                              color: 'hsl(var(--muted-foreground))',
+                            },
+                            buttonSkip: {
+                              color: 'hsl(var(--muted-foreground))',
+                            },
+                            buttonClose: {
+                                color: 'hsl(var(--card-foreground))',
+                            },
+                            spotlight: {
+                              borderRadius: 'var(--radius)',
+                            },
+                        }}
+                    />
+                </>
+            )}
         </TourContext.Provider>
     );
 };
