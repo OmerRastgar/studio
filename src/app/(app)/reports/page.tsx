@@ -31,9 +31,10 @@ export type ReportRow = {
   analysis: string;
   isGenerating: boolean;
   isFlagged: boolean;
+  isResolved: boolean;
 };
 
-const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged'>[] = [
+const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'isResolved'>[] = [
   {
     control: 'Access Control Policy',
     observation: 'The company has a documented access control policy that is reviewed annually.',
@@ -77,6 +78,7 @@ export default function ReportsPage() {
         id: `sample-${index}-${Date.now()}`,
         isGenerating: false,
         isFlagged: false,
+        isResolved: false,
       }))
     );
     toast({
@@ -96,6 +98,7 @@ export default function ReportsPage() {
         analysis: '',
         isGenerating: false,
         isFlagged: false,
+        isResolved: false,
       },
     ]);
   };
@@ -159,7 +162,11 @@ export default function ReportsPage() {
   };
 
   const toggleFlag = (rowId: string) => {
-    setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, isFlagged: !row.isFlagged } : row)));
+    setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, isFlagged: !row.isFlagged, isResolved: false } : row)));
+  };
+
+  const resolveFlag = (rowId: string) => {
+    setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, isFlagged: false, isResolved: true } : row)));
   };
 
   return (
@@ -266,7 +273,8 @@ export default function ReportsPage() {
                         reportRows.map(row => (
                             <TableRow key={row.id} className={cn("align-top transition-colors duration-500", 
                                 highlightedRow === row.id ? 'bg-primary/20' : '',
-                                row.isFlagged ? 'bg-orange-100 dark:bg-orange-900/30' : ''
+                                row.isFlagged ? 'bg-orange-100 dark:bg-orange-900/30' : '',
+                                row.isResolved ? 'bg-green-100 dark:bg-green-900/30' : ''
                             )}>
                                 <TableCell>
                                     <div className='flex items-start gap-2'>
@@ -286,7 +294,7 @@ export default function ReportsPage() {
                                                         </p>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <Button size="sm" variant="outline" onClick={() => toggleFlag(row.id)}>
+                                                        <Button size="sm" variant="outline" onClick={() => resolveFlag(row.id)}>
                                                             <CheckCircle className="mr-2 h-4 w-4" />
                                                             Resolve
                                                         </Button>
@@ -294,6 +302,25 @@ export default function ReportsPage() {
                                                             <MessageCircle className="mr-2 h-4 w-4" />
                                                             Comment
                                                         </Button>
+                                                    </div>
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
+                                    )}
+                                    {row.isResolved && (
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <button>
+                                                    <CheckCircle className="h-4 w-4 mt-2 text-green-500 cursor-pointer" />
+                                                </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-80">
+                                                <div className="grid gap-4">
+                                                    <div className="space-y-2">
+                                                        <h4 className="font-medium leading-none">Resolved</h4>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            This item was marked as resolved by Admin.
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </PopoverContent>
@@ -355,7 +382,8 @@ export default function ReportsPage() {
                                         </Button>
                                         <div className="flex items-center">
                                             <Button variant="ghost" size="icon" onClick={() => toggleFlag(row.id)}>
-                                                <Flag className={cn("h-4 w-4", row.isFlagged ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
+                                                <Flag className={cn("h-4 w-4", (row.isFlagged || row.isResolved) ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
+                                                 <span className="sr-only">{row.isResolved ? "Re-flag" : "Flag"}</span>
                                             </Button>
                                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeRow(row.id)}>
                                                 <Trash2 className="h-4 w-4" />
