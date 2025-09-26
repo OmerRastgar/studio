@@ -217,7 +217,8 @@ export default function ReportsPage() {
 
         // Flag rows with issues found by the AI
         result.issues.forEach(issue => {
-            toggleFlag(issue.rowId, `AI Suggestion: ${issue.suggestion}`);
+            const comment = `Issue: ${issue.issue}\nSuggestion: ${issue.suggestion}`;
+            toggleFlag(issue.rowId, comment);
         });
         
         toast({
@@ -362,7 +363,7 @@ export default function ReportsPage() {
                                                 <div className="grid gap-4">
                                                     <div className="space-y-2">
                                                         <h4 className="font-medium leading-none">Flagged for Review</h4>
-                                                        <p className="text-sm text-muted-foreground">
+                                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                                                            {row.flagComment || "No comment provided."}
                                                         </p>
                                                     </div>
