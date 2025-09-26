@@ -79,29 +79,39 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
     }, []);
     
     const startTour = useCallback((tourSteps: Step[], id: string, force: boolean = false) => {
-        const tourCompleted = localStorage.getItem(`${id}Completed`);
+        const tourCompleted = isMounted ? localStorage.getItem(`${id}Completed`) : 'true';
 
+        // Always stop the current tour before starting a new one if forced
         if (force) {
-            dispatch({ type: 'STOP_TOUR' }); // Stop any running tour first
+            dispatch({ type: 'STOP_TOUR' }); 
+            // Use a timeout to ensure the state updates before starting the new tour
             setTimeout(() => {
                 dispatch({ type: 'START_TOUR', payload: { steps: tourSteps, tourId: id } });
             }, 100);
             return;
         }
-
+        
         if (tourCompleted !== 'true') {
             dispatch({ type: 'START_TOUR', payload: { steps: tourSteps, tourId: id } });
         }
-    }, []);
+    }, [isMounted]);
     
     useEffect(() => {
         if (isMounted) {
-            startTour(mainTourSteps, 'mainTour');
+            // Check for tour state in session storage for multi-page navigation
+            const sessionTourState = sessionStorage.getItem('tourState');
+            if (sessionTourState) {
+                const { tourId, stepIndex, steps } = JSON.parse(sessionTourState);
+                sessionStorage.removeItem('tourState');
+                dispatch({ type: 'START_TOUR', payload: { steps, tourId, stepIndex } });
+            } else {
+                startTour(mainTourSteps, 'mainTour');
+            }
         }
     }, [isMounted, startTour]);
 
     const handleJoyrideCallback = (data: CallBackProps) => {
-        const { status, type, index, action } = data;
+        const { status, type, index, action, step } = data;
         
         if (([STATUS.FINISHED, STATUS.SKIPPED] as string[]).includes(status) || action === 'close') {
             if (state.tourId) {
@@ -111,23 +121,30 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
             return;
         }
 
-        if (type === EVENTS.STEP_AFTER && (action === 'next' || action === 'prev')) {
-            const nextStepIndex = index + (action === 'prev' ? -1 : 1);
+        if (type === EVENTS.STEP_AFTER && action === 'next') {
+            const nextStepIndex = index + 1;
             const nextStep = state.steps[nextStepIndex];
             
             if (nextStep) {
                 const nextPath = getPathForStep(nextStep.target);
+
                 if (nextPath && nextPath !== pathname) {
-                    dispatch({ type: 'STOP_TOUR' });
+                    // Save tour state to session storage before navigating
+                    const tourStateToSave = {
+                        tourId: state.tourId,
+                        stepIndex: nextStepIndex,
+                        steps: state.steps
+                    };
+                    sessionStorage.setItem('tourState', JSON.stringify(tourStateToSave));
                     router.push(nextPath);
-                    
-                    setTimeout(() => {
-                        dispatch({ type: 'START_TOUR', payload: { steps: state.steps, tourId: state.tourId!, stepIndex: nextStepIndex } });
-                    }, 500); 
+                    dispatch({ type: 'STOP_TOUR' }); // Stop tour on current page
                 } else {
                      dispatch({ type: 'SET_STEP', payload: nextStepIndex });
                 }
             }
+        } else if (type === EVENTS.STEP_AFTER && action === 'prev') {
+             const prevStepIndex = index - 1;
+             dispatch({ type: 'SET_STEP', payload: prevStepIndex });
         }
     };
     

@@ -101,21 +101,17 @@ export const reportGenerationTourSteps: Step[] = [
 
 // Helper to get the path for a given step target
 export const getPathForStep = (target: string | HTMLElement) => {
-    const selector = typeof target === 'string' ? target : (target.dataset.tourId ? `[data-tour-id="${target.dataset.tourId}"]` : '');
+    const selector = typeof target === 'string' ? target : '';
 
     if (!selector) return null;
-
-    if (document.querySelector(selector)) {
-        return null; // Target is on the current page
-    }
 
     if (selector.includes('report-generation') || selector.includes('report-')) return '/reports';
     if (selector.includes('agents')) return '/agents';
     if (selector.includes('learning')) return '/learning';
     if (selector.includes('evidence')) return '/evidence';
     if (selector.includes('users')) return '/users';
-    if (selector.includes('dashboard') || selector.includes('compliance-progress') || selector.includes('stat-cards')) return '/dashboard';
+    if (selector.includes('dashboard') || selector.includes('compliance-progress') || selector.includes('stat-cards') || selector.includes('logo')) return '/dashboard';
     
-    // Default to null if the step isn't found in the mapping.
+    // Default to null if the step isn't found in the mapping or is on the current page.
     return null;
 }
