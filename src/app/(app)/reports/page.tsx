@@ -7,18 +7,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag } from 'lucide-react';
+import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown } from 'lucide-react';
 import { mockProjects, mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
+  DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { ReportChatPanel } from '@/components/report-chat-panel';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export type ReportRow = {
   id: string;
@@ -170,7 +173,7 @@ export default function ReportsPage() {
           </div>
           <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
             <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-full sm:w-[240px]">
+                <SelectTrigger className="w-full sm:w-[200px]">
                     <SelectValue placeholder="Select a project" />
                 </SelectTrigger>
                 <SelectContent>
@@ -179,6 +182,52 @@ export default function ReportsPage() {
                     ))}
                 </SelectContent>
             </Select>
+            <Dialog>
+                <DialogTrigger asChild>
+                     <Button variant="outline">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        New Project
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Create New Project</DialogTitle>
+                        <DialogDescription>
+                            Fill in the details below to create a new project.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="project-name" className="text-right">Name</Label>
+                            <Input id="project-name" placeholder="e.g. Q3 Security Audit" className="col-span-3" />
+                        </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="project-desc" className="text-right">Description</Label>
+                            <Textarea id="project-desc" placeholder="A brief description of the project." className="col-span-3" />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary">Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit">Create Project</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Export
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <DropdownMenuItem>Export as PDF</DropdownMenuItem>
+                    <DropdownMenuItem>Export as DOCX</DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button variant="outline" onClick={() => setIsChatOpen(true)}>
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Chat
@@ -328,3 +377,5 @@ export default function ReportsPage() {
     </>
   );
 }
+
+    
