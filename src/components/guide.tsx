@@ -44,6 +44,7 @@ function tourReducer(state: TourState, action: TourAction): TourState {
     case 'RESET':
       return {
         ...initialState,
+        steps: state.steps, // Keep steps to avoid flash of content
       };
     case 'SET_STEP':
       return {
@@ -89,15 +90,11 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
         }
     }, []);
     
-    const startMainTour = useCallback(() => {
-        startTour(mainTourSteps, 'mainTour');
-    }, [startTour]);
-
     useEffect(() => {
         if (isMounted) {
-            startMainTour();
+            startTour(mainTourSteps, 'mainTour');
         }
-    }, [isMounted, startMainTour]);
+    }, [isMounted, startTour]);
 
     const handleJoyrideCallback = (data: CallBackProps) => {
         const { status, type, index, action, step } = data;
@@ -110,7 +107,7 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
             return;
         }
 
-        if (type === EVENTS.STEP_AFTER) {
+        if (type === EVENTS.STEP_AFTER && (action === 'next' || action === 'prev')) {
             const nextStepIndex = index + (action === 'prev' ? -1 : 1);
             const nextStep = state.steps[nextStepIndex];
             
