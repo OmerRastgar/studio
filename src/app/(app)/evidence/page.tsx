@@ -38,23 +38,34 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
-import { mockEvidence, mockProjects } from '@/lib/data';
+import { mockEvidence, mockProjects, mockAgents } from '@/lib/data';
 import { format } from 'date-fns';
-import { MoreHorizontal, PlusCircle, Trash2, Edit, Eye, FolderArchive } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { MoreHorizontal, PlusCircle, Trash2, Edit, Eye, FolderArchive, X } from 'lucide-react';
+import { useState, useMemo, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function EvidencePage() {
+function EvidencePageComponent() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const agentId = searchParams.get('agentId');
+
     const [evidenceList, setEvidenceList] = useState(mockEvidence);
     const [selectedProject, setSelectedProject] = useState(mockProjects[0].id);
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
     const filteredEvidence = useMemo(() => {
-        return evidenceList.filter(e => e.projectId === selectedProject);
-    }, [evidenceList, selectedProject]);
+        return evidenceList
+            .filter(e => agentId ? e.agentId === agentId : e.projectId === selectedProject);
+    }, [evidenceList, selectedProject, agentId]);
     
     const selectedProjectName = useMemo(() => {
         return mockProjects.find(p => p.id === selectedProject)?.name;
     }, [selectedProject]);
+
+    const agentName = useMemo(() => {
+        if (!agentId) return null;
+        return mockAgents.find(a => a.id === agentId)?.name;
+    }, [agentId]);
 
     const handleDelete = (id: string) => {
         setEvidenceList(evidenceList.filter(e => e.id !== id));
@@ -65,6 +76,10 @@ export default function EvidencePage() {
         setEvidenceList(evidenceList.filter(e => e.projectId !== selectedProject));
     };
 
+    const clearAgentFilter = () => {
+        router.push('/evidence');
+    };
+
   return (
     <>
     <Card>
@@ -72,9 +87,18 @@ export default function EvidencePage() {
         <div>
           <CardTitle className="font-headline">Evidence Locker</CardTitle>
           <CardDescription>Upload, tag, and manage evidence files for your projects.</CardDescription>
+          {agentName && (
+              <div className="flex items-center gap-2 mt-2">
+                 <Badge variant="secondary">Filtering by Agent: {agentName}</Badge>
+                 <Button variant="ghost" size="sm" onClick={clearAgentFilter}>
+                     <X className="mr-2 h-4 w-4" />
+                     Clear Filter
+                 </Button>
+              </div>
+          )}
         </div>
         <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
-           <Select value={selectedProject} onValueChange={setSelectedProject}>
+           <Select value={selectedProject} onValueChange={setSelectedProject} disabled={!!agentId}>
               <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Select a project" />
               </SelectTrigger>
@@ -100,6 +124,7 @@ export default function EvidencePage() {
                 </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Tags</TableHead>
+                <TableHead>Uploaded By</TableHead>
                 <TableHead className="hidden md:table-cell">Uploaded At</TableHead>
                 <TableHead>
                     <span className="sr-only">Actions</span>
@@ -128,6 +153,11 @@ export default function EvidencePage() {
                         </Badge>
                         ))}
                     </div>
+                    </TableCell>
+                    <TableCell>
+                        <Badge variant={evidence.uploadedBy.startsWith('AGENT') ? 'default' : 'outline'}>
+                            {evidence.uploadedBy}
+                        </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                     {format(new Date(evidence.uploadedAt), 'PPP')}
@@ -177,11 +207,11 @@ export default function EvidencePage() {
          {filteredEvidence.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
                 <FolderArchive className="mx-auto h-12 w-12" />
-                <h3 className="mt-2 text-sm font-medium">No evidence found for this project.</h3>
-                <p className="mt-1 text-sm">Get started by uploading some evidence.</p>
+                <h3 className="mt-2 text-sm font-medium">No evidence found.</h3>
+                <p className="mt-1 text-sm">{agentId ? 'This agent has not uploaded any evidence.' : 'Get started by uploading some evidence.'}</p>
             </div>
         )}
-        {filteredEvidence.length > 0 && (
+        {filteredEvidence.length > 0 && !agentId && (
           <div className='flex justify-end pt-6'>
             <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -211,4 +241,12 @@ export default function EvidencePage() {
     </Card>
     </>
   );
+}
+
+export default function EvidencePage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <EvidencePageComponent />
+        </Suspense>
+    );
 }

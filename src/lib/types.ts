@@ -20,6 +20,7 @@ export type Project = {
 export type Evidence = {
   id: string;
   projectId: string;
+  agentId?: string;
   name: string;
   type: 'document' | 'screenshot' | 'log' | 'network' | 'config';
   tags: string[];

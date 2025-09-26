@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -43,7 +44,7 @@ import { useToast } from '@/hooks/use-toast';
 import { mockAgents } from '@/lib/data';
 import type { Agent } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, PlusCircle, Search, Settings, Download, Trash2, Bot, Copy } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Search, Settings, Download, Trash2, Bot, Copy, Database } from 'lucide-react';
 
 const PlatformIcon = ({ platform }: { platform: Agent['platform'] }) => {
   switch (platform) {
@@ -238,6 +239,12 @@ export default function AgentsPage() {
                                         <DialogTrigger asChild>
                                             <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Configure</DropdownMenuItem>
                                         </DialogTrigger>
+                                        <DropdownMenuItem asChild>
+                                            <Link href={`/evidence?agentId=${agent.id}`}>
+                                                <Database className="mr-2 h-4 w-4" />
+                                                View Evidence
+                                            </Link>
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem className="text-destructive">
@@ -390,5 +397,3 @@ export default function AgentsPage() {
     </Dialog>
   );
 }
-
-    
