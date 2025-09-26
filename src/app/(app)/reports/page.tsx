@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, FileQuestion, PlusCircle, Sparkles, Trash2, Loader2 } from 'lucide-react';
+import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2 } from 'lucide-react';
 import { mockProjects, mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ReportChatPanel } from '@/components/report-chat-panel';
 
 type ReportRow = {
   id: string;
@@ -49,6 +50,7 @@ const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating'>[] = [
 export default function ReportsPage() {
   const [selectedProject, setSelectedProject] = useState(mockProjects[0].id);
   const [reportRows, setReportRows] = useState<ReportRow[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const { toast } = useToast();
 
   const projectEvidence = mockEvidence.filter(e => e.projectId === selectedProject);
@@ -120,6 +122,7 @@ export default function ReportsPage() {
   };
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -138,6 +141,10 @@ export default function ReportsPage() {
                     ))}
                 </SelectContent>
             </Select>
+            <Button variant="outline" onClick={() => setIsChatOpen(true)}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Chat
+            </Button>
             <Button variant="secondary" onClick={loadSampleData}>
               <FileQuestion className="mr-2 h-4 w-4" />
               Load Sample
@@ -234,5 +241,7 @@ export default function ReportsPage() {
         </div>
       </CardContent>
     </Card>
+    <ReportChatPanel isOpen={isChatOpen} onOpenChange={setIsChatOpen} />
+    </>
   );
 }
