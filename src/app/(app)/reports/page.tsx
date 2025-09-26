@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ReportChatPanel } from '@/components/report-chat-panel';
 
-type ReportRow = {
+export type ReportRow = {
   id: string;
   control: string;
   observation: string;
@@ -121,6 +121,27 @@ export default function ReportsPage() {
     }));
   };
 
+   const updateReportRow = (rowId: string, field: keyof ReportRow, value: any) => {
+    setReportRows(prev =>
+      prev.map(row =>
+        row.id === rowId ? { ...row, [field]: value } : row
+      )
+    );
+    toast({
+      title: 'Report Updated',
+      description: `The '${rowId}' row has been updated.`
+    })
+  };
+
+  const handleControlChange = (rowId: string, newControl: string) => {
+    setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, control: newControl } : row)));
+  };
+
+  const handleObservationChange = (rowId: string, newObservation: string) => {
+    setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, observation: newObservation } : row)));
+  };
+
+
   return (
     <>
     <Card>
@@ -179,10 +200,20 @@ export default function ReportsPage() {
                         reportRows.map(row => (
                             <TableRow key={row.id} className="align-top">
                                 <TableCell>
-                                    <Textarea placeholder="e.g., Access Control" defaultValue={row.control} className="min-h-[100px]" />
+                                    <Textarea 
+                                        placeholder="e.g., Access Control" 
+                                        value={row.control} 
+                                        onChange={(e) => handleControlChange(row.id, e.target.value)}
+                                        className="min-h-[100px]" 
+                                    />
                                 </TableCell>
                                 <TableCell>
-                                    <Textarea placeholder="e.g., System access is restricted..." defaultValue={row.observation} className="min-h-[100px]" />
+                                     <Textarea 
+                                        placeholder="e.g., System access is restricted..." 
+                                        value={row.observation} 
+                                        onChange={(e) => handleObservationChange(row.id, e.target.value)}
+                                        className="min-h-[100px]" 
+                                    />
                                 </TableCell>
                                 <TableCell>
                                     <DropdownMenu>
@@ -241,7 +272,12 @@ export default function ReportsPage() {
         </div>
       </CardContent>
     </Card>
-    <ReportChatPanel isOpen={isChatOpen} onOpenChange={setIsChatOpen} />
+    <ReportChatPanel 
+        isOpen={isChatOpen} 
+        onOpenChange={setIsChatOpen} 
+        reportRows={reportRows}
+        onApplySuggestion={updateReportRow}
+    />
     </>
   );
 }
