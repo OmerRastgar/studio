@@ -39,6 +39,7 @@ import { Send, Bot, User, Edit, Users, Link as LinkIcon, Loader2 } from 'lucide-
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import type { ReportRow } from '@/app/(app)/reports/page';
+import { mockEvidence } from '@/lib/data';
 
 interface ReportChatPanelProps {
   isOpen: boolean;
@@ -131,7 +132,18 @@ export function ReportChatPanel({
 
           if (controlRefMatch) {
             const controlName = controlRefMatch[1];
-            aiText = `Regarding the control "${controlName}", the current best practice is to ensure all evidence is dated within the audit period. Can I help you draft a better observation?`;
+            const referencedRow = reportRows.find(r => r.control === controlName);
+
+            if (referencedRow) {
+                if (referencedRow.evidence.length === 0) {
+                    aiText = `For the control "${controlName}", the observation is: "${referencedRow.observation}". However, I've noticed that there is currently no evidence linked to this observation. To strengthen this finding, you should link relevant evidence files.`
+                } else {
+                    const evidenceNames = referencedRow.evidence.map(id => mockEvidence.find(e => e.id === id)?.name).filter(Boolean);
+                    aiText = `I've reviewed the control "${controlName}". The observation is "${referencedRow.observation}". It is supported by the following evidence: ${evidenceNames.join(', ')}. Does this information help, or would you like me to analyze it further?`;
+                }
+            } else {
+                 aiText = `I couldn't find a control named "${controlName}" in your report. Please make sure the name is correct.`;
+            }
           }
 
           const aiResponse: Message = {
