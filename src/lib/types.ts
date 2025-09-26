@@ -4,7 +4,7 @@ export type User = {
   name: string;
   email: string;
   avatarUrl: string;
-  role: 'admin' | 'auditor' | 'customer';
+  role: 'admin' | 'auditor' | 'customer' | 'manager' | 'reviewer';
 };
 
 export type UserProfile = User & {
