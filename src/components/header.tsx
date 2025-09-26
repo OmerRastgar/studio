@@ -13,10 +13,11 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { User } from '@/lib/types';
-import { LogOut, Settings, User as UserIcon, Bell, CheckCheck } from 'lucide-react';
+import { LogOut, Settings, User as UserIcon, Bell, CheckCheck, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeToggle } from './theme-toggle';
 import { Badge } from '@/components/ui/badge';
+import { useGuide } from './guide';
 
 interface HeaderProps {
   user: User;
@@ -31,6 +32,7 @@ const mockNotifications = [
 
 
 export function Header({ user, pageTitle }: HeaderProps) {
+  const { setTourEnabled } = useGuide();
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -46,6 +48,11 @@ export function Header({ user, pageTitle }: HeaderProps) {
       </div>
       <div className="ml-auto flex items-center gap-2 md:gap-4">
         <ThemeToggle />
+
+        <Button variant="ghost" className="h-10 w-10 rounded-full" onClick={() => setTourEnabled(true)}>
+          <HelpCircle className="h-5 w-5" />
+          <span className="sr-only">Start Tour</span>
+        </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

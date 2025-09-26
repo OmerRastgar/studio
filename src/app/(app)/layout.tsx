@@ -31,6 +31,7 @@ import { usePathname } from 'next/navigation';
 import { ThemeProvider } from '@/components/providers';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { Guide } from '@/components/guide';
 
 
 // Mock user data for layout
@@ -63,7 +64,7 @@ function Nav() {
   return (
     <SidebarMenu>
       {navItems.map((item) => (
-        <SidebarMenuItem key={item.href}>
+        <SidebarMenuItem key={item.href} data-tour-id={item.title.toLowerCase().replace(' ', '-')}>
           <SidebarMenuButton
             asChild
             isActive={pathname.startsWith(item.href)}
@@ -96,9 +97,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarProvider>
         <Sidebar>
           <SidebarHeader className="p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between" data-tour-id="logo">
               <div className="flex items-center gap-3">
-                <Image src="/Logo.png" alt="" width={120} height={40} className="group-data-[collapsible=icon]:hidden" />
+                <Image src="/Logo.png" alt="Audit Gar Logo" width={120} height={40} className="group-data-[collapsible=icon]:hidden" />
               </div>
             </div>
           </SidebarHeader>
@@ -123,8 +124,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
+          <Guide />
           <Header user={user} pageTitle={pageTitle} />
-          <main className="flex-1 p-4 md:p-6">{children}</main>
+          <main className="flex-1 p-4 md:p-6" data-tour-id="main-content">
+            {children}
+          </main>
         </SidebarInset>
       </SidebarProvider>
     </ThemeProvider>

@@ -147,7 +147,7 @@ export default function DashboardPage() {
         />
       </div>
 
-       <Card>
+       <Card data-tour-id="compliance-progress">
         <CardHeader>
           <CardTitle className="font-headline">Overall Compliance Progress</CardTitle>
           <CardDescription>
@@ -182,14 +182,14 @@ export default function DashboardPage() {
                     </Pie>
                 </PieChart>
                </ChartContainer>
-                <div className="absolute flex flex-col items-center justify-center">
-                    <div className="text-center text-3xl font-bold">
+                <div className="absolute flex flex-col items-center justify-center text-center">
+                    <div className="text-3xl font-bold">
                         {overallProgress}%
                     </div>
+                    <p className="text-sm text-muted-foreground">
+                      {complianceProgress.acceptedEvidence} of {complianceProgress.totalEvidence} evidence accepted.
+                    </p>
                 </div>
-                <p className="text-center text-muted-foreground mt-2">
-                  {complianceProgress.acceptedEvidence} of {complianceProgress.totalEvidence} evidence items accepted.
-                </p>
             </div>
             <div className='grid gap-4'>
                 <div>
