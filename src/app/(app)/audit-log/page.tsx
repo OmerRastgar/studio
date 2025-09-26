@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -14,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { mockAuditLogs } from '@/lib/data';
 import type { AuditLog } from '@/lib/types';
 import { format } from 'date-fns';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -36,6 +37,22 @@ const SeverityBadge = ({ severity }: { severity: AuditLog['severity'] }) => {
   }[severity] as 'secondary' | 'default' | 'destructive';
   
   return <Badge variant={variant}>{severity}</Badge>;
+};
+
+const TimeDisplay = ({ timestamp }: { timestamp: string }) => {
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return null;
+  }
+
+  return (
+    <time dateTime={timestamp}>{format(new Date(timestamp), 'PPpp')}</time>
+  );
 };
 
 export default function AuditLogPage() {
@@ -148,7 +165,7 @@ export default function AuditLogPage() {
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">{log.details}</TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                        <time dateTime={log.timestamp}>{format(new Date(log.timestamp), 'PPpp')}</time>
+                        <TimeDisplay timestamp={log.timestamp} />
                     </TableCell>
                 </TableRow>
                 ))}

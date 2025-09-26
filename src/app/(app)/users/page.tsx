@@ -46,6 +46,20 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 
+const TimeAgo = ({ date }: { date: string | undefined }) => {
+  const [timeAgo, setTimeAgo] = React.useState('');
+
+  React.useEffect(() => {
+    if(date) {
+      setTimeAgo(formatDistanceToNow(new Date(date), { addSuffix: true }));
+    } else {
+      setTimeAgo('Never');
+    }
+  }, [date]);
+
+  return <>{timeAgo}</>;
+};
+
 export default function UsersPage() {
   const [users, setUsers] = React.useState<UserProfile[]>(initialMockUsers);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -263,7 +277,7 @@ export default function UsersPage() {
                             <Badge variant={user.status === 'Active' ? 'default' : 'outline'}>{user.status}</Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                            {user.lastActive ? formatDistanceToNow(new Date(user.lastActive), { addSuffix: true }) : 'Never'}
+                            <TimeAgo date={user.lastActive} />
                         </TableCell>
                         <TableCell className="text-right">
                              <DropdownMenu>
@@ -352,5 +366,3 @@ export default function UsersPage() {
     </Card>
   );
 }
-
-    

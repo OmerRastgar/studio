@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -45,6 +46,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useGuide } from '@/components/guide';
 import { dashboardTourSteps } from '@/lib/guide-steps';
+import { useState, useEffect } from 'react';
 
 
 const chartConfig = {
@@ -109,6 +111,16 @@ const EvidenceStatusIcon = ({ status }: { status: 'Accepted' | 'Pending' | 'Reje
         case 'Rejected':
             return <X className="h-4 w-4 text-red-500" />;
     }
+};
+
+const TimeAgo = ({ date }: { date: string }) => {
+  const [timeAgo, setTimeAgo] = useState('');
+
+  useEffect(() => {
+    setTimeAgo(formatDistanceToNow(new Date(date), { addSuffix: true }));
+  }, [date]);
+
+  return <>{timeAgo}</>;
 };
 
 export default function DashboardPage() {
@@ -233,7 +245,7 @@ export default function DashboardPage() {
                                     <Badge variant="secondary" className="font-normal">{activity.status}</Badge>
                                 </div>
                                 <span className="text-muted-foreground">
-                                    {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                                    <TimeAgo date={activity.timestamp} />
                                 </span>
                             </li>
                         ))}
@@ -405,9 +417,7 @@ export default function DashboardPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDistanceToNow(new Date(log.timestamp), {
-                        addSuffix: true,
-                      })}
+                      <TimeAgo date={log.timestamp} />
                     </TableCell>
                   </TableRow>
                 ))}

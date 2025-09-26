@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -104,6 +105,15 @@ const CodeBlock = ({ text }: { text: string }) => {
     );
 };
 
+const TimeAgo = ({ date }: { date: string }) => {
+  const [timeAgo, setTimeAgo] = React.useState('');
+
+  React.useEffect(() => {
+    setTimeAgo(formatDistanceToNow(new Date(date), { addSuffix: true }));
+  }, [date]);
+
+  return <>{timeAgo}</>;
+};
 
 export default function AgentsPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -220,7 +230,7 @@ export default function AgentsPage() {
                             <StatusBadge status={agent.status} />
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                            {formatDistanceToNow(new Date(agent.lastSync), { addSuffix: true })}
+                            <TimeAgo date={agent.lastSync} />
                         </TableCell>
                          <TableCell>
                             <Badge variant="outline">{agent.version}</Badge>
