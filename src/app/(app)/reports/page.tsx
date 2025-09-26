@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown } from 'lucide-react';
+import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle } from 'lucide-react';
 import { mockProjects, mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ReportChatPanel } from '@/components/report-chat-panel';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -241,7 +241,6 @@ export default function ReportsPage() {
       </CardHeader>
       <CardContent>
         <div className="border rounded-md overflow-x-auto">
-            <TooltipProvider>
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -272,17 +271,33 @@ export default function ReportsPage() {
                                 <TableCell>
                                     <div className='flex items-start gap-2'>
                                      {row.isFlagged && (
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <Flag className="h-4 w-4 mt-2 text-orange-500" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <div className="p-1">
-                                                    <p className="font-bold">Flagged by Jane Doe</p>
-                                                    <p>"Observation unclear. Please provide more specific details about the systems reviewed."</p>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <button>
+                                                    <Flag className="h-4 w-4 mt-2 text-orange-500 cursor-pointer" />
+                                                </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-80">
+                                                <div className="grid gap-4">
+                                                    <div className="space-y-2">
+                                                        <h4 className="font-medium leading-none">Flagged for Review</h4>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            "Observation unclear. Please provide more specific details about the systems reviewed." - <span className='italic'>Jane Doe</span>
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <Button size="sm" variant="outline" onClick={() => toggleFlag(row.id)}>
+                                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                                            Resolve
+                                                        </Button>
+                                                         <Button size="sm" variant="ghost">
+                                                            <MessageCircle className="mr-2 h-4 w-4" />
+                                                            Comment
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            </TooltipContent>
-                                        </Tooltip>
+                                            </PopoverContent>
+                                        </Popover>
                                     )}
                                     <Textarea 
                                         placeholder="e.g., Access Control" 
@@ -339,16 +354,9 @@ export default function ReportsPage() {
                                             Generate
                                         </Button>
                                         <div className="flex items-center">
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant="ghost" size="icon" onClick={() => toggleFlag(row.id)}>
-                                                        <Flag className={cn("h-4 w-4", row.isFlagged ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{row.isFlagged ? 'Unflag' : 'Flag'} for review</p>
-                                                </TooltipContent>
-                                            </Tooltip>
+                                            <Button variant="ghost" size="icon" onClick={() => toggleFlag(row.id)}>
+                                                <Flag className={cn("h-4 w-4", row.isFlagged ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
+                                            </Button>
                                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeRow(row.id)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
@@ -360,7 +368,6 @@ export default function ReportsPage() {
                     )}
                 </TableBody>
             </Table>
-            </TooltipProvider>
         </div>
         <div className="flex justify-start mt-4">
             <Button variant="outline" onClick={addRow}>
@@ -380,5 +387,3 @@ export default function ReportsPage() {
     </>
   );
 }
-
-    
