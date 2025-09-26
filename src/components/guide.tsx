@@ -28,6 +28,11 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
         setIsMounted(true);
     }, []);
     
+    const startTour = useCallback(() => {
+        setStepIndex(0);
+        setRun(true);
+    }, []);
+
     useEffect(() => {
         if (isMounted) {
             const tourCompleted = localStorage.getItem('tourCompleted');
@@ -35,12 +40,7 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
                 startTour();
             }
         }
-    }, [isMounted]);
-
-    const startTour = useCallback(() => {
-        setStepIndex(0);
-        setRun(true);
-    }, []);
+    }, [isMounted, startTour]);
 
     const handleJoyrideCallback = (data: CallBackProps) => {
         const { status, type, index, action } = data;

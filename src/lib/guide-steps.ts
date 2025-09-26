@@ -38,9 +38,9 @@ export const steps: Step[] = [
     placement: 'right',
   },
   {
-    target: '[data-tour-id="main-content"]',
+    target: 'body',
+    placement: 'center',
     content: 'You have completed the tour! Feel free to explore the application. You can restart this guide anytime from the help icon in the header.',
-    placement: 'top',
   },
 ];
 
