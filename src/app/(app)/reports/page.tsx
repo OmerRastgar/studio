@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,9 +8,10 @@ import { generateReportSection } from '@/ai/flows/generate-report-section';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, Clipboard, Loader2, Sparkles } from 'lucide-react';
+import { Bot, Clipboard, Loader2, Sparkles, FileQuestion } from 'lucide-react';
 
 const formSchema = z.object({
   evidence: z.string().min(10, 'Evidence must be at least 10 characters.'),
@@ -19,6 +20,12 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+const sampleData: FormData = {
+  evidence: "Log files from the production database server (db-prod-01) show that the 'audit_log' table has row-level security enabled, restricting access based on user roles. Specifically, only users with the 'auditor' role can view all logs, while application users can only see their own actions.",
+  observations: "The implementation of RLS on the audit log table is a significant security control. This correctly enforces the principle of least privilege. The configuration appears correct and was validated by attempting to query the table with a non-auditor test user, which returned an empty result set as expected.",
+  reportSectionTitle: "Database Audit Log Security"
+};
 
 export default function ReportsPage() {
   const [generatedReport, setGeneratedReport] = useState('');
@@ -33,6 +40,11 @@ export default function ReportsPage() {
       reportSectionTitle: '',
     },
   });
+
+  const watchedFields = form.watch(['evidence', 'observations', 'reportSectionTitle']);
+  useEffect(() => {
+    setGeneratedReport('');
+  }, [watchedFields]);
 
   const handleGenerateReport = async (data: FormData) => {
     setIsLoading(true);
@@ -65,16 +77,48 @@ export default function ReportsPage() {
     });
   };
 
+  const loadSampleData = () => {
+    form.reset(sampleData);
+    toast({
+      title: 'Sample Data Loaded',
+      description: 'The input fields have been populated with sample data.',
+    });
+  };
+
   return (
     <div className="grid md:grid-cols-2 gap-6">
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline">Input Data</CardTitle>
-          <CardDescription>Provide evidence and observations for the AI.</CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+                <CardTitle className="font-headline">Input Data</CardTitle>
+                <CardDescription>Provide evidence and observations for the AI.</CardDescription>
+            </div>
+            <Button variant="secondary" size="sm" onClick={loadSampleData}>
+                <FileQuestion className="mr-2 h-4 w-4" />
+                Load Sample
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleGenerateReport)} className="space-y-6">
+               <FormField
+                control={form.control}
+                name="reportSectionTitle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Report Section Title (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., Q2 Firewall Compliance Analysis"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="evidence"
