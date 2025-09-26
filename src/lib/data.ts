@@ -1,4 +1,4 @@
-import type { Evidence, AuditLog } from '@/lib/types';
+import type { Evidence, AuditLog, Project } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const userAvatar1 = PlaceHolderImages.find(img => img.id === 'user-avatar-1')?.imageUrl || '';
@@ -11,9 +11,16 @@ const evidenceThumb4 = PlaceHolderImages.find(img => img.id === 'evidence-thumb-
 const evidenceThumb5 = PlaceHolderImages.find(img => img.id === 'evidence-thumb-5');
 
 
+export const mockProjects: Project[] = [
+    { id: 'proj-001', name: 'SOC 2 Compliance Audit' },
+    { id: 'proj-002', name: 'ISO 27001 Certification' },
+    { id: 'proj-003', name: 'Internal Security Review' },
+];
+
 export const mockEvidence: Evidence[] = [
   {
     id: 'EV001',
+    projectId: 'proj-001',
     name: 'Firewall Configuration Review Q2',
     type: 'document',
     tags: ['networking', 'security', 'q2-review'],
@@ -24,6 +31,7 @@ export const mockEvidence: Evidence[] = [
   },
   {
     id: 'EV002',
+    projectId: 'proj-001',
     name: 'Admin Panel Login Attempt Screenshot',
     type: 'screenshot',
     tags: ['access-control', 'security-incident'],
@@ -34,6 +42,7 @@ export const mockEvidence: Evidence[] = [
   },
   {
     id: 'EV003',
+    projectId: 'proj-002',
     name: 'Production Server Auth Logs (June)',
     type: 'log',
     tags: ['server-logs', 'authentication'],
@@ -44,6 +53,7 @@ export const mockEvidence: Evidence[] = [
   },
   {
     id: 'EV004',
+    projectId: 'proj-002',
     name: 'VPC Network Diagram',
     type: 'network',
     tags: ['architecture', 'networking'],
@@ -54,6 +64,7 @@ export const mockEvidence: Evidence[] = [
   },
   {
     id: 'EV005',
+    projectId: 'proj-003',
     name: 'Kubernetes Deployment YAML',
     type: 'config',
     tags: ['kubernetes', 'deployment', 'iac'],

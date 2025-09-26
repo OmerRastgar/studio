@@ -7,8 +7,14 @@ export type User = {
   role: 'admin' | 'auditor' | 'customer';
 };
 
+export type Project = {
+  id: string;
+  name: string;
+};
+
 export type Evidence = {
   id: string;
+  projectId: string;
   name: string;
   type: 'document' | 'screenshot' | 'log' | 'network' | 'config';
   tags: string[];
@@ -21,7 +27,7 @@ export type Evidence = {
 export type AuditLog = {
   id: string;
   user: {
-    name: string;
+    name:string;
     avatarUrl: string;
   };
   action: string;
