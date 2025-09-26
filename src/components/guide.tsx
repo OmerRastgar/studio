@@ -1,8 +1,8 @@
 
 'use client';
 
-import { createContext, useContext, useEffect, useReducer } from 'react';
-import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
+import { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
+import Joyride, { CallBackProps, STATUS, Step, ACTIONS } from 'react-joyride';
 import { mainTourSteps } from '@/lib/guide-steps';
 
 interface TourState {
@@ -13,7 +13,7 @@ interface TourState {
 }
 
 type TourAction =
-  | { type: 'START_TOUR'; payload: { steps: Step[]; tourId: string; stepIndex?: number; force?: boolean } }
+  | { type: 'START_TOUR'; payload: { steps: Step[]; tourId: string; force?: boolean } }
   | { type: 'STOP_TOUR' }
   | { type: 'RESET' }
   | { type: 'SET_STEP'; payload: number };
@@ -32,7 +32,7 @@ function tourReducer(state: TourState, action: TourAction): TourState {
         run: true,
         steps: action.payload.steps,
         tourId: action.payload.tourId,
-        stepIndex: action.payload.stepIndex || 0,
+        stepIndex: 0,
       };
     case 'STOP_TOUR':
       return {
@@ -73,8 +73,9 @@ export function GuideProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    const startTour = (steps: Step[], tourId: string, force = false) => {
+    const startTour = useCallback((steps: Step[], tourId: string, force = false) => {
         const tourCompleted = localStorage.getItem(`${tourId}Completed`);
+
         if (force) {
             dispatch({ type: 'STOP_TOUR' });
             setTimeout(() => {
@@ -86,10 +87,10 @@ export function GuideProvider({ children }: { children: React.ReactNode }) {
         if (tourCompleted !== 'true') {
             dispatch({ type: 'START_TOUR', payload: { steps, tourId } });
         }
-    };
+    }, []);
     
     const handleJoyrideCallback = (data: CallBackProps) => {
-        const { status, action } = data;
+        const { status, action, index, type } = data;
         const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
 
         if (finishedStatuses.includes(status) || action === 'close') {
@@ -97,6 +98,10 @@ export function GuideProvider({ children }: { children: React.ReactNode }) {
                 localStorage.setItem(`${state.tourId}Completed`, 'true');
             }
             dispatch({ type: 'RESET' });
+        } else if (type === 'step:after' && action === ACTIONS.NEXT) {
+            dispatch({ type: 'SET_STEP', payload: index + 1 });
+        } else if (type === 'step:after' && action === ACTIONS.PREV) {
+             dispatch({ type: 'SET_STEP', payload: index - 1 });
         }
     };
     
