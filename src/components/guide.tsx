@@ -3,15 +3,15 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import Joyride, { CallBackProps, STATUS, EVENTS, Step } from 'react-joyride';
 import { useRouter, usePathname } from 'next/navigation';
-import { mainTourSteps, getPathForStep } from '@/lib/guide-steps';
+import { mainTourSteps, getPathForStep, reportGenerationTourSteps, dashboardTourSteps } from '@/lib/guide-steps';
 
-const GuideContext = createContext<{
+const TourContext = createContext<{
   startTour: (steps: Step[], tourId: string) => void;
 }>({
   startTour: () => {},
 });
 
-export const useGuide = () => useContext(GuideContext);
+export const useGuide = () => useContext(TourContext);
 
 interface GuideProviderProps {
     children: React.ReactNode;
@@ -19,7 +19,7 @@ interface GuideProviderProps {
 
 export const GuideProvider = ({ children }: GuideProviderProps) => {
     const [run, setRun] = useState(false);
-    const [steps, setSteps] = useState<Step[]>(mainTourSteps);
+    const [steps, setSteps] = useState<Step[]>([]);
     const [stepIndex, setStepIndex] = useState(0);
     const [tourId, setTourId] = useState<string | null>(null);
     const router = useRouter();
@@ -52,7 +52,6 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
 
     const handleJoyrideCallback = (data: CallBackProps) => {
         const { status, type, index, action } = data;
-        const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
         
         if (([STATUS.FINISHED, STATUS.SKIPPED] as string[]).includes(status) || action === 'close') {
             setRun(false);
@@ -65,7 +64,8 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
 
         if (type === EVENTS.STEP_AFTER) {
             const nextStepIndex = index + (action === 'prev' ? -1 : 1);
-            const nextStep = steps[nextStepIndex];
+            const currentSteps = steps; // Use the steps from the state
+            const nextStep = currentSteps[nextStepIndex];
             
             if (nextStep) {
                 const nextPath = getPathForStep(nextStep.target);
@@ -83,8 +83,11 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
         }
     };
     
+    // Determine which steps to use based on the tourId
+    const allSteps = tourId === 'reportGenTour' ? reportGenerationTourSteps : (tourId === 'dashboardTour' ? dashboardTourSteps : mainTourSteps);
+    
     return (
-        <GuideContext.Provider value={{ startTour }}>
+        <TourContext.Provider value={{ startTour }}>
             {children}
             {isMounted && (
                 <Joyride
@@ -132,6 +135,6 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
                     }}
                 />
             )}
-        </GuideContext.Provider>
+        </TourContext.Provider>
     );
 };
