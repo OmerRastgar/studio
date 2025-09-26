@@ -277,7 +277,10 @@ export default function ReportsPage() {
                                                 <Flag className="h-4 w-4 mt-2 text-orange-500" />
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>This row is flagged for review.</p>
+                                                <div className="p-1">
+                                                    <p className="font-bold">Flagged by Jane Doe</p>
+                                                    <p>"Observation unclear. Please provide more specific details about the systems reviewed."</p>
+                                                </div>
                                             </TooltipContent>
                                         </Tooltip>
                                     )}
