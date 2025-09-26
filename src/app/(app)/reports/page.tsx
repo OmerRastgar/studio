@@ -7,21 +7,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle } from 'lucide-react';
+import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown } from 'lucide-react';
 import { mockProjects, mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuTrigger,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ReportChatPanel } from '@/components/report-chat-panel';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 export type ReportRow = {
   id: string;
@@ -343,26 +343,67 @@ export default function ReportsPage() {
                                     />
                                 </TableCell>
                                 <TableCell>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="outline" className="w-full justify-start text-left font-normal">
-                                                <span>{row.evidence.length > 0 ? `${row.evidence.length} selected` : "Select evidence"}</span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent className="w-56" align="start">
-                                            {projectEvidence.map(evidence => (
-                                                <DropdownMenuCheckboxItem
-                                                    key={evidence.id}
-                                                    checked={row.evidence.includes(evidence.id)}
-                                                    onCheckedChange={() => handleEvidenceChange(row.id, evidence.id)}
-                                                    onSelect={(e) => e.preventDefault()}
-                                                >
-                                                    {evidence.name}
-                                                </DropdownMenuCheckboxItem>
-                                            ))}
-                                            {projectEvidence.length === 0 && <div className='p-2 text-sm text-muted-foreground'>No evidence for this project.</div>}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            className="w-full justify-between h-auto"
+                                        >
+                                            <div className="flex gap-1 flex-wrap">
+                                                {row.evidence.length > 0 ? row.evidence.map(evidenceId => {
+                                                    const evidence = projectEvidence.find(e => e.id === evidenceId);
+                                                    return (
+                                                    <Badge
+                                                        variant="secondary"
+                                                        key={evidenceId}
+                                                        className="mr-1"
+                                                    >
+                                                        {evidence?.name}
+                                                        <button
+                                                            className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEvidenceChange(row.id, evidenceId);
+                                                            }}
+                                                        >
+                                                            <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                                        </button>
+                                                    </Badge>
+                                                    );
+                                                }) : <span>Select evidence...</span>}
+                                            </div>
+                                            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[200px] p-0" align="start">
+                                        <Command>
+                                            <CommandInput placeholder="Search evidence..." />
+                                            <CommandList>
+                                                <CommandEmpty>No evidence found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {projectEvidence.map(evidence => (
+                                                    <CommandItem
+                                                        key={evidence.id}
+                                                        value={evidence.name}
+                                                        onSelect={() => {
+                                                            handleEvidenceChange(row.id, evidence.id);
+                                                        }}
+                                                    >
+                                                        <CheckCircle
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                row.evidence.includes(evidence.id) ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {evidence.name}
+                                                    </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </TableCell>
                                 <TableCell>
                                      {row.isGenerating ? (
@@ -415,3 +456,5 @@ export default function ReportsPage() {
     </>
   );
 }
+
+    
