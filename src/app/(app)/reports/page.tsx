@@ -104,7 +104,7 @@ export default function ReportsPage() {
     });
     // Start the tour after a short delay to allow the UI to update
     setTimeout(() => {
-        startTour(reportGenerationTourSteps, 'reportGenTour');
+        startTour(reportGenerationTourSteps, 'reportGenTour', true);
     }, 500);
   };
 
