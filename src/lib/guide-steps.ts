@@ -65,20 +65,10 @@ export const dashboardTourSteps: Step[] = [
 
 export const reportGenerationTourSteps: Step[] = [
     {
-      target: '[data-tour-id="report-project-selector"]',
-      content: 'Start by selecting the project you want to generate a report for. All evidence and settings will be scoped to this project.',
-      placement: 'bottom',
-      disableBeacon: true,
-    },
-    {
-      target: '[data-tour-id="report-ai-qa-button"]',
-      content: 'Use the AI QA button to have our AI automatically review the entire report for clarity, consistency, and evidence sufficiency. It will flag potential issues for you.',
-      placement: 'bottom',
-    },
-    {
       target: '[data-tour-id="report-table"]',
       content: 'This is the main report-building area. Each row represents a control. Fill in your observations and link the relevant evidence.',
       placement: 'top',
+      disableBeacon: true,
     },
     {
       target: '[data-tour-id="report-evidence-selector"]',
@@ -96,6 +86,11 @@ export const reportGenerationTourSteps: Step[] = [
       placement: 'left',
     },
     {
+      target: '[data-tour-id="report-ai-qa-button"]',
+      content: 'Use the AI QA button to have our AI automatically review the entire report for clarity, consistency, and evidence sufficiency. It will flag potential issues for you.',
+      placement: 'bottom',
+    },
+    {
       target: '[data-tour-id="report-chat-button"]',
       content: 'Need help or want to collaborate? Open the AI Report Assistant to ask questions, get suggestions, or chat with your team in real-time.',
       placement: 'bottom',
@@ -106,14 +101,28 @@ export const reportGenerationTourSteps: Step[] = [
 // Helper to get the path for a given step target
 export const getPathForStep = (target: string | HTMLElement) => {
     if (!target) return null;
+    
+    // Create a dummy element to check for the target in the current DOM
+    const dummyEl = document.createElement('div');
+    if (typeof target === 'string') {
+        dummyEl.innerHTML = `<div data-tour-id="${target.replace(/[[\]=]/g, '')}"></div>`;
+        if (document.querySelector(target)) {
+            return null; // Target is on the current page
+        }
+    } else if (target instanceof HTMLElement && document.body.contains(target)) {
+        return null; // Target is on the current page
+    }
+
+
     const selector = typeof target === 'string' ? target : (target.getAttribute('data-tour-id') || '');
     if (!selector) return null;
 
-    if (selector.includes('report-generation')) return '/reports';
+    if (selector.includes('report-generation') || selector.includes('report-')) return '/reports';
     if (selector.includes('agents')) return '/agents';
     if (selector.includes('learning')) return '/learning';
     if (selector.includes('evidence')) return '/evidence';
     if (selector.includes('users')) return '/users';
+    if (selector.includes('dashboard')) return '/dashboard';
     
     // Default to null if the step is on the current page
     return null;

@@ -101,6 +101,10 @@ export default function ReportsPage() {
       title: 'Sample Template Loaded',
       description: 'The report table has been populated with sample data.',
     });
+    // Start the tour after a short delay to allow the UI to update
+    setTimeout(() => {
+        startTour(reportGenerationTourSteps, 'reportGenTour');
+    }, 500);
   };
 
   const addRow = () => {
@@ -304,10 +308,6 @@ export default function ReportsPage() {
             <CardDescription>Select a project and build your audit report.</CardDescription>
           </div>
           <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
-             <Button variant="outline" size="sm" onClick={() => startTour(reportGenerationTourSteps, 'reportGenTour')}>
-              <HelpCircle className="mr-2 h-4 w-4" />
-              Start Tour
-            </Button>
             <Select value={selectedProject} onValueChange={setSelectedProject} data-tour-id="report-project-selector">
                 <SelectTrigger className="w-full sm:w-[200px]">
                     <SelectValue placeholder="Select a project" />
@@ -403,7 +403,7 @@ export default function ReportsPage() {
                             </TableCell>
                         </TableRow>
                     ) : (
-                        reportRows.map(row => (
+                        reportRows.map((row, index) => (
                             <TableRow key={row.id} className={cn("align-top transition-colors duration-500", 
                                 highlightedRow === row.id ? 'bg-primary/20' : '',
                                 row.isFlagged ? 'bg-orange-100 dark:bg-orange-900/30' : '',
@@ -412,7 +412,7 @@ export default function ReportsPage() {
                                 <TableCell>
                                     <div className='flex items-start gap-2'>
                                      {(row.isFlagged || row.isResolved) && (
-                                        <button onClick={() => handleFlagButtonClick(row)}>
+                                        <button onClick={() => handleFlagButtonClick(row)} data-tour-id={index === 0 ? "report-flag-button" : undefined}>
                                             {row.isFlagged && <Flag className="h-4 w-4 mt-2 text-orange-500 cursor-pointer" />}
                                             {row.isResolved && <CheckCircle className="h-4 w-4 mt-2 text-green-500 cursor-pointer" />}
                                         </button>
@@ -442,7 +442,7 @@ export default function ReportsPage() {
                                               buttonVariants({ variant: 'outline', size: 'default' }),
                                               'w-full justify-between h-auto cursor-pointer flex-wrap'
                                             )}
-                                            data-tour-id="report-evidence-selector"
+                                            data-tour-id={index === 0 ? "report-evidence-selector" : undefined}
                                           >
                                             <div className="flex gap-1 flex-wrap">
                                                 {row.evidence.length > 0 ? row.evidence.map(evidenceId => {
@@ -511,15 +511,15 @@ export default function ReportsPage() {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className='flex flex-col gap-2 items-end'>
-                                        <Button size="sm" onClick={() => handleGenerate(row.id)} disabled={row.isGenerating} data-tour-id="report-generate-button">
+                                        <Button size="sm" onClick={() => handleGenerate(row.id)} disabled={row.isGenerating} data-tour-id={index === 0 ? "report-generate-button" : undefined}>
                                             <Sparkles className="mr-2 h-4 w-4" />
                                             Generate
                                         </Button>
                                         <div className="flex items-center">
-                                            <Button variant="ghost" size="icon" onClick={() => handleFlagButtonClick(row)} data-tour-id="report-flag-button">
+                                             <button onClick={() => handleFlagButtonClick(row)} data-tour-id={index === 0 ? "report-flag-button" : undefined} className="p-2">
                                                 <Flag className={cn("h-4 w-4", row.isFlagged ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
                                                  <span className="sr-only">{row.isResolved ? "Re-flag" : "Flag"}</span>
-                                            </Button>
+                                            </button>
                                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeRow(row.id)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
