@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown, ShieldCheck, HelpCircle, Briefcase } from 'lucide-react';
-import { mockProjects, mockEvidence } from '@/lib/data';
+import { mockProjects as initialMockProjects, mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,6 +62,7 @@ const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'i
 ];
 
 export default function ReportsPage() {
+  const [mockProjects, setMockProjects] = useState(initialMockProjects);
   const [selectedProject, setSelectedProject] = useState(mockProjects[0].id);
   const [reportRows, setReportRows] = useState<ReportRow[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -70,6 +70,11 @@ export default function ReportsPage() {
   const { toast } = useToast();
   const [isQaRunning, setIsQaRunning] = useState(false);
   const { startTour } = useGuide();
+  const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
+  const [newProjectData, setNewProjectData] = useState({
+    projectName: '',
+    customerName: '',
+  });
 
   // State for the flag/comment dialog
   const [dialogState, setDialogState] = useState<{
@@ -299,6 +304,34 @@ export default function ReportsPage() {
     }
   };
 
+  const handleCreateProject = () => {
+    const { projectName, customerName } = newProjectData;
+    if (!projectName.trim() || !customerName.trim()) {
+        toast({
+            variant: 'destructive',
+            title: 'Missing Information',
+            description: 'Please fill out all project fields.'
+        });
+        return;
+    }
+
+    const newProject = {
+        id: `proj-${Date.now()}`,
+        name: projectName,
+        customerName: customerName,
+    };
+
+    setMockProjects(prev => [...prev, newProject]);
+    setSelectedProject(newProject.id);
+    setNewProjectData({ projectName: '', customerName: '' });
+    setIsNewProjectDialogOpen(false);
+    
+    toast({
+        title: 'Project Created',
+        description: `'${projectName}' has been successfully created.`
+    });
+  };
+
   const currentProjectDetails = mockProjects.find(p => p.id === selectedProject);
 
   return (
@@ -327,7 +360,7 @@ export default function ReportsPage() {
                     ))}
                 </SelectContent>
             </Select>
-            <Dialog>
+            <Dialog open={isNewProjectDialogOpen} onOpenChange={setIsNewProjectDialogOpen}>
                 <DialogTrigger asChild>
                      <Button variant="outline">
                         <PlusCircle className="mr-2 h-4 w-4" />
@@ -344,11 +377,23 @@ export default function ReportsPage() {
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="project-name" className="text-right">Project Name</Label>
-                            <Input id="project-name" placeholder="e.g. Q3 Security Audit" className="col-span-3" />
+                            <Input 
+                              id="project-name" 
+                              placeholder="e.g. Q3 Security Audit" 
+                              className="col-span-3" 
+                              value={newProjectData.projectName}
+                              onChange={(e) => setNewProjectData(prev => ({ ...prev, projectName: e.target.value }))}
+                            />
                         </div>
                          <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="customer-name" className="text-right">Customer Name</Label>
-                            <Input id="customer-name" placeholder="e.g. Innovate Inc." className="col-span-3" />
+                            <Input 
+                              id="customer-name" 
+                              placeholder="e.g. Innovate Inc." 
+                              className="col-span-3" 
+                              value={newProjectData.customerName}
+                              onChange={(e) => setNewProjectData(prev => ({ ...prev, customerName: e.target.value }))}
+                            />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="company-size" className="text-right">Company Size</Label>
@@ -370,10 +415,8 @@ export default function ReportsPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild>
-                            <Button type="button" variant="secondary">Cancel</Button>
-                        </DialogClose>
-                        <Button type="submit">Create Project</Button>
+                        <Button type="button" variant="secondary" onClick={() => setIsNewProjectDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit" onClick={handleCreateProject}>Create Project</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
