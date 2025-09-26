@@ -27,6 +27,7 @@ export type AuditLog = {
   action: string;
   details: string;
   timestamp: string;
+  severity: 'Low' | 'Medium' | 'High';
 };
 
 export type NavItem = {

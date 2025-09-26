@@ -71,6 +71,7 @@ export const mockAuditLogs: AuditLog[] = [
     action: 'Generated Report',
     details: 'Generated "Q2 Firewall Compliance" section',
     timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+    severity: 'Low',
   },
   {
     id: 'LOG002',
@@ -78,6 +79,7 @@ export const mockAuditLogs: AuditLog[] = [
     action: 'Uploaded Evidence',
     details: 'Uploaded "Admin Panel Login Attempt Screenshot"',
     timestamp: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
+    severity: 'Medium',
   },
   {
     id: 'LOG003',
@@ -85,6 +87,7 @@ export const mockAuditLogs: AuditLog[] = [
     action: 'Updated Profile',
     details: 'Changed profile email',
     timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+    severity: 'Medium',
   },
   {
     id: 'LOG004',
@@ -92,6 +95,7 @@ export const mockAuditLogs: AuditLog[] = [
     action: 'Changed Settings',
     details: 'Enabled dark mode globally',
     timestamp: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+    severity: 'Medium',
   },
   {
     id: 'LOG005',
@@ -99,6 +103,7 @@ export const mockAuditLogs: AuditLog[] = [
     action: 'Logged In',
     details: 'Successfully authenticated',
     timestamp: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
+    severity: 'High',
   },
   {
     id: 'LOG006',
@@ -106,6 +111,31 @@ export const mockAuditLogs: AuditLog[] = [
     action: 'Uploaded Evidence',
     details: 'Uploaded "Firewall Configuration Review Q2"',
     timestamp: new Date(Date.now() - 345600000).toISOString(), // 4 days ago
+    severity: 'Medium',
+  },
+  {
+    id: 'LOG007',
+    user: { name: 'Admin', avatarUrl: 'https://picsum.photos/seed/admin/100/100' },
+    action: 'Permission Change',
+    details: 'Granted "auditor" role to user test@example.com',
+    timestamp: new Date(Date.now() - 432000000).toISOString(), // 5 days ago
+    severity: 'High',
+  },
+  {
+    id: 'LOG008',
+    user: { name: 'Jane Doe', avatarUrl: userAvatar1 },
+    action: 'Generated Report',
+    details: 'Generated "User Access Review" section',
+    timestamp: new Date(Date.now() - 518400000).toISOString(), // 6 days ago
+    severity: 'Low',
+  },
+  {
+    id: 'LOG009',
+    user: { name: 'John Smith', avatarUrl: userAvatar2 },
+    action: 'Deleted Evidence',
+    details: 'Deleted "Old Financial Records Q1"',
+    timestamp: new Date(Date.now() - 604800000).toISOString(), // 7 days ago
+    severity: 'High',
   },
 ];
 
