@@ -34,6 +34,7 @@ export type ReportRow = {
   isGenerating: boolean;
   isFlagged: boolean;
   isResolved: boolean;
+  flagComment?: string;
 };
 
 const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'isResolved'>[] = [
@@ -164,8 +165,19 @@ export default function ReportsPage() {
     setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, observation: newObservation } : row)));
   };
 
-  const toggleFlag = (rowId: string) => {
-    setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, isFlagged: !row.isFlagged, isResolved: row.isFlagged ? row.isResolved : false } : row)));
+  const toggleFlag = (rowId: string, comment?: string) => {
+    setReportRows(rows => rows.map(row => {
+        if (row.id === rowId) {
+            const isCurrentlyFlagged = row.isFlagged;
+            return {
+                ...row,
+                isFlagged: !isCurrentlyFlagged,
+                isResolved: isCurrentlyFlagged ? row.isResolved : false,
+                flagComment: !isCurrentlyFlagged ? (comment || "Flagged for manual review.") : undefined,
+            };
+        }
+        return row;
+    }));
   };
 
   const resolveFlag = (rowId: string) => {
@@ -202,14 +214,15 @@ export default function ReportsPage() {
         });
 
         const result = await reviewReport({ reportRows: qaReportRows });
-        console.log("AI QA Result:", result);
 
-        // In a future step, we can use this result to highlight rows and show suggestions.
-        // For now, we just show a success toast.
+        // Flag rows with issues found by the AI
+        result.issues.forEach(issue => {
+            toggleFlag(issue.rowId, `AI Suggestion: ${issue.suggestion}`);
+        });
         
         toast({
             title: "AI QA Complete",
-            description: `Found ${result.issues.length} potential issues.`,
+            description: `Found and flagged ${result.issues.length} potential issues.`,
         });
 
     } catch (error) {
@@ -350,7 +363,7 @@ export default function ReportsPage() {
                                                     <div className="space-y-2">
                                                         <h4 className="font-medium leading-none">Flagged for Review</h4>
                                                         <p className="text-sm text-muted-foreground">
-                                                            "Observation unclear. Please provide more specific details about the systems reviewed." - <span className='italic'>Jane Doe</span>
+                                                           {row.flagComment || "No comment provided."}
                                                         </p>
                                                     </div>
                                                     <div className="flex gap-2">
