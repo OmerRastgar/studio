@@ -53,9 +53,10 @@ import Image from 'next/image';
 import { mockEvidence, mockProjects, mockAgents } from '@/lib/data';
 import { format } from 'date-fns';
 import { MoreHorizontal, PlusCircle, Trash2, Edit, Eye, FolderArchive, X, UploadCloud, Tag } from 'lucide-react';
-import { useState, useMemo, Suspense } from 'react';
+import { useState, useMemo, Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import type { Evidence } from '@/lib/types';
 
 function EvidencePageComponent() {
     const searchParams = useSearchParams();
@@ -67,10 +68,19 @@ function EvidencePageComponent() {
     const [selectedProject, setSelectedProject] = useState(mockProjects[0].id);
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
+    // State for upload dialog
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [newEvidenceName, setNewEvidenceName] = useState('');
     const [currentTag, setCurrentTag] = useState('');
     const [newEvidenceTags, setNewEvidenceTags] = useState<string[]>([]);
+
+    // State for edit dialog
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [editingEvidence, setEditingEvidence] = useState<Evidence | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editTags, setEditTags] = useState<string[]>([]);
+    const [currentEditTag, setCurrentEditTag] = useState('');
+
 
     const filteredEvidence = useMemo(() => {
         return evidenceList
@@ -89,16 +99,19 @@ function EvidencePageComponent() {
     const handleDelete = (id: string) => {
         setEvidenceList(evidenceList.filter(e => e.id !== id));
         setItemToDelete(null);
+        toast({ title: "Evidence Deleted", description: "The evidence item has been removed." });
     };
 
     const handleDeleteAll = () => {
         setEvidenceList(evidenceList.filter(e => e.projectId !== selectedProject));
+        toast({ title: "All Evidence Deleted", description: `All evidence for project ${selectedProjectName} has been removed.` });
     };
 
     const clearAgentFilter = () => {
         router.push('/evidence');
     };
     
+    // --- Upload Handlers ---
     const handleAddTag = () => {
         if (currentTag && !newEvidenceTags.includes(currentTag)) {
             setNewEvidenceTags([...newEvidenceTags, currentTag]);
@@ -120,7 +133,7 @@ function EvidencePageComponent() {
             return;
         }
 
-        const newEvidence = {
+        const newEvidence: Evidence = {
             id: `EV${String(evidenceList.length + 1).padStart(3, '0')}`,
             projectId: selectedProject,
             name: newEvidenceName,
@@ -144,6 +157,47 @@ function EvidencePageComponent() {
         setNewEvidenceTags([]);
         setCurrentTag('');
         setIsUploadDialogOpen(false);
+    };
+
+    // --- Edit Handlers ---
+    const handleEditClick = (evidence: Evidence) => {
+        setEditingEvidence(evidence);
+        setEditName(evidence.name);
+        setEditTags(evidence.tags);
+        setIsEditDialogOpen(true);
+    };
+    
+    const handleAddEditTag = () => {
+        if (currentEditTag && !editTags.includes(currentEditTag)) {
+            setEditTags([...editTags, currentEditTag]);
+            setCurrentEditTag('');
+        }
+    };
+
+    const handleRemoveEditTag = (tagToRemove: string) => {
+        setEditTags(editTags.filter(tag => tag !== tagToRemove));
+    };
+
+    const handleUpdate = () => {
+        if (!editingEvidence) return;
+
+        setEvidenceList(prevList => prevList.map(e => 
+            e.id === editingEvidence.id 
+                ? { ...e, name: editName, tags: editTags } 
+                : e
+        ));
+
+        toast({
+            title: 'Evidence Updated',
+            description: `"${editName}" has been successfully updated.`,
+        });
+
+        // Reset and close
+        setIsEditDialogOpen(false);
+        setEditingEvidence(null);
+        setEditName('');
+        setEditTags([]);
+        setCurrentEditTag('');
     };
 
   return (
@@ -303,7 +357,7 @@ function EvidencePageComponent() {
                         <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem><Eye className="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
-                        <DropdownMenuItem><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditClick(evidence)}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialogTrigger asChild>
                             <DropdownMenuItem className="text-destructive" onClick={() => setItemToDelete(evidence.id)}>
@@ -369,6 +423,62 @@ function EvidencePageComponent() {
         )}
       </CardContent>
     </Card>
+
+    {/* Edit Evidence Dialog */}
+    <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Edit Evidence</DialogTitle>
+                <DialogDescription>
+                    Update the name and tags for this piece of evidence.
+                </DialogDescription>
+            </DialogHeader>
+            {editingEvidence && (
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-evidence-name">Evidence Name</Label>
+                        <Input
+                            id="edit-evidence-name"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-evidence-tags">Tags</Label>
+                        <div className="flex gap-2">
+                            <Input
+                                id="edit-evidence-tags"
+                                placeholder="Add a new tag"
+                                value={currentEditTag}
+                                onChange={(e) => setCurrentEditTag(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddEditTag()}
+                            />
+                            <Button variant="outline" onClick={handleAddEditTag}>
+                                <Tag className="mr-2 h-4 w-4" /> Add
+                            </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {editTags.map((tag) => (
+                            <Badge key={tag} variant="secondary">
+                                {tag}
+                                <button
+                                    onClick={() => handleRemoveEditTag(tag)}
+                                    className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                >
+                                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                </button>
+                            </Badge>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleUpdate}>Save Changes</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }
