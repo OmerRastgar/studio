@@ -16,10 +16,11 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { mockLearningData } from '@/lib/data';
+import { mockLearningData, mockCustomerCourses } from '@/lib/data';
 import type { ChartConfig } from '@/components/ui/chart';
-import { Flag, CheckCircle, Clock, BarChart3, Target, Lightbulb, BookCopy, BookMarked, Trophy } from 'lucide-react';
-import type { Course } from '@/lib/types';
+import { Flag, CheckCircle, Clock, BarChart3, Target, Lightbulb, BookCopy, BookMarked, Trophy, BookCheck, Clock3 } from 'lucide-react';
+import type { Course, CustomerCourse, User } from '@/lib/types';
+import Image from 'next/image';
 
 const chartConfig = {
   count: {
@@ -50,11 +51,10 @@ const CourseStatusBadge = ({ status }: { status: Course['status'] }) => {
   return <Badge variant={variant}>{status}</Badge>;
 };
 
-
-export default function LearningPage() {
+const AuditorLearningPage = () => {
   const { performanceStats, commonErrors, learningInsights, recommendedCourses } = mockLearningData;
   return (
-     <div className="grid gap-6">
+    <div className="grid gap-6">
       <Card>
         <CardHeader>
           <CardTitle className="font-headline flex items-center gap-2"><BarChart3 /> Auditor Performance Dashboard</CardTitle>
@@ -64,36 +64,36 @@ export default function LearningPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <StatCard title="Issues Flagged" value={performanceStats.issuesFlagged} icon={Flag} />
-              <StatCard title="Resolution Rate" value={`${performanceStats.resolutionRate}%`} icon={Target} />
-              <StatCard title="Avg. Time to Resolution" value={performanceStats.avgTimeToResolution} icon={Clock} />
-              <StatCard title="Overdue Flags" value={performanceStats.overdueFlags} icon={CheckCircle} />
+            <StatCard title="Issues Flagged" value={performanceStats.issuesFlagged} icon={Flag} />
+            <StatCard title="Resolution Rate" value={`${performanceStats.resolutionRate}%`} icon={Target} />
+            <StatCard title="Avg. Time to Resolution" value={performanceStats.avgTimeToResolution} icon={Clock} />
+            <StatCard title="Overdue Flags" value={performanceStats.overdueFlags} icon={CheckCircle} />
           </div>
-           <Card>
-              <CardHeader>
-                  <CardTitle className="font-headline text-xl">Common Error Analysis</CardTitle>
-                  <CardDescription>Frequency of common errors identified in your reports.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                  <ChartContainer config={chartConfig} className="h-64 w-full">
-                    <BarChart accessibilityLayer data={commonErrors}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                        dataKey="error"
-                        tickLine={false}
-                        tickMargin={10}
-                        axisLine={false}
-                        />
-                        <YAxis />
-                        <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent indicator="dot" />}
-                        />
-                        <Bar dataKey="count" fill="var(--color-count)" radius={4} />
-                    </BarChart>
-                  </ChartContainer>
-              </CardContent>
-           </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline text-xl">Common Error Analysis</CardTitle>
+              <CardDescription>Frequency of common errors identified in your reports.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-64 w-full">
+                <BarChart accessibilityLayer data={commonErrors}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="error"
+                    tickLine={false}
+                    tickMargin={10}
+                    axisLine={false}
+                  />
+                  <YAxis />
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="dot" />}
+                  />
+                  <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
         </CardContent>
       </Card>
 
@@ -105,27 +105,27 @@ export default function LearningPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-           <Accordion type="single" collapsible className="w-full">
+          <Accordion type="single" collapsible className="w-full">
             {learningInsights.map((insight, index) => (
               <AccordionItem value={`item-${index}`} key={index}>
                 <AccordionTrigger>
-                    <div className='flex items-center gap-2'>
-                        <BookCopy className='h-4 w-4'/>
-                        <span className='font-semibold'>{insight.title}</span>
-                    </div>
+                  <div className='flex items-center gap-2'>
+                    <BookCopy className='h-4 w-4' />
+                    <span className='font-semibold'>{insight.title}</span>
+                  </div>
                 </AccordionTrigger>
                 <AccordionContent className="space-y-4 px-2">
                   <p className="text-muted-foreground">{insight.explanation}</p>
-                   <div className="p-4 border rounded-lg bg-muted/50">
-                     <p className="font-semibold text-sm mb-2">Example:</p>
-                     <blockquote className="border-l-2 pl-4 italic text-sm text-muted-foreground">
-                        "{insight.example}"
-                     </blockquote>
-                   </div>
-                   <div className="p-4 border rounded-lg bg-primary/10">
-                     <p className="font-semibold text-sm mb-2 text-primary">Suggestion:</p>
-                     <p className="text-sm text-primary/90">{insight.suggestion}</p>
-                   </div>
+                  <div className="p-4 border rounded-lg bg-muted/50">
+                    <p className="font-semibold text-sm mb-2">Example:</p>
+                    <blockquote className="border-l-2 pl-4 italic text-sm text-muted-foreground">
+                      "{insight.example}"
+                    </blockquote>
+                  </div>
+                  <div className="p-4 border rounded-lg bg-primary/10">
+                    <p className="font-semibold text-sm mb-2 text-primary">Suggestion:</p>
+                    <p className="text-sm text-primary/90">{insight.suggestion}</p>
+                  </div>
                 </AccordionContent>
               </AccordionItem>
             ))}
@@ -134,44 +134,115 @@ export default function LearningPage() {
       </Card>
 
       <Card>
-          <CardHeader>
-            <CardTitle className="font-headline flex items-center gap-2"><BookMarked /> Recommended Courses</CardTitle>
-            <CardDescription>
-                Courses recommended for you based on your performance analysis.
-            </CardDescription>
+        <CardHeader>
+          <CardTitle className="font-headline flex items-center gap-2"><BookMarked /> Recommended Courses</CardTitle>
+          <CardDescription>
+            Courses recommended for you based on your performance analysis.
+          </CardDescription>
         </CardHeader>
         <CardContent className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-            {recommendedCourses.map(course => (
-                 <Card key={course.id} className="flex flex-col">
-                    <CardHeader>
-                        <CardTitle className='text-lg'>{course.title}</CardTitle>
-                        <CardDescription>{course.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-grow space-y-4">
-                       <div>
-                            <div className="flex justify-between items-center mb-1">
-                                <CourseStatusBadge status={course.status} />
-                                {course.status === 'Completed' ? (
-                                    <div className="flex items-center text-sm font-medium text-green-500">
-                                        <Trophy className="mr-1 h-4 w-4" />
-                                        Completed
-                                    </div>
-                                ) : (
-                                    <span className="text-sm text-muted-foreground">{course.progress}% Complete</span>
-                                )}
-                            </div>
-                            <Progress value={course.progress} className="h-2" />
-                       </div>
-                    </CardContent>
-                    <div className="p-6 pt-0">
-                        <Button className="w-full">
-                            {course.status === 'Completed' ? 'View Certificate' : course.status === 'In Progress' ? 'Continue Course' : 'Enroll Now'}
-                        </Button>
-                    </div>
-                </Card>
-            ))}
+          {recommendedCourses.map(course => (
+            <Card key={course.id} className="flex flex-col">
+              <CardHeader>
+                <CardTitle className='text-lg'>{course.title}</CardTitle>
+                <CardDescription>{course.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow space-y-4">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <CourseStatusBadge status={course.status} />
+                    {course.status === 'Completed' ? (
+                      <div className="flex items-center text-sm font-medium text-green-500">
+                        <Trophy className="mr-1 h-4 w-4" />
+                        Completed
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">{course.progress}% Complete</span>
+                    )}
+                  </div>
+                  <Progress value={course.progress} className="h-2" />
+                </div>
+              </CardContent>
+              <div className="p-6 pt-0">
+                <Button className="w-full">
+                  {course.status === 'Completed' ? 'View Certificate' : course.status === 'In Progress' ? 'Continue Course' : 'Enroll Now'}
+                </Button>
+              </div>
+            </Card>
+          ))}
         </CardContent>
       </Card>
     </div>
   );
+};
+
+const CustomerLearningPage = () => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-headline flex items-center gap-2">
+          <BookCheck /> Compliance Awareness Training
+        </CardTitle>
+        <CardDescription>
+          Complete these required training modules to ensure your organization stays compliant.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {mockCustomerCourses.map(course => (
+          <Card key={course.id} className="flex flex-col overflow-hidden">
+            <div className="relative h-40 w-full">
+              <Image
+                src={course.thumbnailUrl}
+                alt={course.title}
+                data-ai-hint="training video"
+                fill
+                className="object-cover"
+              />
+            </div>
+            <CardHeader>
+              <CardTitle>{course.title}</CardTitle>
+              <CardDescription>{course.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-grow space-y-4">
+              <div className="flex items-center text-sm text-muted-foreground gap-4">
+                <div className="flex items-center gap-1.5">
+                  <Clock3 className="h-4 w-4" />
+                  <span>{course.duration}</span>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1 text-sm">
+                  <span className="text-muted-foreground">Progress</span>
+                  <span className="font-medium">{course.progress}%</span>
+                </div>
+                <Progress value={course.progress} />
+              </div>
+            </CardContent>
+            <div className="p-6 pt-0">
+              <Button className="w-full" disabled={course.status === 'Completed'}>
+                {course.status === 'Completed' ? 'Completed' : course.status === 'In Progress' ? 'Continue Training' : 'Start Training'}
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </CardContent>
+    </Card>
+  );
+};
+
+
+export default function LearningPage() {
+  // In a real app, this would come from an auth context or API call
+  const currentUser: User = {
+    name: 'Customer Client',
+    email: 'client@customer.com',
+    avatarUrl: '...',
+    role: 'customer',
+  };
+
+  if (currentUser.role === 'customer') {
+    return <CustomerLearningPage />;
+  }
+  
+  return <AuditorLearningPage />;
 }

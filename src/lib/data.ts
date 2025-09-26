@@ -1,4 +1,4 @@
-import type { Evidence, AuditLog, Project, Auditor, UserProfile, Agent, Course } from '@/lib/types';
+import type { Evidence, AuditLog, Project, Auditor, UserProfile, Agent, Course, CustomerCourse } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const userAvatar1 = PlaceHolderImages.find(img => img.id === 'user-avatar-1')?.imageUrl || '';
@@ -10,6 +10,7 @@ const evidenceThumb2 = PlaceHolderImages.find(img => img.id === 'evidence-thumb-
 const evidenceThumb3 = PlaceHolderImages.find(img => img.id === 'evidence-thumb-3');
 const evidenceThumb4 = PlaceHolderImages.find(img => img.id === 'evidence-thumb-4');
 const evidenceThumb5 = PlaceHolderImages.find(img => img.id === 'evidence-thumb-5');
+const courseThumbnail = PlaceHolderImages.find(img => img.id === 'course-thumbnail')?.imageUrl || '';
 
 
 export const mockProjects: Project[] = [
@@ -371,3 +372,33 @@ export const mockLearningData = {
     },
   ]
 };
+
+export const mockCustomerCourses: CustomerCourse[] = [
+  {
+    id: 'cust-course-1',
+    title: 'Data Security & Privacy Basics',
+    description: 'An essential introduction to data protection principles and how they affect your daily work.',
+    duration: 'Approx. 45 mins',
+    status: 'In Progress' as const,
+    progress: 75,
+    thumbnailUrl: courseThumbnail,
+  },
+  {
+    id: 'cust-course-2',
+    title: 'SOC 2 Compliance Awareness',
+    description: 'Understand the key principles of SOC 2 and your role in maintaining compliance.',
+    duration: 'Approx. 60 mins',
+    status: 'Not Started' as const,
+    progress: 0,
+    thumbnailUrl: courseThumbnail,
+  },
+  {
+    id: 'cust-course-3',
+    title: 'Phishing & Social Engineering',
+    description: 'Learn how to identify and protect yourself and the company from malicious attacks.',
+    duration: 'Approx. 30 mins',
+    status: 'Completed' as const,
+    progress: 100,
+    thumbnailUrl: courseThumbnail,
+  },
+];

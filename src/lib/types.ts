@@ -76,3 +76,13 @@ export type Course = {
   status: 'Not Started' | 'In Progress' | 'Completed';
   progress: number;
 };
+
+export type CustomerCourse = {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  status: 'Not Started' | 'In Progress' | 'Completed';
+  progress: number;
+  thumbnailUrl: string;
+};
