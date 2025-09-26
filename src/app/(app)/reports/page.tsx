@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { reviewReport } from '@/ai/flows/review-report';
 
 export type ReportRow = {
   id: string;
@@ -62,6 +63,7 @@ export default function ReportsPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [highlightedRow, setHighlightedRow] = useState<string | null>(null);
   const { toast } = useToast();
+  const [isQaRunning, setIsQaRunning] = useState(false);
 
   useEffect(() => {
     if (highlightedRow) {
@@ -163,19 +165,50 @@ export default function ReportsPage() {
   };
 
   const toggleFlag = (rowId: string) => {
-    setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, isFlagged: !row.isFlagged, isResolved: false } : row)));
+    setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, isFlagged: !row.isFlagged, isResolved: row.isFlagged ? row.isResolved : false } : row)));
   };
 
   const resolveFlag = (rowId: string) => {
     setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, isFlagged: false, isResolved: true } : row)));
   };
 
-  const handleAiQa = () => {
+  const handleAiQa = async () => {
+    setIsQaRunning(true);
     toast({
         title: "AI QA in Progress",
         description: "The AI is reviewing the report for quality and consistency.",
     });
+
+    try {
+        const qaReportRows = reportRows.map(row => ({
+            id: row.id,
+            control: row.control,
+            observation: row.observation,
+            evidence: row.evidence.map(id => mockEvidence.find(e => e.id === id)?.name || id)
+        }))
+        const result = await reviewReport({ reportRows: qaReportRows });
+        console.log("AI QA Result:", result);
+
+        // In a future step, we can use this result to highlight rows and show suggestions.
+        // For now, we just show a success toast.
+        
+        toast({
+            title: "AI QA Complete",
+            description: `Found ${result.issues.length} potential issues.`,
+        });
+
+    } catch (error) {
+        console.error("AI QA failed:", error);
+        toast({
+            variant: "destructive",
+            title: "AI QA Failed",
+            description: "Could not complete the report review.",
+        });
+    } finally {
+        setIsQaRunning(false);
+    }
   };
+
 
   return (
     <>
@@ -251,8 +284,8 @@ export default function ReportsPage() {
               <FileQuestion className="mr-2 h-4 w-4" />
               Load Sample
             </Button>
-             <Button onClick={handleAiQa}>
-                <ShieldCheck className="mr-2 h-4 w-4" />
+             <Button onClick={handleAiQa} disabled={isQaRunning}>
+                {isQaRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
                 AI QA
             </Button>
           </div>
@@ -437,7 +470,7 @@ export default function ReportsPage() {
                                         </Button>
                                         <div className="flex items-center">
                                             <Button variant="ghost" size="icon" onClick={() => toggleFlag(row.id)}>
-                                                <Flag className={cn("h-4 w-4", (row.isFlagged || row.isResolved) ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
+                                                <Flag className={cn("h-4 w-4", row.isFlagged ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
                                                  <span className="sr-only">{row.isResolved ? "Re-flag" : "Flag"}</span>
                                             </Button>
                                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeRow(row.id)}>
