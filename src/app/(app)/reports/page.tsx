@@ -1,222 +1,238 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { generateReportSection } from '@/ai/flows/generate-report-section';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, Clipboard, Loader2, Sparkles, FileQuestion } from 'lucide-react';
+import { Bot, FileQuestion, PlusCircle, Sparkles, Trash2, Loader2 } from 'lucide-react';
+import { mockProjects, mockEvidence } from '@/lib/data';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-const formSchema = z.object({
-  evidence: z.string().min(10, 'Evidence must be at least 10 characters.'),
-  observations: z.string().min(10, 'Observations must be at least 10 characters.'),
-  reportSectionTitle: z.string().optional(),
-});
-
-type FormData = z.infer<typeof formSchema>;
-
-const sampleData: FormData = {
-  evidence: "Log files from the production database server (db-prod-01) show that the 'audit_log' table has row-level security enabled, restricting access based on user roles. Specifically, only users with the 'auditor' role can view all logs, while application users can only see their own actions.",
-  observations: "The implementation of RLS on the audit log table is a significant security control. This correctly enforces the principle of least privilege. The configuration appears correct and was validated by attempting to query the table with a non-auditor test user, which returned an empty result set as expected.",
-  reportSectionTitle: "Database Audit Log Security"
+type ReportRow = {
+  id: string;
+  control: string;
+  observation: string;
+  evidence: string[];
+  analysis: string;
+  isGenerating: boolean;
 };
 
+const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating'>[] = [
+  {
+    control: 'Access Control Policy',
+    observation: 'The company has a documented access control policy that is reviewed annually.',
+    evidence: ['EV001'],
+    analysis: '',
+  },
+  {
+    control: 'Quarterly Access Reviews',
+    observation: 'Access reviews for critical systems were not completed for Q2.',
+    evidence: ['EV002', 'EV003'],
+    analysis: '',
+  },
+  {
+    control: 'Data Encryption',
+    observation: 'All production databases are encrypted at rest using AES-256.',
+    evidence: [],
+    analysis: '',
+  },
+];
+
 export default function ReportsPage() {
-  const [generatedReport, setGeneratedReport] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(mockProjects[0].id);
+  const [reportRows, setReportRows] = useState<ReportRow[]>([]);
   const { toast } = useToast();
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      evidence: '',
-      observations: '',
-      reportSectionTitle: '',
-    },
-  });
-
-  const watchedFields = form.watch(['evidence', 'observations', 'reportSectionTitle']);
-  useEffect(() => {
-    setGeneratedReport('');
-  }, [watchedFields]);
-
-  const handleGenerateReport = async (data: FormData) => {
-    setIsLoading(true);
-    setGeneratedReport('');
-    try {
-      const result = await generateReportSection(data);
-      setGeneratedReport(result.reportSection);
-      toast({
-        title: 'Report Section Generated',
-        description: 'The AI has successfully generated the report section.',
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        variant: 'destructive',
-        title: 'Error Generating Report',
-        description: 'An unexpected error occurred. Please try again.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCopyToClipboard = () => {
-    if (!generatedReport) return;
-    navigator.clipboard.writeText(generatedReport);
-    toast({
-      title: 'Copied to Clipboard',
-      description: 'The generated report has been copied.',
-    });
-  };
+  const projectEvidence = mockEvidence.filter(e => e.projectId === selectedProject);
 
   const loadSampleData = () => {
-    form.reset(sampleData);
+    setReportRows(
+      sampleReportData.map((row, index) => ({
+        ...row,
+        id: `sample-${index}-${Date.now()}`,
+        isGenerating: false,
+      }))
+    );
     toast({
-      title: 'Sample Data Loaded',
-      description: 'The input fields have been populated with sample data.',
+      title: 'Sample Template Loaded',
+      description: 'The report table has been populated with sample data.',
     });
+  };
+
+  const addRow = () => {
+    setReportRows([
+      ...reportRows,
+      {
+        id: `row-${Date.now()}`,
+        control: '',
+        observation: '',
+        evidence: [],
+        analysis: '',
+        isGenerating: false,
+      },
+    ]);
+  };
+
+  const removeRow = (id: string) => {
+    setReportRows(reportRows.filter(row => row.id !== id));
+  };
+  
+  const handleGenerate = (id: string) => {
+    setReportRows(rows => rows.map(row => row.id === id ? { ...row, isGenerating: true, analysis: '' } : row));
+
+    // Simulate AI generation
+    setTimeout(() => {
+        setReportRows(rows => rows.map(row => {
+            if (row.id === id) {
+                return { 
+                    ...row, 
+                    isGenerating: false, 
+                    analysis: 'AI analysis complete: The evidence provided supports the observation, indicating compliance with the specified control. Recommendation: Continue quarterly reviews and document outcomes consistently.' 
+                };
+            }
+            return row;
+        }));
+        toast({
+            title: "Analysis Complete",
+            description: "AI has generated the detailed analysis for the control."
+        })
+    }, 2000);
+  };
+
+  const handleEvidenceChange = (rowId: string, evidenceId: string) => {
+    setReportRows(reportRows.map(row => {
+        if (row.id === rowId) {
+            const newEvidence = row.evidence.includes(evidenceId)
+                ? row.evidence.filter(e => e !== evidenceId)
+                : [...row.evidence, evidenceId];
+            return { ...row, evidence: newEvidence };
+        }
+        return row;
+    }));
   };
 
   return (
-    <div className="grid md:grid-cols-2 gap-6">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-                <CardTitle className="font-headline">Input Data</CardTitle>
-                <CardDescription>Provide evidence and observations for the AI.</CardDescription>
-            </div>
-            <Button variant="secondary" size="sm" onClick={loadSampleData}>
-                <FileQuestion className="mr-2 h-4 w-4" />
-                Load Sample
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <CardTitle className="font-headline">AI-Assisted Report Generation</CardTitle>
+            <CardDescription>Select a project and build your audit report.</CardDescription>
+          </div>
+          <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
+            <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger className="w-full sm:w-[240px]">
+                    <SelectValue placeholder="Select a project" />
+                </SelectTrigger>
+                <SelectContent>
+                    {mockProjects.map(project => (
+                    <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <Button variant="secondary" onClick={loadSampleData}>
+              <FileQuestion className="mr-2 h-4 w-4" />
+              Load Sample
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleGenerateReport)} className="space-y-6">
-               <FormField
-                control={form.control}
-                name="reportSectionTitle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Report Section Title (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="e.g., Q2 Firewall Compliance Analysis"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="evidence"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Evidence Summary</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="e.g., Log files from server X show multiple failed login attempts from IP 192.168.1.100 between 2:00 AM and 3:00 AM..."
-                        className="min-h-[150px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="observations"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Auditor's Observations</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="e.g., The failed attempts appear to be a brute-force attack. The account targeted was 'admin'. Recommend immediate password rotation and IP block..."
-                        className="min-h-[150px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Generate Report Section
-                  </>
-                )}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-
-      <Card className="flex flex-col">
-        <CardHeader>
-          <CardTitle className="font-headline">AI-Generated Report Section</CardTitle>
-          <CardDescription>Review, edit, and approve the generated content.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex-grow flex flex-col">
-          {isLoading ? (
-            <div className="flex-grow flex flex-col items-center justify-center text-muted-foreground space-y-4">
-              <Bot className="h-12 w-12 animate-pulse" />
-              <p className="font-medium">AI is generating your report...</p>
-              <p className="text-sm text-center">This may take a few moments.</p>
-            </div>
-          ) : generatedReport ? (
-            <div className="flex flex-col h-full">
-                <div className="relative flex-grow">
-                    <pre className="p-4 rounded-md bg-muted/50 whitespace-pre-wrap font-body text-sm h-full overflow-y-auto max-h-[340px]">
-                        {generatedReport}
-                    </pre>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-2 right-2"
-                        onClick={handleCopyToClipboard}
-                    >
-                        <Clipboard className="h-4 w-4" />
-                    </Button>
-                </div>
-              <div className="flex gap-2 mt-4">
-                <Button className="w-full">Approve & Save</Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={form.handleSubmit(handleGenerateReport)}
-                >
-                  Regenerate
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex-grow flex flex-col items-center justify-center text-muted-foreground bg-muted/20 rounded-lg border-2 border-dashed">
-                <Bot className="h-12 w-12" />
-                <p className="mt-4 font-medium">Your report will appear here.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="border rounded-md overflow-x-auto">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-[20%]">Controls</TableHead>
+                        <TableHead className="w-[25%]">Auditor Observation</TableHead>
+                        <TableHead className="w-[15%]">Select Evidence</TableHead>
+                        <TableHead className="w-[30%]">AI Detailed Analysis</TableHead>
+                        <TableHead className="w-[10%] text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {reportRows.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={5} className="h-48 text-center">
+                                 <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                    <Bot className="h-12 w-12" />
+                                    <p className="mt-4 font-medium">Your report is empty.</p>
+                                    <p className="text-sm mt-1">Add a row or load a sample template to get started.</p>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    ) : (
+                        reportRows.map(row => (
+                            <TableRow key={row.id} className="align-top">
+                                <TableCell>
+                                    <Textarea placeholder="e.g., Access Control" defaultValue={row.control} className="min-h-[100px]" />
+                                </TableCell>
+                                <TableCell>
+                                    <Textarea placeholder="e.g., System access is restricted..." defaultValue={row.observation} className="min-h-[100px]" />
+                                </TableCell>
+                                <TableCell>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                                <span>{row.evidence.length > 0 ? `${row.evidence.length} selected` : "Select evidence"}</span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent className="w-56" align="start">
+                                            {projectEvidence.map(evidence => (
+                                                <DropdownMenuCheckboxItem
+                                                    key={evidence.id}
+                                                    checked={row.evidence.includes(evidence.id)}
+                                                    onCheckedChange={() => handleEvidenceChange(row.id, evidence.id)}
+                                                    onSelect={(e) => e.preventDefault()}
+                                                >
+                                                    {evidence.name}
+                                                </DropdownMenuCheckboxItem>
+                                            ))}
+                                            {projectEvidence.length === 0 && <div className='p-2 text-sm text-muted-foreground'>No evidence for this project.</div>}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                                <TableCell>
+                                     {row.isGenerating ? (
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <span>Analyzing...</span>
+                                        </div>
+                                    ) : (
+                                        <Textarea readOnly value={row.analysis} placeholder="AI analysis will appear here." className="min-h-[100px] bg-muted/50" />
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <div className='flex flex-col gap-2 items-end'>
+                                        <Button size="sm" onClick={() => handleGenerate(row.id)} disabled={row.isGenerating}>
+                                            <Sparkles className="mr-2 h-4 w-4" />
+                                            Generate
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeRow(row.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    )}
+                </TableBody>
+            </Table>
+        </div>
+        <div className="flex justify-start mt-4">
+            <Button variant="outline" onClick={addRow}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Row
+            </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
