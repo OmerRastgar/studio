@@ -81,16 +81,11 @@ export function GuideProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         setIsMounted(true);
-    }, []);
-
-    useEffect(() => {
-        if (isMounted) {
-            const mainTourCompleted = localStorage.getItem('mainTourCompleted');
-            if (mainTourCompleted !== 'true') {
-                setShowStartDialog(true);
-            }
+        const tourCompleted = localStorage.getItem('mainTourCompleted');
+        if (tourCompleted !== 'true') {
+            setShowStartDialog(true);
         }
-    }, [isMounted]);
+    }, []);
 
     const startTour = useCallback((steps: Step[], tourId: string, force = false) => {
         const tourCompleted = localStorage.getItem(`${tourId}Completed`);
