@@ -97,21 +97,3 @@ export const reportGenerationTourSteps: Step[] = [
       placement: 'bottom',
     },
 ];
-
-
-// Helper to get the path for a given step target
-export const getPathForStep = (target: string | HTMLElement) => {
-    const selector = typeof target === 'string' ? target : '';
-
-    if (!selector) return null;
-
-    if (selector.includes('report-generation') || selector.includes('report-')) return '/reports';
-    if (selector.includes('agents')) return '/agents';
-    if (selector.includes('learning')) return '/learning';
-    if (selector.includes('evidence')) return '/evidence';
-    if (selector.includes('users')) return '/users';
-    if (selector.includes('dashboard') || selector.includes('compliance-progress') || selector.includes('stat-cards') || selector.includes('logo')) return '/dashboard';
-    
-    // Default to null if the step isn't found in the mapping or is on the current page.
-    return null;
-}
