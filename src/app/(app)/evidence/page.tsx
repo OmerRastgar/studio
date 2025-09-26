@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -25,8 +26,16 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import {
     Select,
     SelectContent,
@@ -37,21 +46,30 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import Image from 'next/image';
 import { mockEvidence, mockProjects, mockAgents } from '@/lib/data';
 import { format } from 'date-fns';
-import { MoreHorizontal, PlusCircle, Trash2, Edit, Eye, FolderArchive, X } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash2, Edit, Eye, FolderArchive, X, UploadCloud, Tag } from 'lucide-react';
 import { useState, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 function EvidencePageComponent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const agentId = searchParams.get('agentId');
+    const { toast } = useToast();
 
     const [evidenceList, setEvidenceList] = useState(mockEvidence);
     const [selectedProject, setSelectedProject] = useState(mockProjects[0].id);
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
+    const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+    const [newEvidenceName, setNewEvidenceName] = useState('');
+    const [currentTag, setCurrentTag] = useState('');
+    const [newEvidenceTags, setNewEvidenceTags] = useState<string[]>([]);
 
     const filteredEvidence = useMemo(() => {
         return evidenceList
@@ -78,6 +96,53 @@ function EvidencePageComponent() {
 
     const clearAgentFilter = () => {
         router.push('/evidence');
+    };
+    
+    const handleAddTag = () => {
+        if (currentTag && !newEvidenceTags.includes(currentTag)) {
+            setNewEvidenceTags([...newEvidenceTags, currentTag]);
+            setCurrentTag('');
+        }
+    };
+
+    const handleRemoveTag = (tagToRemove: string) => {
+        setNewEvidenceTags(newEvidenceTags.filter(tag => tag !== tagToRemove));
+    };
+
+    const handleUpload = () => {
+        if (!newEvidenceName) {
+            toast({
+                variant: 'destructive',
+                title: 'Missing Name',
+                description: 'Please provide a name for the evidence.',
+            });
+            return;
+        }
+
+        const newEvidence = {
+            id: `EV${String(evidenceList.length + 1).padStart(3, '0')}`,
+            projectId: selectedProject,
+            name: newEvidenceName,
+            type: 'document' as const,
+            tags: newEvidenceTags,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: 'Admin Auditor',
+            previewUrl: 'https://picsum.photos/seed/new-evidence/64/64',
+            aiHint: 'document',
+        };
+
+        setEvidenceList([newEvidence, ...evidenceList]);
+        
+        toast({
+            title: 'Evidence Uploaded',
+            description: `"${newEvidenceName}" has been added to the locker.`,
+        });
+
+        // Reset form and close dialog
+        setNewEvidenceName('');
+        setNewEvidenceTags([]);
+        setCurrentTag('');
+        setIsUploadDialogOpen(false);
     };
 
   return (
@@ -108,10 +173,74 @@ function EvidencePageComponent() {
                 ))}
               </SelectContent>
             </Select>
-            <Button className='w-full sm:w-auto'>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Upload Evidence
-            </Button>
+            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+                <DialogTrigger asChild>
+                    <Button className='w-full sm:w-auto'>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Upload Evidence
+                    </Button>
+                </DialogTrigger>
+                 <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Upload New Evidence</DialogTitle>
+                        <DialogDescription>
+                            Name and tag your evidence file for easy retrieval.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className='flex items-center justify-center w-full'>
+                            <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
+                                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                                    <p className="text-xs text-muted-foreground">PDF, PNG, JPG, LOG, etc.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="evidence-name">Evidence Name</Label>
+                            <Input
+                                id="evidence-name"
+                                placeholder="e.g., Q3 Firewall Config Export"
+                                value={newEvidenceName}
+                                onChange={(e) => setNewEvidenceName(e.target.value)}
+                            />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="evidence-tags">Tags</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    id="evidence-tags"
+                                    placeholder="e.g., networking, q3-review"
+                                    value={currentTag}
+                                    onChange={(e) => setCurrentTag(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+                                />
+                                <Button variant="outline" onClick={handleAddTag}>
+                                    <Tag className="mr-2 h-4 w-4" /> Add
+                                </Button>
+                            </div>
+                             <div className="flex flex-wrap gap-2 mt-2">
+                                {newEvidenceTags.map((tag) => (
+                                <Badge key={tag} variant="secondary">
+                                    {tag}
+                                    <button
+                                        onClick={() => handleRemoveTag(tag)}
+                                        className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    >
+                                        <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                    </button>
+                                </Badge>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleUpload}>Upload Evidence</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
       </CardHeader>
       <CardContent>
@@ -250,3 +379,5 @@ export default function EvidencePage() {
         </Suspense>
     );
 }
+
+    
