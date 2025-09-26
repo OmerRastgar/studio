@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { ThemeToggle } from './theme-toggle';
 import { Badge } from '@/components/ui/badge';
 import { useGuide } from './guide';
+import { mainTourSteps } from '@/lib/guide-steps';
 
 interface HeaderProps {
   user: User;
@@ -49,7 +50,7 @@ export function Header({ user, pageTitle }: HeaderProps) {
       <div className="ml-auto flex items-center gap-2 md:gap-4">
         <ThemeToggle />
 
-        <Button variant="ghost" className="h-10 w-10 rounded-full" onClick={startTour}>
+        <Button variant="ghost" className="h-10 w-10 rounded-full" onClick={() => startTour(mainTourSteps, 'mainTour')}>
           <HelpCircle className="h-5 w-5" />
           <span className="sr-only">Start Tour</span>
         </Button>

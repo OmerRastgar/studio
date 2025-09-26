@@ -28,6 +28,7 @@ import {
   Check,
   Clock,
   X,
+  HelpCircle,
 } from 'lucide-react';
 import {
   ChartContainer,
@@ -42,6 +43,9 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { useGuide } from '@/components/guide';
+import { dashboardTourSteps } from '@/lib/guide-steps';
+
 
 const chartConfig = {
   reports: {
@@ -71,13 +75,15 @@ const StatCard = ({
   value,
   change,
   icon: Icon,
+  tourId,
 }: {
   title: string;
   value: string | number;
   change: number;
   icon: React.ElementType;
+  tourId?: string;
 }) => (
-  <Card>
+  <Card data-tour-id={tourId}>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium">{title}</CardTitle>
       <Icon className="h-4 w-4 text-muted-foreground" />
@@ -106,6 +112,7 @@ const EvidenceStatusIcon = ({ status }: { status: 'Accepted' | 'Pending' | 'Reje
 };
 
 export default function DashboardPage() {
+  const { startTour } = useGuide();
   const getInitials = (name: string) =>
     name
       .split(' ')
@@ -120,7 +127,7 @@ export default function DashboardPage() {
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4" data-tour-id="stat-cards">
         <StatCard
           title="Reports Generated"
           value={dashboardStats.reportsGenerated.value}
@@ -149,10 +156,18 @@ export default function DashboardPage() {
 
        <Card data-tour-id="compliance-progress">
         <CardHeader>
-          <CardTitle className="font-headline">Overall Compliance Progress</CardTitle>
-          <CardDescription>
-            A high-level overview of your compliance status.
-          </CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="font-headline">Overall Compliance Progress</CardTitle>
+              <CardDescription>
+                A high-level overview of your compliance status.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => startTour(dashboardTourSteps, 'dashboardTour')}>
+              <HelpCircle className="mr-2 h-4 w-4" />
+              Start Tour
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid gap-6 md:grid-cols-2">
@@ -191,7 +206,7 @@ export default function DashboardPage() {
                     </p>
                 </div>
             </div>
-            <div className='grid gap-4'>
+            <div className='grid gap-4' data-tour-id="progress-breakdown">
                 <div>
                   <h3 className="font-semibold mb-2">Progress by Category</h3>
                   <div className="space-y-3">

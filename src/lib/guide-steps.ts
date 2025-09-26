@@ -1,6 +1,6 @@
 import { Step } from 'react-joyride';
 
-export const steps: Step[] = [
+export const mainTourSteps: Step[] = [
   {
     target: '[data-tour-id="logo"]',
     content: "Welcome to CyberGaar Audit Platform! Let's take a quick tour of the platform's key features.",
@@ -44,10 +44,30 @@ export const steps: Step[] = [
   },
 ];
 
+export const dashboardTourSteps: Step[] = [
+  {
+    target: '[data-tour-id="compliance-progress"]',
+    content: "This is the Compliance Progress widget. It gives you a real-time, high-level overview of your audit's status.",
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour-id="stat-cards"]',
+    content: "These cards show key metrics about your audit activities at a glance.",
+    placement: 'bottom',
+  },
+  {
+    target: '[data-tour-id="progress-breakdown"]',
+    content: "Here you can see a detailed breakdown of your compliance progress by category and view the most recent evidence-related activities.",
+    placement: 'left',
+  },
+];
+
 // Helper to get the path for a given step target
 export const getPathForStep = (target: string | HTMLElement) => {
-    const selector = typeof target === 'string' ? target : target.getAttribute('data-tour-id');
-    if (!selector) return '/dashboard';
+    if (!target) return null;
+    const selector = typeof target === 'string' ? target : (target.getAttribute('data-tour-id') || '');
+    if (!selector) return null;
 
     if (selector.includes('report-generation')) return '/reports';
     if (selector.includes('agents')) return '/agents';
@@ -55,5 +75,6 @@ export const getPathForStep = (target: string | HTMLElement) => {
     if (selector.includes('evidence')) return '/evidence';
     if (selector.includes('users')) return '/users';
     
-    return '/dashboard';
+    // Default to null if the step is on the current page
+    return null;
 }

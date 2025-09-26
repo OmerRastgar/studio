@@ -1,12 +1,12 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import Joyride, { CallBackProps, STATUS, EVENTS } from 'react-joyride';
+import Joyride, { CallBackProps, STATUS, EVENTS, Step } from 'react-joyride';
 import { useRouter, usePathname } from 'next/navigation';
-import { steps as allSteps, getPathForStep } from '@/lib/guide-steps';
+import { mainTourSteps, getPathForStep } from '@/lib/guide-steps';
 
 const GuideContext = createContext<{
-  startTour: () => void;
+  startTour: (steps: Step[], tourId: string) => void;
 }>({
   startTour: () => {},
 });
@@ -19,7 +19,9 @@ interface GuideProviderProps {
 
 export const GuideProvider = ({ children }: GuideProviderProps) => {
     const [run, setRun] = useState(false);
+    const [steps, setSteps] = useState<Step[]>(mainTourSteps);
     const [stepIndex, setStepIndex] = useState(0);
+    const [tourId, setTourId] = useState<string | null>(null);
     const router = useRouter();
     const pathname = usePathname();
     const [isMounted, setIsMounted] = useState(false);
@@ -28,42 +30,52 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
         setIsMounted(true);
     }, []);
     
-    const startTour = useCallback(() => {
-        setStepIndex(0);
-        setRun(true);
+    const startTour = useCallback((tourSteps: Step[], id: string) => {
+        const tourCompleted = localStorage.getItem(`${id}Completed`);
+        if (tourCompleted !== 'true') {
+            setSteps(tourSteps);
+            setTourId(id);
+            setStepIndex(0);
+            setRun(true);
+        }
     }, []);
+    
+    const startMainTour = useCallback(() => {
+        startTour(mainTourSteps, 'mainTour');
+    }, [startTour]);
 
     useEffect(() => {
         if (isMounted) {
-            const tourCompleted = localStorage.getItem('tourCompleted');
-            if (tourCompleted !== 'true') {
-                startTour();
-            }
+            startMainTour();
         }
-    }, [isMounted, startTour]);
+    }, [isMounted, startMainTour]);
 
     const handleJoyrideCallback = (data: CallBackProps) => {
         const { status, type, index, action } = data;
         const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
-
-        if (finishedStatuses.includes(status)) {
+        
+        if (([STATUS.FINISHED, STATUS.SKIPPED] as string[]).includes(status) || action === 'close') {
             setRun(false);
             setStepIndex(0);
-            localStorage.setItem('tourCompleted', 'true');
+            if (tourId) {
+                localStorage.setItem(`${tourId}Completed`, 'true');
+            }
             return;
         }
 
         if (type === EVENTS.STEP_AFTER) {
             const nextStepIndex = index + (action === 'prev' ? -1 : 1);
-            const nextStep = allSteps[nextStepIndex];
+            const nextStep = steps[nextStepIndex];
             
             if (nextStep) {
                 const nextPath = getPathForStep(nextStep.target);
                 if (nextPath && nextPath !== pathname) {
-                    setRun(false); // Pause the tour
+                    setRun(false);
                     router.push(nextPath);
-                    // The tour will be resumed by the useEffect below
-                    setStepIndex(nextStepIndex);
+                    setTimeout(() => {
+                        setStepIndex(nextStepIndex);
+                        setRun(true);
+                    }, 500); // Delay to allow page transition
                 } else {
                      setStepIndex(nextStepIndex);
                 }
@@ -71,25 +83,13 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
         }
     };
     
-    // This effect resumes the tour after navigation
-    useEffect(() => {
-        const currentStep = allSteps[stepIndex];
-        if (run === false && currentStep && getPathForStep(currentStep.target) === pathname) {
-            // Short delay to allow the page to render before resuming the tour
-            const timer = setTimeout(() => {
-                setRun(true);
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [pathname, run, stepIndex]);
-    
     return (
         <GuideContext.Provider value={{ startTour }}>
             {children}
             {isMounted && (
                 <Joyride
                     run={run}
-                    steps={allSteps}
+                    steps={steps}
                     stepIndex={stepIndex}
                     continuous
                     showProgress
