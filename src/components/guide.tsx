@@ -22,6 +22,13 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
     const [stepIndex, setStepIndex] = useState(0);
     const router = useRouter();
     const pathname = usePathname();
+    
+    useEffect(() => {
+        const tourCompleted = localStorage.getItem('tourCompleted');
+        if (tourCompleted !== 'true') {
+            startTour();
+        }
+    }, []);
 
     const startTour = useCallback(() => {
         setStepIndex(0);
@@ -40,13 +47,12 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
         }
 
         if (type === EVENTS.STEP_AFTER) {
-            const nextStepIndex = index + 1;
+            const nextStepIndex = index + (data.action === 'prev' ? -1 : 1);
             const nextStep = allSteps[nextStepIndex];
             
             if (nextStep) {
                 const nextPath = getPathForStep(nextStep.target);
                 if (nextPath !== pathname) {
-                    // Navigate and then the useEffect will handle continuing the tour
                     setStepIndex(nextStepIndex);
                     router.push(nextPath);
                 } else {
@@ -58,14 +64,12 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
         }
     };
     
-    // Effect to run tour step when page navigation is complete
     useEffect(() => {
         const currentStep = allSteps[stepIndex];
         if (run && currentStep && getPathForStep(currentStep.target) === pathname) {
-             // This timeout gives the page a moment to render before the step appears
             setTimeout(() => {
                 setRun(true);
-            }, 100);
+            }, 300);
         }
     }, [pathname, run, stepIndex]);
     
@@ -82,23 +86,39 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
                 callback={handleJoyrideCallback}
                 styles={{
                     options: {
-                        arrowColor: 'hsl(var(--card))',
-                        backgroundColor: 'hsl(var(--card))',
-                        overlayColor: 'rgba(0, 0, 0, 0.8)',
-                        primaryColor: 'hsl(var(--primary))',
-                        textColor: 'hsl(var(--card-foreground))',
-                        zIndex: 1000,
+                      arrowColor: 'hsl(var(--card))',
+                      zIndex: 10000,
+                    },
+                    tooltip: {
+                      backgroundColor: 'hsl(var(--card))',
+                      color: 'hsl(var(--card-foreground))',
+                      borderRadius: 'var(--radius)',
+                      border: '1px solid hsl(var(--border))',
+                    },
+                    tooltipContainer: {
+                      textAlign: 'left',
+                    },
+                    tooltipContent: {
+                      padding: '1rem',
+                    },
+                    buttonNext: {
+                      backgroundColor: 'hsl(var(--primary))',
+                      color: 'hsl(var(--primary-foreground))',
+                      borderRadius: 'var(--radius)',
+                    },
+                    buttonBack: {
+                      color: 'hsl(var(--primary))',
+                    },
+                    buttonSkip: {
+                      color: 'hsl(var(--muted-foreground))',
                     },
                     buttonClose: {
                         color: 'hsl(var(--card-foreground))',
                     },
-                    buttonNext: {
-                        backgroundColor: 'hsl(var(--primary))',
+                    spotlight: {
+                      borderRadius: 'var(--radius)',
                     },
-                    buttonBack: {
-                        color: 'hsl(var(--primary))',
-                    }
-                }}
+                  }}
             />
         </GuideContext.Provider>
     );

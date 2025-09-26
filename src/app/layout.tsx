@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'Audit Gar',
+  title: 'CyberGaar Audit Platform',
   description: 'AI-Powered Auditing Platform',
 };
 

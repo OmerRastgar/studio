@@ -3,7 +3,7 @@ import { Step } from 'react-joyride';
 export const steps: Step[] = [
   {
     target: '[data-tour-id="logo"]',
-    content: "Welcome to Audit Gar! Let's take a quick tour of the platform's key features.",
+    content: "Welcome to CyberGaar Audit Platform! Let's take a quick tour of the platform's key features.",
     placement: 'bottom',
     disableBeacon: true,
   },

@@ -87,7 +87,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Sidebar>
             <SidebarHeader className="p-4">
               <div className="flex items-center justify-between" data-tour-id="logo">
-                <Image src="/Logo.png" alt="Audit Gar Logo" width={120} height={40} className="group-data-[collapsible=icon]:hidden" />
+                <Image src="/Logo.png" alt="CyberGaar Audit Platform Logo" width={120} height={40} className="group-data-[collapsible=icon]:hidden" />
               </div>
             </SidebarHeader>
             <SidebarContent>
