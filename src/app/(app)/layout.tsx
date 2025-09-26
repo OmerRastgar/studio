@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   SidebarProvider,
   Sidebar,
@@ -10,8 +9,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
-  SidebarInset,
-  SidebarTrigger
+  SidebarInset
 } from '@/components/ui/sidebar';
 import { Header } from '@/components/header';
 import {
@@ -20,22 +18,18 @@ import {
   Database,
   ScrollText,
   Settings,
-  ShieldCheck,
-  Users,
   Bot,
-  BookOpen
+  BookOpen,
+  Users
 } from 'lucide-react';
 import type { User } from '@/lib/types';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeProvider } from '@/components/providers';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import { Guide, GuideProvider, useGuide } from '@/components/guide';
+import { GuideProvider } from '@/components/guide';
 
-
-// Mock user data for layout
 const user: User = {
   name: 'Admin Auditor',
   email: 'admin@auditace.com',
@@ -43,29 +37,22 @@ const user: User = {
   role: 'admin',
 };
 
-const getInitials = (name: string) => {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('');
-};
-
 function Nav() {
   const pathname = usePathname();
   const navItems = [
-    { href: '/dashboard', title: 'Dashboard', icon: LayoutDashboard },
-    { href: '/reports', title: 'Report Generation', icon: FileText },
-    { href: '/agents', title: 'Agents', icon: Bot },
-    { href: '/learning', title: 'Learning', icon: BookOpen },
-    { href: '/evidence', title: 'Evidence', icon: Database },
-    { href: '/audit-log', title: 'Audit Log', icon: ScrollText },
-    { href: '/users', title: 'Users', icon: Users },
+    { href: '/dashboard', title: 'Dashboard', icon: LayoutDashboard, tourId: 'dashboard' },
+    { href: '/reports', title: 'Report Generation', icon: FileText, tourId: 'report-generation' },
+    { href: '/agents', title: 'Agents', icon: Bot, tourId: 'agents' },
+    { href: '/learning', title: 'Learning', icon: BookOpen, tourId: 'learning' },
+    { href: '/evidence', title: 'Evidence', icon: Database, tourId: 'evidence' },
+    { href: '/audit-log', title: 'Audit Log', icon: ScrollText, tourId: 'audit-log' },
+    { href: '/users', title: 'Users', icon: Users, tourId: 'users' },
   ];
 
   return (
     <SidebarMenu>
       {navItems.map((item) => (
-        <SidebarMenuItem key={item.href} data-tour-id={item.title.toLowerCase().replace(/\\s+/g, '-')}>
+        <SidebarMenuItem key={item.href} data-tour-id={item.tourId}>
           <SidebarMenuButton
             asChild
             isActive={pathname.startsWith(item.href)}
@@ -82,23 +69,11 @@ function Nav() {
   );
 }
 
-function HeaderWrapper({ user, pageTitle }: { user: User; pageTitle: string }) {
-  const { setTourEnabled, setInitialStep } = useGuide();
-  const startTour = () => {
-    setInitialStep(0);
-    setTourEnabled(true);
-  };
-  return <Header user={user} pageTitle={pageTitle} onStartTour={startTour} />;
-}
-
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const pageTitle =
-    pathname.split('/').pop()?.replace('-', ' ')?.replace(/\\b\\w/g, (l) => l.toUpperCase()) ||
+    pathname.split('/').pop()?.replace('-', ' ')?.replace(/\b\w/g, (l) => l.toUpperCase()) ||
     'Dashboard';
-  const [tourEnabled, setTourEnabled] = useState(false);
-  const [initialStep, setInitialStep] = useState(0);
 
   return (
     <ThemeProvider
@@ -107,7 +82,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <GuideProvider setTourEnabled={setTourEnabled} setInitialStep={setInitialStep}>
+      <GuideProvider>
         <SidebarProvider>
           <Sidebar>
             <SidebarHeader className="p-4">
@@ -136,13 +111,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarFooter>
           </Sidebar>
           <SidebarInset>
-            <Guide
-              tourEnabled={tourEnabled}
-              setTourEnabled={setTourEnabled}
-              initialStep={initialStep}
-              setInitialStep={setInitialStep}
-            />
-            <HeaderWrapper user={user} pageTitle={pageTitle} />
+            <Header user={user} pageTitle={pageTitle} />
             <main className="flex-1 p-4 md:p-6" data-tour-id="main-content">
               {children}
             </main>

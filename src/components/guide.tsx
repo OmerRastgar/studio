@@ -1,98 +1,105 @@
 'use client';
 
-import { createContext, useContext, useEffect, useRef } from 'react';
-import { Steps } from 'intro.js-react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import Joyride, { CallBackProps, STATUS, EVENTS, Step } from 'react-joyride';
 import { useRouter, usePathname } from 'next/navigation';
-import { steps as allSteps } from '@/lib/guide-steps';
+import { steps as allSteps, getPathForStep } from '@/lib/guide-steps';
 
 const GuideContext = createContext<{
-  setTourEnabled: (enabled: boolean) => void;
-  setInitialStep: (step: number) => void;
+  startTour: () => void;
 }>({
-  setTourEnabled: () => {},
-  setInitialStep: () => {},
+  startTour: () => {},
 });
 
 export const useGuide = () => useContext(GuideContext);
 
-export const GuideProvider = ({
-  children,
-  setTourEnabled,
-  setInitialStep
-}: {
-  children: React.ReactNode;
-  setTourEnabled: (enabled: boolean) => void;
-  setInitialStep: (step: number) => void;
-}) => {
-  return (
-    <GuideContext.Provider value={{ setTourEnabled, setInitialStep }}>
-      {children}
-    </GuideContext.Provider>
-  );
+interface GuideProviderProps {
+    children: React.ReactNode;
+}
+
+export const GuideProvider = ({ children }: GuideProviderProps) => {
+    const [run, setRun] = useState(false);
+    const [stepIndex, setStepIndex] = useState(0);
+    const router = useRouter();
+    const pathname = usePathname();
+
+    const startTour = useCallback(() => {
+        setStepIndex(0);
+        setRun(true);
+    }, []);
+
+    const handleJoyrideCallback = (data: CallBackProps) => {
+        const { status, type, step, index } = data;
+        const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
+
+        if (finishedStatuses.includes(status)) {
+            setRun(false);
+            setStepIndex(0);
+            localStorage.setItem('tourCompleted', 'true');
+            return;
+        }
+
+        if (type === EVENTS.STEP_AFTER) {
+            const nextStepIndex = index + 1;
+            const nextStep = allSteps[nextStepIndex];
+            
+            if (nextStep) {
+                const nextPath = getPathForStep(nextStep.target);
+                if (nextPath !== pathname) {
+                    // Navigate and then the useEffect will handle continuing the tour
+                    setStepIndex(nextStepIndex);
+                    router.push(nextPath);
+                } else {
+                     setStepIndex(nextStepIndex);
+                }
+            } else {
+                 setStepIndex(index + (step.placement === 'center' ? 1 : 0));
+            }
+        }
+    };
+    
+    // Effect to run tour step when page navigation is complete
+    useEffect(() => {
+        const currentStep = allSteps[stepIndex];
+        if (run && currentStep && getPathForStep(currentStep.target) === pathname) {
+             // This timeout gives the page a moment to render before the step appears
+            setTimeout(() => {
+                setRun(true);
+            }, 100);
+        }
+    }, [pathname, run, stepIndex]);
+    
+    return (
+        <GuideContext.Provider value={{ startTour }}>
+            {children}
+            <Joyride
+                run={run}
+                steps={allSteps}
+                stepIndex={stepIndex}
+                continuous
+                showProgress
+                showSkipButton
+                callback={handleJoyrideCallback}
+                styles={{
+                    options: {
+                        arrowColor: 'hsl(var(--card))',
+                        backgroundColor: 'hsl(var(--card))',
+                        overlayColor: 'rgba(0, 0, 0, 0.8)',
+                        primaryColor: 'hsl(var(--primary))',
+                        textColor: 'hsl(var(--card-foreground))',
+                        zIndex: 1000,
+                    },
+                    buttonClose: {
+                        color: 'hsl(var(--card-foreground))',
+                    },
+                    buttonNext: {
+                        backgroundColor: 'hsl(var(--primary))',
+                    },
+                    buttonBack: {
+                        color: 'hsl(var(--primary))',
+                    }
+                }}
+            />
+        </GuideContext.Provider>
+    );
 };
-
-interface GuideProps {
-  tourEnabled: boolean;
-  setTourEnabled: (enabled: boolean) => void;
-  initialStep: number;
-  setInitialStep: (step: number) => void;
-}
-
-export function Guide({
-  tourEnabled,
-  setTourEnabled,
-  initialStep,
-  setInitialStep,
-}: GuideProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const isNavigating = useRef(false);
-
-  useEffect(() => {
-    isNavigating.current = false;
-  }, [pathname]);
-
-  const onExit = () => {
-    setTourEnabled(false);
-    localStorage.setItem('tourCompleted', 'true');
-  };
-
-  const onBeforeChange = (nextStepIndex: number) => {
-    if (isNavigating.current) {
-        return false;
-    }
-    
-    // Check if a step is provided (it can be null)
-    if (nextStepIndex === null || nextStepIndex === undefined) {
-      return true;
-    }
-
-    const nextStep = allSteps[nextStepIndex];
-    if (nextStep && nextStep.path && nextStep.path !== pathname) {
-      isNavigating.current = true;
-      router.push(nextStep.path);
-      
-      // We need to keep track of the step we are going to
-      setInitialStep(nextStepIndex);
-      return false; // Prevent intro.js from moving to the next step immediately
-    }
-    
-    return true;
-  };
-
-  return (
-    <Steps
-      enabled={tourEnabled && !isNavigating.current}
-      steps={allSteps}
-      initialStep={initialStep}
-      onExit={onExit}
-      onBeforeChange={onBeforeChange}
-      options={{
-        showProgress: true,
-        showBullets: false,
-        exitOnOverlayClick: false,
-        tooltipClass: 'custom-tooltip',
-      }}
-    />
-  );
-}
