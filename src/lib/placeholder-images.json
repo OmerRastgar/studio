@@ -13,6 +13,12 @@
       "imageHint": "person avatar"
     },
     {
+      "id": "user-avatar-3",
+      "description": "User avatar for a customer client",
+      "imageUrl": "https://images.unsplash.com/photo-1544725176-7c40e5a71c3e?q=80&w=1887&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageHint": "person avatar"
+    },
+    {
       "id": "evidence-thumb-1",
       "description": "Evidence thumbnail for a document",
       "imageUrl": "https://images.unsplash.com/photo-1487274910620-1add53247020?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxkb2N1bWVudCUyMHBhcGVyfGVufDB8fHx8MTc1ODgwNDAyMnww&ixlib=rb-4.1.0&q=80&w=1080",

@@ -20,6 +20,7 @@ import {
   ScrollText,
   Settings,
   ShieldCheck,
+  Users
 } from 'lucide-react';
 import type { User } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -49,6 +50,7 @@ function Nav() {
     { href: '/reports', title: 'Report Generation', icon: FileText },
     { href: '/evidence', title: 'Evidence', icon: Database },
     { href: '/audit-log', title: 'Audit Log', icon: ScrollText },
+    { href: '/users', title: 'Users', icon: Users },
   ];
 
   return (

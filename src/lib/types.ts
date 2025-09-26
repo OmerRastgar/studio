@@ -7,6 +7,11 @@ export type User = {
   role: 'admin' | 'auditor' | 'customer';
 };
 
+export type UserProfile = User & {
+    status: 'Active' | 'Inactive';
+    lastActive?: string;
+}
+
 export type Project = {
   id: string;
   name: string;

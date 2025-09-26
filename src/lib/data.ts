@@ -1,8 +1,9 @@
-import type { Evidence, AuditLog, Project, Auditor } from '@/lib/types';
+import type { Evidence, AuditLog, Project, Auditor, UserProfile } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const userAvatar1 = PlaceHolderImages.find(img => img.id === 'user-avatar-1')?.imageUrl || '';
 const userAvatar2 = PlaceHolderImages.find(img => img.id === 'user-avatar-2')?.imageUrl || '';
+const userAvatar3 = PlaceHolderImages.find(img => img.id === 'user-avatar-3')?.imageUrl || '';
 
 const evidenceThumb1 = PlaceHolderImages.find(img => img.id === 'evidence-thumb-1');
 const evidenceThumb2 = PlaceHolderImages.find(img => img.id === 'evidence-thumb-2');
@@ -15,6 +16,41 @@ export const mockProjects: Project[] = [
     { id: 'proj-001', name: 'SOC 2 Compliance Audit' },
     { id: 'proj-002', name: 'ISO 27001 Certification' },
     { id: 'proj-003', name: 'Internal Security Review' },
+];
+
+export const mockUsers: UserProfile[] = [
+    {
+        name: 'Admin Auditor',
+        email: 'admin@auditace.com',
+        avatarUrl: 'https://picsum.photos/seed/admin/100/100',
+        role: 'admin',
+        status: 'Active',
+        lastActive: new Date(Date.now() - 3.6e+5).toISOString(), // 6 minutes ago
+    },
+    {
+        name: 'Jane Doe',
+        email: 'jane.doe@example.com',
+        avatarUrl: userAvatar1,
+        role: 'auditor',
+        status: 'Active',
+        lastActive: new Date(Date.now() - 7.2e+6).toISOString(), // 2 hours ago
+    },
+    {
+        name: 'John Smith',
+        email: 'john.smith@example.com',
+        avatarUrl: userAvatar2,
+        role: 'auditor',
+        status: 'Inactive',
+        lastActive: new Date(Date.now() - 2.592e+9).toISOString(), // 30 days ago
+    },
+    {
+        name: 'Customer Client',
+        email: 'client@customer.com',
+        avatarUrl: userAvatar3,
+        role: 'customer',
+        status: 'Active',
+        lastActive: new Date(Date.now() - 8.64e+7).toISOString(), // 1 day ago
+    }
 ];
 
 export const mockAuditors: Auditor[] = [
