@@ -1,3 +1,4 @@
+
 import { Step } from 'react-joyride';
 
 export const mainTourSteps: Step[] = [
@@ -100,30 +101,21 @@ export const reportGenerationTourSteps: Step[] = [
 
 // Helper to get the path for a given step target
 export const getPathForStep = (target: string | HTMLElement) => {
-    if (!target) return null;
-    
-    // Create a dummy element to check for the target in the current DOM
-    const dummyEl = document.createElement('div');
-    if (typeof target === 'string') {
-        dummyEl.innerHTML = `<div data-tour-id="${target.replace(/[[\]=]/g, '')}"></div>`;
-        if (document.querySelector(target)) {
-            return null; // Target is on the current page
-        }
-    } else if (target instanceof HTMLElement && document.body.contains(target)) {
+    const selector = typeof target === 'string' ? target : (target.dataset.tourId ? `[data-tour-id="${target.dataset.tourId}"]` : '');
+
+    if (!selector) return null;
+
+    if (document.querySelector(selector)) {
         return null; // Target is on the current page
     }
-
-
-    const selector = typeof target === 'string' ? target : (target.getAttribute('data-tour-id') || '');
-    if (!selector) return null;
 
     if (selector.includes('report-generation') || selector.includes('report-')) return '/reports';
     if (selector.includes('agents')) return '/agents';
     if (selector.includes('learning')) return '/learning';
     if (selector.includes('evidence')) return '/evidence';
     if (selector.includes('users')) return '/users';
-    if (selector.includes('dashboard')) return '/dashboard';
+    if (selector.includes('dashboard') || selector.includes('compliance-progress') || selector.includes('stat-cards')) return '/dashboard';
     
-    // Default to null if the step is on the current page
+    // Default to null if the step isn't found in the mapping.
     return null;
 }
