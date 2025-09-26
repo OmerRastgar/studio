@@ -13,6 +13,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ReportChatPanel } from '@/components/report-chat-panel';
@@ -456,5 +457,3 @@ export default function ReportsPage() {
     </>
   );
 }
-
-    
