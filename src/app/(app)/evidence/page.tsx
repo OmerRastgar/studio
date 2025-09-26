@@ -47,7 +47,6 @@ export default function EvidencePage() {
     const [evidenceList, setEvidenceList] = useState(mockEvidence);
     const [selectedProject, setSelectedProject] = useState(mockProjects[0].id);
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-    const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
 
     const filteredEvidence = useMemo(() => {
         return evidenceList.filter(e => e.projectId === selectedProject);
@@ -64,7 +63,6 @@ export default function EvidencePage() {
 
     const handleDeleteAll = () => {
         setEvidenceList(evidenceList.filter(e => e.projectId !== selectedProject));
-        setIsDeleteAllOpen(false);
     };
 
   return (
@@ -93,72 +91,89 @@ export default function EvidencePage() {
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="hidden w-[100px] sm:table-cell">
-                <span className="sr-only">Image</span>
-              </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Tags</TableHead>
-              <TableHead className="hidden md:table-cell">Uploaded At</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredEvidence.map((evidence) => (
-              <TableRow key={evidence.id}>
-                <TableCell className="hidden sm:table-cell">
-                  <Image
-                    alt={evidence.name}
-                    className="aspect-square rounded-md object-cover"
-                    height="64"
-                    src={evidence.previewUrl}
-                    width="64"
-                    data-ai-hint={evidence.aiHint}
-                  />
-                </TableCell>
-                <TableCell className="font-medium">{evidence.name}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {evidence.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  {format(new Date(evidence.uploadedAt), 'PPP')}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem><Eye className="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
-                      <DropdownMenuItem><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem className="text-destructive" onClick={() => setItemToDelete(evidence.id)}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <AlertDialog>
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead className="hidden w-[100px] sm:table-cell">
+                    <span className="sr-only">Image</span>
+                </TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Tags</TableHead>
+                <TableHead className="hidden md:table-cell">Uploaded At</TableHead>
+                <TableHead>
+                    <span className="sr-only">Actions</span>
+                </TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {filteredEvidence.map((evidence) => (
+                <TableRow key={evidence.id}>
+                    <TableCell className="hidden sm:table-cell">
+                    <Image
+                        alt={evidence.name}
+                        className="aspect-square rounded-md object-cover"
+                        height="64"
+                        src={evidence.previewUrl}
+                        width="64"
+                        data-ai-hint={evidence.aiHint}
+                    />
+                    </TableCell>
+                    <TableCell className="font-medium">{evidence.name}</TableCell>
+                    <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                        {evidence.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary">
+                            {tag}
+                        </Badge>
+                        ))}
+                    </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                    {format(new Date(evidence.uploadedAt), 'PPP')}
+                    </TableCell>
+                    <TableCell>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                        </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem><Eye className="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
+                        <DropdownMenuItem><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-destructive" onClick={() => setItemToDelete(evidence.id)}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                            </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    </TableCell>
+                </TableRow>
+                ))}
+            </TableBody>
+            </Table>
+             <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete this piece of evidence.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => itemToDelete && handleDelete(itemToDelete)}>
+                        Delete
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
          {filteredEvidence.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
                 <FolderArchive className="mx-auto h-12 w-12" />
@@ -168,49 +183,32 @@ export default function EvidencePage() {
         )}
         {filteredEvidence.length > 0 && (
           <div className='flex justify-end pt-6'>
-            <AlertDialogTrigger asChild>
-                <Button variant="destructive" onClick={() => setIsDeleteAllOpen(true)}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete All Evidence for {selectedProjectName}
-                </Button>
-            </AlertDialogTrigger>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete All Evidence for {selectedProjectName}
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Delete all evidence for {selectedProjectName}?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete all evidence for this project.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteAll}>
+                        Yes, delete all
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
           </div>
         )}
       </CardContent>
     </Card>
-
-    <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete this piece of evidence.
-            </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => itemToDelete && handleDelete(itemToDelete)}>
-                Delete
-            </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
-     <AlertDialog open={isDeleteAllOpen} onOpenChange={setIsDeleteAllOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Delete all evidence for {selectedProjectName}?</AlertDialogTitle>
-            <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete all evidence for this project.
-            </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteAll}>
-                Yes, delete all
-            </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
     </>
   );
 }
