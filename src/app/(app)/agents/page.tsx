@@ -21,6 +21,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -30,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -126,6 +128,7 @@ export default function AgentsPage() {
   }
   
   return (
+    <Dialog>
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -133,101 +136,12 @@ export default function AgentsPage() {
                 <CardTitle className="font-headline">Agent Management</CardTitle>
                 <CardDescription>Configure, deploy, and monitor your compliance agents.</CardDescription>
             </div>
-            <Dialog>
-                <DialogTrigger asChild>
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Deploy Agent
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Deploy New Agent</DialogTitle>
-                        <DialogDescription>
-                            Select a platform to download the agent and view installation instructions.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Tabs defaultValue="windows" className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="windows">Windows</TabsTrigger>
-                            <TabsTrigger value="macos">macOS</TabsTrigger>
-                            <TabsTrigger value="linux">Linux</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="windows">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Windows Agent</CardTitle>
-                                    <CardDescription>Download the installer for Windows Server and Desktop.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <Button onClick={() => handleDownload('Windows')} className="w-full">
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Download Agent (.msi)
-                                    </Button>
-                                    <div className='space-y-2'>
-                                        <h4 className="font-semibold">Installation Instructions</h4>
-                                        <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
-                                            <li>Download the <code>AuditAceAgent.msi</code> installer.</li>
-                                            <li>Run the installer with administrator privileges.</li>
-                                            <li>Follow the on-screen instructions to complete the installation.</li>
-                                            <li>The agent will start automatically and register with the server.</li>
-                                        </ol>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                         <TabsContent value="macos">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>macOS Agent</CardTitle>
-                                    <CardDescription>Download the installer for macOS.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <Button onClick={() => handleDownload('macOS')} className="w-full">
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Download Agent (.pkg)
-                                    </Button>
-                                     <div className='space-y-2'>
-                                        <h4 className="font-semibold">Installation Instructions</h4>
-                                        <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
-                                            <li>Download the <code>AuditAceAgent.pkg</code> file.</li>
-                                            <li>Open the installer package and follow the prompts.</li>
-                                            <li>You may need to grant permissions in System Settings {'>'} Privacy & Security.</li>
-                                            <li>The agent will launch upon successful installation.</li>
-                                        </ol>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                         <TabsContent value="linux">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Linux Agent</CardTitle>
-                                    <CardDescription>Download the agent for Debian-based or RPM-based systems.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <Button onClick={() => handleDownload('Linux (.deb)')} className="w-full">
-                                            <Download className="mr-2 h-4 w-4" />
-                                            Download (.deb)
-                                        </Button>
-                                        <Button onClick={() => handleDownload('Linux (.rpm)')} className="w-full">
-                                            <Download className="mr-2 h-4 w-4" />
-                                            Download (.rpm)
-                                        </Button>
-                                    </div>
-                                    <div className='space-y-2'>
-                                        <h4 className="font-semibold">Installation Instructions (Debian/Ubuntu)</h4>
-                                        <CodeBlock text="sudo dpkg -i AuditAceAgent.deb" />
-                                         <h4 className="font-semibold pt-2">Installation Instructions (CentOS/Fedora)</h4>
-                                        <CodeBlock text="sudo rpm -i AuditAceAgent.rpm" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
-                </DialogContent>
-            </Dialog>
+            <DialogTrigger asChild>
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Deploy Agent
+                </Button>
+            </DialogTrigger>
         </div>
       </CardHeader>
       <CardContent>
@@ -311,24 +225,72 @@ export default function AgentsPage() {
                             <Badge variant="outline">{agent.version}</Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">Toggle menu</span>
-                                </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Configure</DropdownMenuItem>
-                                    <DropdownMenuItem><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-destructive">
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Delete
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Dialog>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Toggle menu</span>
+                                    </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DialogTrigger asChild>
+                                            <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Configure</DropdownMenuItem>
+                                        </DialogTrigger>
+                                        <DropdownMenuItem><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-destructive">
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Delete
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                 <DialogContent className="max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Configure Agent</DialogTitle>
+                                        <DialogDescription>
+                                            Adjust the settings for the agent. Changes will be applied on next sync.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="agent-name" className="text-right">Name</Label>
+                                            <Input id="agent-name" defaultValue={agent.name} className="col-span-3" />
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="monitoring-scope" className="text-right">Scope</Label>
+                                            <Select>
+                                                <SelectTrigger className="col-span-3">
+                                                    <SelectValue placeholder="Select scope" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="full">Full System</SelectItem>
+                                                    <SelectItem value="files">File Integrity</SelectItem>
+                                                    <SelectItem value="network">Network Traffic</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="collection-frequency" className="text-right">Frequency</Label>
+                                            <Select>
+                                                <SelectTrigger className="col-span-3">
+                                                    <SelectValue placeholder="Select frequency" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="hourly">Hourly</SelectItem>
+                                                    <SelectItem value="daily">Daily</SelectItem>
+                                                    <SelectItem value="weekly">Weekly</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button variant="outline">Cancel</Button>
+                                        <Button>Save Changes</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </TableCell>
                     </TableRow>
                     ))
@@ -338,6 +300,94 @@ export default function AgentsPage() {
         </div>
       </CardContent>
     </Card>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+            <DialogTitle>Deploy New Agent</DialogTitle>
+            <DialogDescription>
+                Select a platform to download the agent and view installation instructions.
+            </DialogDescription>
+        </DialogHeader>
+        <Tabs defaultValue="windows" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="windows">Windows</TabsTrigger>
+                <TabsTrigger value="macos">macOS</TabsTrigger>
+                <TabsTrigger value="linux">Linux</TabsTrigger>
+            </TabsList>
+            <TabsContent value="windows">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Windows Agent</CardTitle>
+                        <CardDescription>Download the installer for Windows Server and Desktop.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Button onClick={() => handleDownload('Windows')} className="w-full">
+                            <Download className="mr-2 h-4 w-4" />
+                            Download Agent (.msi)
+                        </Button>
+                        <div className='space-y-2'>
+                            <h4 className="font-semibold">Installation Instructions</h4>
+                            <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                                <li>Download the <code>AuditAceAgent.msi</code> installer.</li>
+                                <li>Run the installer with administrator privileges.</li>
+                                <li>Follow the on-screen instructions to complete the installation.</li>
+                                <li>The agent will start automatically and register with the server.</li>
+                            </ol>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+                <TabsContent value="macos">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>macOS Agent</CardTitle>
+                        <CardDescription>Download the installer for macOS.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Button onClick={() => handleDownload('macOS')} className="w-full">
+                            <Download className="mr-2 h-4 w-4" />
+                            Download Agent (.pkg)
+                        </Button>
+                            <div className='space-y-2'>
+                            <h4 className="font-semibold">Installation Instructions</h4>
+                            <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                                <li>Download the <code>AuditAceAgent.pkg</code> file.</li>
+                                <li>Open the installer package and follow the prompts.</li>
+                                <li>You may need to grant permissions in System Settings {'>'} Privacy & Security.</li>
+                                <li>The agent will launch upon successful installation.</li>
+                            </ol>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+                <TabsContent value="linux">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Linux Agent</CardTitle>
+                        <CardDescription>Download the agent for Debian-based or RPM-based systems.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <Button onClick={() => handleDownload('Linux (.deb)')} className="w-full">
+                                <Download className="mr-2 h-4 w-4" />
+                                Download (.deb)
+                            </Button>
+                            <Button onClick={() => handleDownload('Linux (.rpm)')} className="w-full">
+                                <Download className="mr-2 h-4 w-4" />
+                                Download (.rpm)
+                            </Button>
+                        </div>
+                        <div className='space-y-2'>
+                            <h4 className="font-semibold">Installation Instructions (Debian/Ubuntu)</h4>
+                            <CodeBlock text="sudo dpkg -i AuditAceAgent.deb" />
+                                <h4 className="font-semibold pt-2">Installation Instructions (CentOS/Fedora)</h4>
+                            <CodeBlock text="sudo rpm -i AuditAceAgent.rpm" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        </Tabs>
+    </DialogContent>
+    </Dialog>
   );
 }
 
