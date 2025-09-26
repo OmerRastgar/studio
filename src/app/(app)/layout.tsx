@@ -20,7 +20,8 @@ import {
   ScrollText,
   Settings,
   ShieldCheck,
-  Users
+  Users,
+  Bot
 } from 'lucide-react';
 import type { User } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -48,6 +49,7 @@ function Nav() {
   const navItems = [
     { href: '/dashboard', title: 'Dashboard', icon: LayoutDashboard },
     { href: '/reports', title: 'Report Generation', icon: FileText },
+    { href: '/agents', title: 'Agents', icon: Bot },
     { href: '/evidence', title: 'Evidence', icon: Database },
     { href: '/audit-log', title: 'Audit Log', icon: ScrollText },
     { href: '/users', title: 'Users', icon: Users },
