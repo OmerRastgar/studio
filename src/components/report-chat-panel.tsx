@@ -31,15 +31,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Bot, User, Edit, Users, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Edit, Users, Link as LinkIcon, Loader2, ChevronsUpDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import type { ReportRow } from '@/app/(app)/reports/page';
 import { mockEvidence } from '@/lib/data';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+
 
 interface ReportChatPanelProps {
   isOpen: boolean;
@@ -106,6 +108,8 @@ export function ReportChatPanel({
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode>('ai');
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
+  const [isTeamMemberPopoverOpen, setIsTeamMemberPopoverOpen] = useState(false);
 
   const currentMessages = chatMode === 'ai' ? aiMessages : teamMessages;
   const setCurrentMessages = chatMode === 'ai' ? setAiMessages : setTeamMessages;
@@ -196,7 +200,7 @@ export function ReportChatPanel({
             <Button
               key={index}
               variant="link"
-              className="p-0 h-auto text-base"
+              className="p-0 h-auto text-base text-primary-foreground dark:text-primary"
               onClick={() => onReferenceClick(row.id)}
             >
               {controlName}
@@ -206,6 +210,14 @@ export function ReportChatPanel({
       }
       return <span key={index}>{part}</span>;
     });
+  };
+
+   const handleTeamMemberSelect = (memberId: string) => {
+    setSelectedTeamMembers(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(id => id !== memberId) 
+        : [...prev, memberId]
+    );
   };
 
   return (
@@ -236,16 +248,47 @@ export function ReportChatPanel({
 
            {chatMode === 'team' && (
              <div className="px-6 py-4 border-b">
-                <Select defaultValue={mockTeamMembers[0].id}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select team members..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {mockTeamMembers.map(member => (
-                            <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                 <Popover open={isTeamMemberPopoverOpen} onOpenChange={setIsTeamMemberPopoverOpen}>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={isTeamMemberPopoverOpen}
+                            className="w-full justify-between"
+                        >
+                            {selectedTeamMembers.length > 0 
+                                ? `${selectedTeamMembers.length} member(s) selected`
+                                : "Select team members..."
+                            }
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                            <CommandInput placeholder="Search team members..." />
+                            <CommandList>
+                                <CommandEmpty>No members found.</CommandEmpty>
+                                <CommandGroup>
+                                    {mockTeamMembers.map(member => (
+                                        <CommandItem
+                                            key={member.id}
+                                            value={member.name}
+                                            onSelect={() => handleTeamMemberSelect(member.id)}
+                                        >
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    selectedTeamMembers.includes(member.id) ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            {member.name}
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            </CommandList>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
              </div>
            )}
 
