@@ -211,3 +211,21 @@ export const activityChartData = [
   { date: 'Sat', reports: 5, evidence: 12 },
   { date: 'Sun', reports: 9, evidence: 25 },
 ];
+
+export const complianceProgress = {
+    overall: 82,
+    acceptedEvidence: 41,
+    totalEvidence: 50,
+    categories: [
+        { name: 'Access Control', progress: 90 },
+        { name: 'Data Security', progress: 75 },
+        { name: 'Infrastructure', progress: 85 },
+        { name: 'Incident Response', progress: 60 },
+    ],
+    recentActivity: [
+        { id: 'act-1', evidenceName: 'Firewall Config Q2', status: 'Accepted' as const, timestamp: new Date(Date.now() - 1.8e+6).toISOString() },
+        { id: 'act-2', evidenceName: 'User Access Review', status: 'Accepted' as const, timestamp: new Date(Date.now() - 3.6e+6).toISOString() },
+        { id: 'act-3', evidenceName: 'Penetration Test Report', status: 'Rejected' as const, timestamp: new Date(Date.now() - 1.44e+7).toISOString() },
+        { id: 'act-4', evidenceName: 'New Server Setup Log', status: 'Pending' as const, timestamp: new Date(Date.now() - 8.64e+7).toISOString() },
+    ]
+};

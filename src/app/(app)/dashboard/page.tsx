@@ -24,6 +24,10 @@ import {
   ShieldCheck,
   CheckCircle,
   Search,
+  MoreVertical,
+  Check,
+  Clock,
+  X,
 } from 'lucide-react';
 import {
   ChartContainer,
@@ -31,12 +35,13 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
-import { dashboardStats, activityChartData, mockAuditLogs, mockAuditors } from '@/lib/data';
+import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, Cell } from 'recharts';
+import { dashboardStats, activityChartData, mockAuditLogs, mockAuditors, complianceProgress } from '@/lib/data';
 import { formatDistanceToNow } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
 const chartConfig = {
   reports: {
@@ -48,6 +53,18 @@ const chartConfig = {
     color: 'hsl(var(--accent))',
   },
 } satisfies ChartConfig;
+
+const progressChartConfig = {
+    completed: {
+      label: 'Completed',
+      color: "hsl(var(--primary))",
+    },
+    remaining: {
+      label: 'Remaining',
+      color: "hsl(var(--muted))",
+    },
+} satisfies ChartConfig;
+
 
 const StatCard = ({
   title,
@@ -77,12 +94,29 @@ const StatCard = ({
   </Card>
 );
 
+const EvidenceStatusIcon = ({ status }: { status: 'Accepted' | 'Pending' | 'Rejected' }) => {
+    switch (status) {
+        case 'Accepted':
+            return <Check className="h-4 w-4 text-green-500" />;
+        case 'Pending':
+            return <Clock className="h-4 w-4 text-yellow-500" />;
+        case 'Rejected':
+            return <X className="h-4 w-4 text-red-500" />;
+    }
+};
+
 export default function DashboardPage() {
   const getInitials = (name: string) =>
     name
       .split(' ')
       .map((n) => n[0])
       .join('');
+      
+  const overallProgress = complianceProgress.overall;
+  const progressData = [
+      { name: 'completed', value: overallProgress, fill: 'hsl(var(--primary))' },
+      { name: 'remaining', value: 100 - overallProgress, fill: 'hsl(var(--muted))' }
+  ];
 
   return (
     <div className="grid gap-6">
@@ -112,6 +146,87 @@ export default function DashboardPage() {
           icon={CheckCircle}
         />
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle className="font-headline">Overall Compliance Progress</CardTitle>
+          <CardDescription>
+            A high-level overview of your compliance status.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="flex flex-col items-center justify-center">
+               <ChartContainer
+                config={progressChartConfig}
+                className="mx-auto aspect-square h-64"
+                >
+                <PieChart>
+                    <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
+                    />
+                    <Pie
+                        data={progressData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={80}
+                        outerRadius={100}
+                        startAngle={90}
+                        endAngle={450}
+                        cy="50%"
+                    >
+                        {progressData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                    </Pie>
+                </PieChart>
+               </ChartContainer>
+                <div className="text-center text-3xl font-bold -mt-24">
+                  {overallProgress}%
+                </div>
+                <p className="text-center text-muted-foreground mt-2">
+                  {complianceProgress.acceptedEvidence} of {complianceProgress.totalEvidence} evidence items accepted.
+                </p>
+            </div>
+            <div className='grid gap-4'>
+                <div>
+                  <h3 className="font-semibold mb-2">Progress by Category</h3>
+                  <div className="space-y-3">
+                      {complianceProgress.categories.map(category => (
+                          <div key={category.name}>
+                              <div className="flex justify-between text-sm mb-1">
+                                  <span>{category.name}</span>
+                                  <span className="text-muted-foreground">{category.progress}%</span>
+                              </div>
+                              <Progress value={category.progress} />
+                          </div>
+                      ))}
+                  </div>
+                </div>
+                 <Separator />
+                <div>
+                    <h3 className="font-semibold mb-2">Recent Activity</h3>
+                    <ul className="space-y-3">
+                        {complianceProgress.recentActivity.map(activity => (
+                             <li key={activity.id} className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2">
+                                    <EvidenceStatusIcon status={activity.status} />
+                                    <span>{activity.evidenceName}</span>
+                                    <Badge variant="secondary" className="font-normal">{activity.status}</Badge>
+                                </div>
+                                <span className="text-muted-foreground">
+                                    {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
 
       <Card>
         <CardHeader>
