@@ -14,7 +14,7 @@ interface TourState {
 }
 
 type TourAction =
-  | { type: 'START_TOUR'; payload: { steps: Step[]; tourId: string, stepIndex?: number } }
+  | { type: 'START_TOUR'; payload: { steps: Step[]; tourId: string; stepIndex?: number } }
   | { type: 'STOP_TOUR' }
   | { type: 'SET_STEP'; payload: number }
   | { type: 'RESET' };
@@ -45,7 +45,6 @@ function tourReducer(state: TourState, action: TourAction): TourState {
     case 'RESET':
         return {
             ...initialState,
-            tourId: state.tourId, // Keep tourId to mark it as completed
         };
     case 'SET_STEP':
       return {
@@ -80,15 +79,16 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
     }, []);
     
     const startTour = useCallback((tourSteps: Step[], id: string, force: boolean = false) => {
+        const tourCompleted = localStorage.getItem(`${id}Completed`);
+
         if (force) {
-            dispatch({ type: 'STOP_TOUR' });
+            dispatch({ type: 'STOP_TOUR' }); // Stop any running tour first
             setTimeout(() => {
                 dispatch({ type: 'START_TOUR', payload: { steps: tourSteps, tourId: id } });
-            }, 100); // Short delay to ensure state update
+            }, 100);
             return;
         }
 
-        const tourCompleted = localStorage.getItem(`${id}Completed`);
         if (tourCompleted !== 'true') {
             dispatch({ type: 'START_TOUR', payload: { steps: tourSteps, tourId: id } });
         }
@@ -101,7 +101,7 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
     }, [isMounted, startTour]);
 
     const handleJoyrideCallback = (data: CallBackProps) => {
-        const { status, type, index, action, step } = data;
+        const { status, type, index, action } = data;
         
         if (([STATUS.FINISHED, STATUS.SKIPPED] as string[]).includes(status) || action === 'close') {
             if (state.tourId) {
@@ -120,10 +120,10 @@ export const GuideProvider = ({ children }: GuideProviderProps) => {
                 if (nextPath && nextPath !== pathname) {
                     dispatch({ type: 'STOP_TOUR' });
                     router.push(nextPath);
-                    // Re-dispatch start on the new page
+                    
                     setTimeout(() => {
                         dispatch({ type: 'START_TOUR', payload: { steps: state.steps, tourId: state.tourId!, stepIndex: nextStepIndex } });
-                    }, 500); // Delay to allow page transition
+                    }, 500); 
                 } else {
                      dispatch({ type: 'SET_STEP', payload: nextStepIndex });
                 }
