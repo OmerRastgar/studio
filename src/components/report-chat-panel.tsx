@@ -139,10 +139,10 @@ export function ReportChatPanel({
             const referencedRow = reportRows.find(r => r.control === controlName);
 
             if (referencedRow) {
+                const evidenceNames = referencedRow.evidence.map(id => mockEvidence.find(e => e.id === id)?.name).filter(Boolean);
                 if (referencedRow.evidence.length === 0) {
                     aiText = `For the control "${controlName}", the observation is: "${referencedRow.observation}". However, I've noticed that there is currently no evidence linked to this observation. To strengthen this finding, you should link relevant evidence files.`
                 } else {
-                    const evidenceNames = referencedRow.evidence.map(id => mockEvidence.find(e => e.id === id)?.name).filter(Boolean);
                     aiText = `I've reviewed the control "${controlName}". The observation is "${referencedRow.observation}". It is supported by the following evidence: ${evidenceNames.join(', ')}. Does this information help, or would you like me to analyze it further?`;
                 }
             } else {
@@ -200,7 +200,7 @@ export function ReportChatPanel({
             <Button
               key={index}
               variant="link"
-              className="p-0 h-auto text-base text-primary-foreground dark:text-primary"
+              className="p-0 h-auto text-base text-primary dark:text-blue-400"
               onClick={() => onReferenceClick(row.id)}
             >
               {controlName}
