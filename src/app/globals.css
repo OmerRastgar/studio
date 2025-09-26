@@ -84,3 +84,43 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Intro.js styles */
+.custom-tooltip {
+  --intro-bg-color: hsl(var(--card));
+  --intro-text-color: hsl(var(--card-foreground));
+  --intro-btn-color: hsl(var(--primary-foreground));
+  --intro-btn-bg-color: hsl(var(--primary));
+  --intro-btn-hover-bg-color: hsl(var(--primary) / 0.9);
+  
+  background-color: var(--intro-bg-color);
+  color: var(--intro-text-color);
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.introjs-tooltiptext {
+  color: var(--intro-text-color);
+}
+
+.introjs-button {
+  background-color: var(--intro-btn-bg-color);
+  color: var(--intro-btn-color) !important;
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+  text-shadow: none;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.introjs-button:hover {
+  background-color: var(--intro-btn-hover-bg-color);
+}
+
+.introjs-button.introjs-disabled {
+    background-color: hsl(var(--muted));
+    color: hsl(var(--muted-foreground)) !important;
+    cursor: not-allowed;
+}
