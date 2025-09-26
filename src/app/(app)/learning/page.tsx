@@ -14,9 +14,12 @@ import {
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { mockLearningData } from '@/lib/data';
 import type { ChartConfig } from '@/components/ui/chart';
-import { Flag, CheckCircle, Clock, BarChart3, Target, Lightbulb, BookCopy } from 'lucide-react';
+import { Flag, CheckCircle, Clock, BarChart3, Target, Lightbulb, BookCopy, BookMarked, Trophy } from 'lucide-react';
+import type { Course } from '@/lib/types';
 
 const chartConfig = {
   count: {
@@ -37,8 +40,19 @@ const StatCard = ({ title, value, icon: Icon }: { title: string, value: string |
   </Card>
 );
 
+const CourseStatusBadge = ({ status }: { status: Course['status'] }) => {
+  const variant = {
+    'Completed': 'default',
+    'In Progress': 'secondary',
+    'Not Started': 'outline',
+  }[status] as 'default' | 'secondary' | 'outline';
+
+  return <Badge variant={variant}>{status}</Badge>;
+};
+
+
 export default function LearningPage() {
-  const { performanceStats, commonErrors, learningInsights } = mockLearningData;
+  const { performanceStats, commonErrors, learningInsights, recommendedCourses } = mockLearningData;
   return (
      <div className="grid gap-6">
       <Card>
@@ -116,6 +130,46 @@ export default function LearningPage() {
               </AccordionItem>
             ))}
           </Accordion>
+        </CardContent>
+      </Card>
+
+      <Card>
+          <CardHeader>
+            <CardTitle className="font-headline flex items-center gap-2"><BookMarked /> Recommended Courses</CardTitle>
+            <CardDescription>
+                Courses recommended for you based on your performance analysis.
+            </CardDescription>
+        </CardHeader>
+        <CardContent className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+            {recommendedCourses.map(course => (
+                 <Card key={course.id} className="flex flex-col">
+                    <CardHeader>
+                        <CardTitle className='text-lg'>{course.title}</CardTitle>
+                        <CardDescription>{course.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow space-y-4">
+                       <div>
+                            <div className="flex justify-between items-center mb-1">
+                                <CourseStatusBadge status={course.status} />
+                                {course.status === 'Completed' ? (
+                                    <div className="flex items-center text-sm font-medium text-green-500">
+                                        <Trophy className="mr-1 h-4 w-4" />
+                                        Completed
+                                    </div>
+                                ) : (
+                                    <span className="text-sm text-muted-foreground">{course.progress}% Complete</span>
+                                )}
+                            </div>
+                            <Progress value={course.progress} className="h-2" />
+                       </div>
+                    </CardContent>
+                    <div className="p-6 pt-0">
+                        <Button className="w-full">
+                            {course.status === 'Completed' ? 'View Certificate' : course.status === 'In Progress' ? 'Continue Course' : 'Enroll Now'}
+                        </Button>
+                    </div>
+                </Card>
+            ))}
         </CardContent>
       </Card>
     </div>

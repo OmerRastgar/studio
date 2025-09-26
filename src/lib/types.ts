@@ -68,3 +68,11 @@ export type NavItem = {
   icon: LucideIcon;
   label?: string;
 };
+
+export type Course = {
+  id: string;
+  title: string;
+  description: string;
+  status: 'Not Started' | 'In Progress' | 'Completed';
+  progress: number;
+};

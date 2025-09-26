@@ -1,4 +1,4 @@
-import type { Evidence, AuditLog, Project, Auditor, UserProfile, Agent } from '@/lib/types';
+import type { Evidence, AuditLog, Project, Auditor, UserProfile, Agent, Course } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const userAvatar1 = PlaceHolderImages.find(img => img.id === 'user-avatar-1')?.imageUrl || '';
@@ -347,4 +347,27 @@ export const mockLearningData = {
       suggestion: 'Use the AI QA tool to check for mismatches. The tool analyzes evidence tags and content to suggest more relevant files from the evidence locker.',
     },
   ],
+  recommendedCourses: [
+    {
+      id: 'course-1',
+      title: 'Advanced Compliance Documentation',
+      description: 'Learn to write clear, concise, and defensible audit observations. Recommended due to "Vague Observation" errors.',
+      status: 'In Progress' as const,
+      progress: 60,
+    },
+    {
+      id: 'course-2',
+      title: 'Evidence Management Best Practices',
+      description: 'Master the art of linking and managing evidence to support your audit findings effectively.',
+      status: 'Not Started' as const,
+      progress: 0,
+    },
+    {
+      id: 'course-3',
+      title: 'CISSP Certification Prep Course',
+      description: 'Prepare for the industry-standard CISSP certification to enhance your security expertise.',
+      status: 'Completed' as const,
+      progress: 100,
+    },
+  ]
 };
