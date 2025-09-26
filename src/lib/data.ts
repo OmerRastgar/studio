@@ -14,9 +14,9 @@ const courseThumbnail = PlaceHolderImages.find(img => img.id === 'course-thumbna
 
 
 export const mockProjects: Project[] = [
-    { id: 'proj-001', name: 'SOC 2 Compliance Audit' },
-    { id: 'proj-002', name: 'ISO 27001 Certification' },
-    { id: 'proj-003', name: 'Internal Security Review' },
+    { id: 'proj-001', name: 'SOC 2 Compliance Audit', customerName: 'Innovate Inc.' },
+    { id: 'proj-002', name: 'ISO 27001 Certification', customerName: 'Tech Solutions LLC' },
+    { id: 'proj-003', name: 'Internal Security Review', customerName: 'DataSafe Corp' },
 ];
 
 export const mockUsers: UserProfile[] = [

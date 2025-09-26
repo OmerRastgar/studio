@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown, ShieldCheck, HelpCircle, Briefcase } from 'lucide-react';
 import { mockProjects, mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
@@ -297,6 +297,7 @@ export default function ReportsPage() {
     }
   };
 
+  const currentProjectDetails = mockProjects.find(p => p.id === selectedProject);
 
   return (
     <>
@@ -306,6 +307,12 @@ export default function ReportsPage() {
           <div>
             <CardTitle className="font-headline">AI-Assisted Report Generation</CardTitle>
             <CardDescription>Select a project and build your audit report.</CardDescription>
+            {currentProjectDetails && (
+              <div className="flex items-center gap-2 mt-2">
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{currentProjectDetails.customerName}</span>
+              </div>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
             <Select value={selectedProject} onValueChange={setSelectedProject} data-tour-id="report-project-selector">
@@ -329,17 +336,35 @@ export default function ReportsPage() {
                     <DialogHeader>
                         <DialogTitle>Create New Project</DialogTitle>
                         <DialogDescription>
-                            Fill in the details below to create a new project.
+                           Provide customer and project details. This context will be used by the AI.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="project-name" className="text-right">Name</Label>
+                            <Label htmlFor="project-name" className="text-right">Project Name</Label>
                             <Input id="project-name" placeholder="e.g. Q3 Security Audit" className="col-span-3" />
                         </div>
                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="project-desc" className="text-right">Description</Label>
-                            <Textarea id="project-desc" placeholder="A brief description of the project." className="col-span-3" />
+                            <Label htmlFor="customer-name" className="text-right">Customer Name</Label>
+                            <Input id="customer-name" placeholder="e.g. Innovate Inc." className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="company-size" className="text-right">Company Size</Label>
+                             <Select>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Select company size" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="small">Small (1-50 employees)</SelectItem>
+                                    <SelectItem value="medium">Medium (51-500 employees)</SelectItem>
+                                    <SelectItem value="large">Large (501-5000 employees)</SelectItem>
+                                    <SelectItem value="enterprise">Enterprise (5000+ employees)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="service-offering" className="text-right">Service Offering</Label>
+                            <Textarea id="service-offering" placeholder="Briefly describe the customer's main product or service (e.g., 'B2B SaaS for financial planning')." className="col-span-3" />
                         </div>
                     </div>
                     <DialogFooter>

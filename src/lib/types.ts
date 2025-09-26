@@ -15,6 +15,7 @@ export type UserProfile = User & {
 export type Project = {
   id: string;
   name: string;
+  customerName: string;
 };
 
 export type Evidence = {
