@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown, ShieldCheck, HelpCircle, Briefcase } from 'lucide-react';
-import { mockProjects as initialMockProjects, mockEvidence } from '@/lib/data';
+import { mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +27,9 @@ import { Badge } from '@/components/ui/badge';
 import { reviewReport } from '@/ai/flows/review-report';
 import { useGuide } from '@/components/guide';
 import { reportGenerationTourSteps } from '@/lib/guide-steps';
+import { getProjects, addProject } from '@/lib/services/firestore';
+import type { Project } from '@/lib/types';
+
 
 export type ReportRow = {
   id: string;
@@ -62,8 +65,8 @@ const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'i
 ];
 
 export default function ReportsPage() {
-  const [mockProjects, setMockProjects] = useState(initialMockProjects);
-  const [selectedProject, setSelectedProject] = useState(mockProjects[0].id);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>('');
   const [reportRows, setReportRows] = useState<ReportRow[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [highlightedRow, setHighlightedRow] = useState<string | null>(null);
@@ -84,6 +87,25 @@ export default function ReportsPage() {
     comment: string;
   }>({ isOpen: false, rowId: null, isFlagging: true, comment: '' });
 
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        const fetchedProjects = await getProjects();
+        setProjects(fetchedProjects);
+        if (fetchedProjects.length > 0) {
+          setSelectedProject(fetchedProjects[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to fetch projects:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not fetch projects from the database."
+        });
+      }
+    }
+    fetchProjects();
+  }, [toast]);
 
   useEffect(() => {
     if (highlightedRow) {
@@ -304,7 +326,7 @@ export default function ReportsPage() {
     }
   };
 
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     const { projectName, customerName } = newProjectData;
     if (!projectName.trim() || !customerName.trim()) {
         toast({
@@ -315,24 +337,34 @@ export default function ReportsPage() {
         return;
     }
 
-    const newProject = {
-        id: `proj-${Date.now()}`,
-        name: projectName,
-        customerName: customerName,
-    };
+    try {
+        const newProjectId = await addProject({ name: projectName, customerName });
+        const newProject: Project = {
+            id: newProjectId,
+            name: projectName,
+            customerName: customerName,
+        };
 
-    setMockProjects(prev => [...prev, newProject]);
-    setSelectedProject(newProject.id);
-    setNewProjectData({ projectName: '', customerName: '' });
-    setIsNewProjectDialogOpen(false);
-    
-    toast({
-        title: 'Project Created',
-        description: `'${projectName}' has been successfully created.`
-    });
+        setProjects(prev => [...prev, newProject]);
+        setSelectedProject(newProject.id);
+        setNewProjectData({ projectName: '', customerName: '' });
+        setIsNewProjectDialogOpen(false);
+        
+        toast({
+            title: 'Project Created',
+            description: `'${projectName}' has been successfully created.`
+        });
+    } catch (error) {
+        console.error("Failed to create project:", error);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not create the new project."
+        });
+    }
   };
 
-  const currentProjectDetails = mockProjects.find(p => p.id === selectedProject);
+  const currentProjectDetails = projects.find(p => p.id === selectedProject);
 
   return (
     <>
@@ -355,7 +387,7 @@ export default function ReportsPage() {
                     <SelectValue placeholder="Select a project" />
                 </SelectTrigger>
                 <SelectContent>
-                    {mockProjects.map(project => (
+                    {projects.map(project => (
                     <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
                     ))}
                 </SelectContent>
