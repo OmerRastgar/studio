@@ -1,0 +1,42 @@
+diff --git a/node_modules/react-joyride/dist/index.mjs b/node_modules/react-joyride/dist/index.mjs
+index 72e5057..e541485 100644
+--- a/node_modules/react-joyride/dist/index.mjs
++++ b/node_modules/react-joyride/dist/index.mjs
+@@ -1,6 +1,6 @@
+-import ReactDOM from 'react-dom';
+ import { jsx } from 'react/jsx-runtime';
+ import PropTypes from 'prop-types';
++import { createRoot } from 'react-dom/client';
+ import React, { Component, createRef, forwardRef, memo, PureComponent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+ import { Manager, Reference, Popper } from 'react-popper';
+ import { dequal } from 'dequal';
+@@ -212,7 +212,11 @@
+   }
+ 
+   componentWillUnmount() {
+-    ReactDOM.unmountComponentAtNode(this.tooltip);
++    if (this.tooltipRoot) {
++      this.tooltipRoot.unmount();
++    }
+     this.tooltip.remove();
+     this.tooltip = null;
+   }
+@@ -220,13 +224,14 @@
+   renderReact() {
+     const {
+       props: { children }
+-    } = this;
++    } = this
+ 
+     if (!this.tooltip) {
+       return;
+     }
+-
+-    ReactDOM.unstable_renderSubtreeIntoContainer(this, children, this.tooltip);
++    if (!this.tooltipRoot) {
++      this.tooltipRoot = createRoot(this.tooltip);
++    }
++    this.tooltipRoot.render(children);
+   }
+ 
+   render() {
