@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { testConnection } from '@/lib/db';
 
 export async function GET() {
   try {
+    // Dynamic import to avoid bundling pg on client side
+    const { testConnection } = await import('@/lib/db');
     const dbConnected = await testConnection();
     
     if (dbConnected) {

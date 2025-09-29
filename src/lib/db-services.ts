@@ -1,4 +1,3 @@
-import { query } from './db';
 import type { 
   Evidence, 
   AuditLog, 
@@ -10,8 +9,15 @@ import type {
   CustomerCourse 
 } from '@/lib/types';
 
+// Dynamic import to avoid bundling pg on client side
+async function getQuery() {
+  const { query } = await import('./db');
+  return query;
+}
+
 // Projects
 export async function getProjects(): Promise<Project[]> {
+  const query = await getQuery();
   const result = await query('SELECT * FROM projects ORDER BY created_at DESC');
   return result.rows.map((row: any) => ({
     id: row.id,
@@ -22,6 +28,7 @@ export async function getProjects(): Promise<Project[]> {
 
 // Users
 export async function getUsers(): Promise<UserProfile[]> {
+  const query = await getQuery();
   const result = await query(`
     SELECT name, email, avatar_url, role, status, last_active 
     FROM users 
@@ -40,6 +47,7 @@ export async function getUsers(): Promise<UserProfile[]> {
 
 // Auditors
 export async function getAuditors(): Promise<Auditor[]> {
+  const query = await getQuery();
   const result = await query(`
     SELECT a.id, u.name, u.avatar_url, a.experience, a.certifications, a.progress, u.status
     FROM auditors a
@@ -61,6 +69,7 @@ export async function getAuditors(): Promise<Auditor[]> {
 
 // Agents
 export async function getAgents(): Promise<Agent[]> {
+  const query = await getQuery();
   const result = await query(`
     SELECT id, name, platform, status, last_sync, version
     FROM agents 
@@ -79,6 +88,7 @@ export async function getAgents(): Promise<Agent[]> {
 
 // Evidence
 export async function getEvidence(): Promise<Evidence[]> {
+  const query = await getQuery();
   const result = await query(`
     SELECT id, project_id, agent_id, name, type, tags, uploaded_at, uploaded_by, preview_url, ai_hint
     FROM evidence 
@@ -101,6 +111,7 @@ export async function getEvidence(): Promise<Evidence[]> {
 
 // Audit Logs
 export async function getAuditLogs(): Promise<AuditLog[]> {
+  const query = await getQuery();
   const result = await query(`
     SELECT id, user_name, user_avatar_url, action, details, timestamp, severity
     FROM audit_logs 
@@ -123,6 +134,7 @@ export async function getAuditLogs(): Promise<AuditLog[]> {
 
 // Courses
 export async function getCourses(): Promise<Course[]> {
+  const query = await getQuery();
   const result = await query(`
     SELECT id, title, description, duration, thumbnail_url
     FROM courses 
@@ -142,6 +154,7 @@ export async function getCourses(): Promise<Course[]> {
 
 // Customer Courses
 export async function getCustomerCourses(): Promise<CustomerCourse[]> {
+  const query = await getQuery();
   const result = await query(`
     SELECT id, title, description, duration, thumbnail_url
     FROM courses 
@@ -163,6 +176,7 @@ export async function getCustomerCourses(): Promise<CustomerCourse[]> {
 
 // Dashboard Stats
 export async function getDashboardStats() {
+  const query = await getQuery();
   const [reportsResult, evidenceResult, auditsResult, findingsResult] = await Promise.all([
     query('SELECT COUNT(*) as count FROM audit_logs WHERE action LIKE \'%Report%\''),
     query('SELECT COUNT(*) as count FROM evidence'),
@@ -192,6 +206,7 @@ export async function getDashboardStats() {
 
 // Compliance Progress
 export async function getComplianceProgress() {
+  const query = await getQuery();
   const activitiesResult = await query(`
     SELECT evidence_name, status, timestamp
     FROM compliance_activities 

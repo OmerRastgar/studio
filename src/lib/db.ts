@@ -1,4 +1,14 @@
-import { Pool, PoolClient } from 'pg';
+// Dynamic import to avoid bundling pg on client side
+let Pool: any;
+let PoolClient: any;
+
+async function initPg() {
+  if (!Pool) {
+    const pg = await import('pg');
+    Pool = pg.Pool;
+    PoolClient = pg.PoolClient;
+  }
+}
 
 // Database connection configuration
 const dbConfig = {
@@ -10,9 +20,10 @@ const dbConfig = {
 };
 
 // Create a connection pool
-let pool: Pool | null = null;
+let pool: any = null;
 
-export function getPool(): Pool {
+export async function getPool() {
+  await initPg();
   if (!pool) {
     pool = new Pool(dbConfig);
     
@@ -28,7 +39,7 @@ export function getPool(): Pool {
 
 // Helper function to execute queries
 export async function query(text: string, params?: any[]): Promise<any> {
-  const pool = getPool();
+  const pool = await getPool();
   const client = await pool.connect();
   
   try {
@@ -41,9 +52,9 @@ export async function query(text: string, params?: any[]): Promise<any> {
 
 // Helper function for transactions
 export async function withTransaction<T>(
-  callback: (client: PoolClient) => Promise<T>
+  callback: (client: any) => Promise<T>
 ): Promise<T> {
-  const pool = getPool();
+  const pool = await getPool();
   const client = await pool.connect();
   
   try {
