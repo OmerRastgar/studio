@@ -5,21 +5,70 @@
 _format_version: "3.0"
 
 # Define a service that points to our Next.js application.
-# The 'host' is the name of our app service defined in docker-compose.yml.
 services:
   - name: nextjs-app-service
     url: http://app:3000
     routes:
       - name: nextjs-app-route
-        # Route all incoming requests on the root path to our app.
         paths:
           - /
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+        strip_path: false
 
-# Example of how you would add the Kong JWT plugin once you have an
-# authentication service. This is commented out for now.
-#
-# plugins:
-#   - name: jwt
-#     # Apply this plugin to all requests coming through the gateway
-#     # Or you can apply it to a specific service or route
-#     service: nextjs-app-service
+# Security and rate limiting plugins
+plugins:
+  # Rate limiting to prevent abuse
+  - name: rate-limiting
+    service: nextjs-app-service
+    config:
+      minute: 100
+      hour: 1000
+      policy: local
+      
+  # Request size limiting
+  - name: request-size-limiting
+    service: nextjs-app-service
+    config:
+      allowed_payload_size: 10
+      
+  # CORS for web applications
+  - name: cors
+    service: nextjs-app-service
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - PATCH
+        - OPTIONS
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - Authorization
+      exposed_headers:
+        - X-Auth-Token
+      credentials: true
+      max_age: 3600
+      
+  # Security headers
+  - name: response-transformer
+    service: nextjs-app-service
+    config:
+      add:
+        headers:
+          - "X-Frame-Options: DENY"
+          - "X-Content-Type-Options: nosniff"
+          - "X-XSS-Protection: 1; mode=block"
+          - "Strict-Transport-Security: max-age=31536000; includeSubDomains"

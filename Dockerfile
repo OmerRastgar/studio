@@ -48,5 +48,9 @@ COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
 # Expose the port the app will run on
 EXPOSE 3000
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
+
 # Set the command to start the application
 CMD ["node", "server.js"]

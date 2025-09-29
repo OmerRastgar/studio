@@ -1,8 +1,28 @@
 # docker-compose.yml
 # This file is for local development and demonstrates how to connect
-# the Next.js app with a Kong API Gateway.
+# the Next.js app with PostgreSQL and Kong API Gateway.
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: audit-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: auditdb
+      POSTGRES_USER: audituser
+      POSTGRES_PASSWORD: auditpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audituser -d auditdb"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # The Next.js Application
   app:
     build:
@@ -10,23 +30,26 @@ services:
       dockerfile: Dockerfile
     container_name: nextjs-app
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      # If your app needs environment variables at runtime, define them here
-      # Example:
-      # NEXT_PUBLIC_API_URL: http://localhost:8000
       - PORT=3000
+      - DATABASE_URL=postgresql://audituser:auditpass@postgres:5432/auditdb
+      - NODE_ENV=production
+    # Remove direct port exposure - only accessible through Kong
+    expose:
+      - "3000"
 
   # Kong API Gateway
   kong:
     image: kong:latest
     container_name: kong-gateway
     restart: unless-stopped
+    depends_on:
+      - app
     environment:
-      # Use database-less mode for simplicity
       KONG_DATABASE: "off"
-      # Define a declarative config file for Kong's routes and services
       KONG_DECLARATIVE_CONFIG: "/etc/kong/kong.yml"
       KONG_PROXY_LISTEN: "0.0.0.0:8000"
       KONG_ADMIN_LISTEN: "0.0.0.0:8001"
@@ -36,8 +59,10 @@ services:
       # Admin API port to configure Kong
       - "8001:8001"
     volumes:
-      # Mount the declarative config into the container
       - ./kong.yml:/etc/kong/kong.yml:ro
+
+volumes:
+  postgres_data:
 
 networks:
   default:
