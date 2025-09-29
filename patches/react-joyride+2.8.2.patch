@@ -1,200 +1,51 @@
 diff --git a/node_modules/react-joyride/dist/index.mjs b/node_modules/react-joyride/dist/index.mjs
-index 736f345..97a9d30 100644
+index 7a1a011..f2d4e73 100644
 --- a/node_modules/react-joyride/dist/index.mjs
 +++ b/node_modules/react-joyride/dist/index.mjs
 @@ -1,5 +1,6 @@
- import React from 'react';
+ import React, { useReducer, useEffect, useMemo, useCallback } from 'react';
 -import ReactDOM from 'react-dom';
++import { createPortal } from 'react-dom';
 +import { createRoot } from 'react-dom/client';
-+import { unmountComponentAtNode, unstable_renderSubtreeIntoContainer } from 'react-dom';
- import PropTypes from 'prop-types';
- import { canUseDOM, componentonly } from 'react-lifecycles-compat';
- import deepmerge from 'deepmerge';
-@@ -29,8 +30,8 @@
-     key: "renderPortal",
-     value: function renderPortal() {
-       if (!this.canUseDom) return null;
--      if (!this.portal) {
--        this.portal = document.createElement("div");
-+      if (!this.portal || !this.root) {
-+        this.portal = document.createElement('div');
-         this.portal.setAttribute(DATA_PORTAL, this.props.debug);
-         document.body.appendChild(this.portal);
-       }
-@@ -38,10 +39,12 @@
-       var children = this.props.children;
-       var portal = this.portal;
-       if (portal) {
--        return ReactDOM.unstable_renderSubtreeIntoContainer(this, children, portal);
-+        this.root = this.root || createRoot(this.portal);
-+        this.root.render(children, portal);
-       }
-       return null;
-     }
-+
-   }]);
-   return Portal;
- }(React.Component);
-@@ -49,14 +52,16 @@
-   value: "Portal"
- }, _defineProperty(_Portal, "propTypes", {
-   children: PropTypes.element.isRequired,
--  debug: PropTypes.bool.isRequired
-+  debug: PropTypes.bool.isRequired,
-+  portal: PropTypes.any,
-+  root: PropTypes.any
- }), _temp);
- var Tooltip = function Tooltip(props) {
-   var continuous = props.continuous,
-     index = props.index,
-     isLastStep = props.isLastStep,
-     setTooltipRef = props.setTooltipRef,
--    size = props.size,
-+    step = props.step,
-     backProps = props.backProps,
-     closeProps = props.closeProps,
-     primaryProps = props.primaryProps,
-@@ -69,14 +74,13 @@
-     tooltipProps = _objectWithoutProperties(props, _excluded);
-   var content = step.content,
-     _step$placement = step.placement,
--    placement = _step$placement === void 0 ? "bottom" : _step$placement,
-     _step$styles = step.styles,
-     styles = _step$styles === void 0 ? {} : _step$styles,
-     title = step.title;
-   var beacon = styles.beacon,
-     beaconInner = styles.beaconInner,
-     beaconOuter = styles.beaconOuter,
--    buttonBack = styles.buttonBack,
-+    buttonBack = styles.buttonBack, 
-     buttonClose = styles.buttonClose,
-     buttonNext = styles.buttonNext,
-     buttonPrimary = styles.buttonPrimary,
-@@ -87,14 +91,14 @@
-     tooltipContent = styles.tooltipContent,
-     tooltipFooter = styles.tooltipFooter,
-     tooltipTitle = styles.tooltipTitle;
--  var setCallback = function setCallback(e) {
--    if (isFunction(step.callback)) {
--      step.callback(e);
-+  var setCallback = function setCallback(data) {
-+    if (isFunction(step.callback)) {
-+      step.callback(data);
-     }
-   };
--  var getPopperStyles = function getPopperStyles() {
-+  var getPopperStyles = function getPopperStyles(styles) {
-     var base = {
--      arrow: {
-+      arrow: _objectSpread2({
-         position: "absolute",
-         width: "16px",
-         height: "16px",
-@@ -102,7 +106,7 @@
-           transform: "translateX(-50%) translateY(-50%) rotate(45deg)"
-         },
-         "&:before": {
--          content: "''",
-+          content: '""',
-           position: "absolute",
-           width: "16px",
-           height: "16px",
-@@ -110,7 +114,7 @@
-           transform: "translateX(-50%) translateY(-50%) rotate(45deg)",
-           backgroundColor: "#fff",
-           boxShadow: "1px 1px 3px rgba(0, 0, 0, 0.2)"
--        }
--      }
-+        }
-+      }, arrow),
-     };
-     var combined = deepmerge(base, {
-       arrow: arrow,
-@@ -124,7 +128,7 @@
-       tooltipFooter: tooltipFooter,
-       tooltipTitle: tooltipTitle
-     });
--    return {
-+    var popper = {
-       arrow: combined.arrow,
-       tooltip: combined.tooltip,
-       tooltipContent: combined.tooltipContent,
-@@ -132,6 +136,8 @@
-       tooltipFooter: combined.tooltipFooter,
-       tooltipTitle: combined.tooltipTitle
-     };
-+    if (step.width) {
-+    }
-+    return popper;
-   };
--  var popperStyles = getPopperStyles();
-   return /*#__PURE__*/React.createElement(Popper, _extends({}, tooltipProps, {
-     placement: step.placement,
-     setArrowRef: setArrowRef,
-@@ -142,7 +148,7 @@
-     styles: popperStyles
-   }), /*#__PURE__*/React.createElement("div", {
-     className: "react-joyride__tooltip",
--    style: popperStyles.tooltip,
-+    style: popperStyles.tooltip
-   }, /*#__PURE__*/React.createElement("div", {
-     style: popperStyles.tooltipContent
-   }, title && /*#__PURE__*/React.createElement("h4", {
-@@ -348,7 +354,7 @@
-     return /*#__PURE__*/React.createElement(Portal, {
-       debug: debug
-     }, this.getElements());
--  }
-+  } 
- });
- Joyride.propTypes = {
-   beaconComponent: PropTypes.oneOfType([PropTypes.func, PropTypes.element]),
-@@ -403,7 +409,7 @@
-   run: false,
-   scrollOffset: 20,
-   scrollToFirstStep: false,
--  showProgress: false,
-+  showProgress: true,
-   showSkipButton: false,
-   spotlightClicks: false,
-   spotlightPadding: 5,
-@@ -1241,7 +1247,7 @@
-         var _this2 = this;
-         this.tooltip = document.createElement("div");
-         document.body.appendChild(this.tooltip);
--        this.renderTooltip(this.props, function () {
-+        this.renderTooltip(this.props, function() {
-           if (!_this2.props.disableOverlay) {
-             _this2.addOverlay();
-           }
-@@ -1251,10 +1257,11 @@
-     value: function renderTooltip(props, cb) {
-       var _this3 = this;
-       var mergedProps = _objectSpread2(_objectSpread2({}, props), {}, {
--        setTooltipRef: function setTooltipRef(c) {
--          _this3.tooltipRef = c;
-+        setTooltipRef: function setTooltipRef(el) {
-+          _this3.tooltipRef = el;
-         }
-       });
--      ReactDOM.unstable_renderSubtreeIntoContainer(this, /*#__PURE__*/React.createElement(Tooltip, mergedProps), this.tooltip, cb);
-+      this.root = this.root || createRoot(this.tooltip);
-+      this.root.render( /*#__PURE__*/React.createElement(Tooltip, mergedProps), this.tooltip, cb);
-     }
-   }, {
-     key: "componentWillUnmount",
-@@ -1270,7 +1277,7 @@
-       }
-       if (this.tooltip) {
-         this.tooltip.remove();
--        ReactDOM.unmountComponentAtNode(this.tooltip);
-+        unmountComponentAtNode(this.tooltip);
-       }
-     }
-   }, {
-@@ -1558,4 +1565,4 @@
-   value: false
- });
+ import { autoUpdate, useFloating, offset, flip, shift, inline, arrow } from '@floating-ui/react';
+ import { isElement, isNumber, isString, get, isObject, isFunction, deepmerge } from 'lodash';
+ import createStore from 'zustand';
+@@ -1318,17 +1319,17 @@
  
--export { ACTIONS, EVENTS, LIFECYCLE, STATUS, Joyride as default };
-+export { Joyride as default, ACTIONS, EVENTS, LIFECYCLE, STATUS };
+     _this.portal = portal;
+ 
+-    ReactDOM.render(children, portal);
++    createRoot(portal).render(children);
+   };
+ 
+   _this.unmount = function () {
+     if (!_this.portal) {
+       return;
+     }
+-
+-    ReactDOM.unmountComponentAtNode(_this.portal);
++    
+     cleanReactTree(_this.portal);
+     document.body.removeChild(_this.portal);
++
+     _this.portal = null;
+   };
+ 
+@@ -1487,7 +1488,7 @@
+       }
+ 
+       return /*#__PURE__*/React.createElement(Portal, {
+-        children: /*#__PURE__*/ReactDOM.createPortal(content, document.body)
++        children: /*#__PURE__*/createPortal(content, document.body)
+       });
+     }
+ 
+@@ -1498,7 +1499,7 @@
+       }
+ 
+       if (target && canUseDOM) {
+-        return /*#__PURE__*/ReactDOM.createPortal(content, getElement(target));
++        return /*#__PURE__*/createPortal(content, getElement(target));
+       }
+ 
+       return null;
