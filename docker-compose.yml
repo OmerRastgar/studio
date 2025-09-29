@@ -1,0 +1,44 @@
+# docker-compose.yml
+# This file is for local development and demonstrates how to connect
+# the Next.js app with a Kong API Gateway.
+
+services:
+  # The Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nextjs-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # If your app needs environment variables at runtime, define them here
+      # Example:
+      # NEXT_PUBLIC_API_URL: http://localhost:8000
+      - PORT=3000
+
+  # Kong API Gateway
+  kong:
+    image: kong:latest
+    container_name: kong-gateway
+    restart: unless-stopped
+    environment:
+      # Use database-less mode for simplicity
+      KONG_DATABASE: "off"
+      # Define a declarative config file for Kong's routes and services
+      KONG_DECLARATIVE_CONFIG: "/etc/kong/kong.yml"
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+    ports:
+      # Proxy port to access your services through Kong
+      - "8000:8000"
+      # Admin API port to configure Kong
+      - "8001:8001"
+    volumes:
+      # Mount the declarative config into the container
+      - ./kong.yml:/etc/kong/kong.yml:ro
+
+networks:
+  default:
+    name: kong-net

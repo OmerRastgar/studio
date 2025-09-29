@@ -1,0 +1,25 @@
+# kong.yml
+# This is a declarative configuration file for Kong.
+# It defines the services, routes, and plugins for the API gateway.
+
+_format_version: "3.0"
+
+# Define a service that points to our Next.js application.
+# The 'host' is the name of our app service defined in docker-compose.yml.
+services:
+  - name: nextjs-app-service
+    url: http://app:3000
+    routes:
+      - name: nextjs-app-route
+        # Route all incoming requests on the root path to our app.
+        paths:
+          - /
+
+# Example of how you would add the Kong JWT plugin once you have an
+# authentication service. This is commented out for now.
+#
+# plugins:
+#   - name: jwt
+#     # Apply this plugin to all requests coming through the gateway
+#     # Or you can apply it to a specific service or route
+#     service: nextjs-app-service
