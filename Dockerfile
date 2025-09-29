@@ -1,35 +1,42 @@
 # ---- Base ----
-FROM node:20-alpine as base
+FROM node:20-alpine AS base
 WORKDIR /app
 RUN chown -R node:node /app
 
 # ---- Dependencies ----
-FROM base as deps
+FROM base AS dependencies
 WORKDIR /app
 COPY --chown=node:node package.json package-lock.json* ./
 RUN npm ci
 
 # ---- Builder ----
-FROM base as builder
+FROM base AS builder
 WORKDIR /app
-COPY --chown=node:node --from=deps /app/node_modules ./node_modules
+COPY --chown=node:node --from=dependencies /app/node_modules ./node_modules
 COPY --chown=node:node . .
 
-# The postinstall script will run patch-package
+# Build the Next.js application for production
 RUN npm run build
 
 # ---- Runner ----
-FROM base as runner
+FROM base AS runner
 WORKDIR /app
 
-# Copy production-ready files
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+# Set the NODE_ENV to production
+ENV NODE_ENV=production
 
-# Set the user and expose the port
-USER node
+# Create a non-root user and switch to it
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+USER nextjs
+
+# Copy the built application from the builder stage
+COPY --chown=nextjs:nodejs --from=builder /app/public ./public
+COPY --chown=nextjs:nodejs --from=builder /app/.next/standalone ./
+COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
+
+# Expose the port the app runs on
 EXPOSE 3000
 
-# Start the application
+# Set the default command to start the app
 CMD ["node", "server.js"]
