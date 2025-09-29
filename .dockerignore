@@ -1,24 +1,19 @@
-# Git
-.git
-.gitignore
-
-# Docker
-Dockerfile
-.dockerignore
-docker-compose.yml
-
-# Node
 node_modules
 npm-debug.log
-.npm
-
-# Next.js
 .next
-
-# Env
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
 .env
 .env.local
-
-# IDE
-.vscode
-.idea
+.env.development.local
+.env.test.local
+.env.production.local
+coverage
+.nyc_output
+.cache
+.parcel-cache
+.DS_Store
+*.log

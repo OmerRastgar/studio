@@ -9,8 +9,9 @@ RUN chown -R node:node /app
 FROM base AS dependencies
 WORKDIR /app
 USER node
-COPY --chown=node:node package.json package-lock.json* ./
-RUN npm ci
+COPY --chown=node:node package.json ./
+# Install dependencies and generate package-lock.json
+RUN npm install --production=false
 
 # ---- Builder ----
 # This stage builds the Next.js application.
