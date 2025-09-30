@@ -17,3 +17,8 @@ coverage
 .parcel-cache
 .DS_Store
 *.log
+# Old database files
+init-db.sql
+src/lib/db.ts
+src/lib/db-services.ts
+src/lib/init-db.ts

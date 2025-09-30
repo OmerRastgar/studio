@@ -2,6 +2,8 @@
 # This stage sets up the base environment for the application.
 FROM node:20-alpine AS base
 WORKDIR /app
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
 RUN chown -R node:node /app
 
 # ---- Dependencies ----
