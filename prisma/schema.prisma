@@ -1,0 +1,191 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id           String @id
+  name         String
+  customerName String @map("customer_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  evidence Evidence[]
+  
+  @@map("projects")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  avatarUrl  String?  @map("avatar_url")
+  role       UserRole
+  status     UserStatus @default(Active)
+  lastActive DateTime? @map("last_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  auditor Auditor?
+  userCourses UserCourse[]
+  
+  @@map("users")
+}
+
+model Auditor {
+  id            String   @id
+  userId        String   @unique @map("user_id")
+  experience    String?
+  certifications String[]
+  progress      Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("auditors")
+}
+
+model Agent {
+  id        String        @id
+  name      String
+  platform  AgentPlatform
+  status    AgentStatus   @default(Pending)
+  lastSync  DateTime?     @map("last_sync")
+  version   String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  
+  evidence Evidence[]
+  
+  @@map("agents")
+}
+
+model Evidence {
+  id         String        @id
+  projectId  String        @map("project_id")
+  agentId    String?       @map("agent_id")
+  name       String
+  type       EvidenceType
+  tags       String[]
+  uploadedAt DateTime      @default(now()) @map("uploaded_at")
+  uploadedBy String        @map("uploaded_by")
+  previewUrl String?       @map("preview_url")
+  aiHint     String?       @map("ai_hint")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  agent   Agent?  @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  
+  @@map("evidence")
+}
+
+model AuditLog {
+  id            String        @id
+  userName      String        @map("user_name")
+  userAvatarUrl String?       @map("user_avatar_url")
+  action        String
+  details       String?
+  timestamp     DateTime      @default(now())
+  severity      AuditSeverity @default(Low)
+  
+  @@map("audit_logs")
+}
+
+model Course {
+  id           String @id
+  title        String
+  description  String?
+  duration     String?
+  thumbnailUrl String? @map("thumbnail_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  userCourses UserCourse[]
+  
+  @@map("courses")
+}
+
+model UserCourse {
+  id             String       @id @default(uuid())
+  userId         String       @map("user_id")
+  courseId       String       @map("course_id")
+  status         CourseStatus @default(NotStarted)
+  progress       Int          @default(0)
+  completionDate DateTime?    @map("completion_date")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, courseId])
+  @@map("user_courses")
+}
+
+model ComplianceActivity {
+  id           String         @id
+  evidenceName String         @map("evidence_name")
+  status       ActivityStatus
+  timestamp    DateTime       @default(now())
+  
+  @@map("compliance_activities")
+}
+
+// Enums
+enum UserRole {
+  admin
+  auditor
+  customer
+}
+
+enum UserStatus {
+  Active
+  Inactive
+}
+
+enum AgentPlatform {
+  windows
+  macos
+  linux
+}
+
+enum AgentStatus {
+  Active
+  Inactive
+  Pending
+}
+
+enum EvidenceType {
+  document
+  screenshot
+  log
+  network
+  config
+}
+
+enum AuditSeverity {
+  Low
+  Medium
+  High
+}
+
+enum CourseStatus {
+  NotStarted @map("Not Started")
+  InProgress @map("In Progress")
+  Completed
+}
+
+enum ActivityStatus {
+  Accepted
+  Rejected
+  Pending
+}

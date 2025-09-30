@@ -39,9 +39,10 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Install PostgreSQL client for runtime
+# Generate Prisma client for runtime
 USER node
-RUN npm install pg@^8.11.3
+COPY --chown=node:node prisma ./prisma
+RUN npx prisma generate
 
 # Set the user to the non-root user
 USER nextjs

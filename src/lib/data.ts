@@ -1,10 +1,10 @@
 // Re-export from build-time data for static imports
 export * from './data-build';
 
-// Server-side data functions (will be called from API routes or server components)
+// Server-side data functions using Prisma
 export async function getServerData() {
-  // Only import database services on server side and when not building
-  if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
+  // Only use database on server side and when DATABASE_URL is available
+  if (typeof window === 'undefined' && process.env.DATABASE_URL) {
     try {
       const { 
         getProjects,
@@ -18,7 +18,7 @@ export async function getServerData() {
         getDashboardStats,
         getComplianceProgress,
         getActivityChartData
-      } = await import('@/lib/db-services');
+      } = await import('@/lib/prisma-services');
 
       return {
         projects: await getProjects(),

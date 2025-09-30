@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  serverExternalPackages: ['pg'],
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Don't resolve Node.js modules on the client side
@@ -11,8 +10,6 @@ const nextConfig = {
         net: false,
         dns: false,
         tls: false,
-        pg: false,
-        'pg-native': false,
       };
     }
     

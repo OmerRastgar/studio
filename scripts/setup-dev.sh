@@ -44,7 +44,11 @@ echo "🏗️  Building and starting all services..."
 docker-compose up --build -d
 
 # Wait a moment for services to start
-sleep 5
+sleep 10
+
+# Initialize database
+echo "🗃️  Initializing database..."
+./scripts/init-database.sh
 
 # Check service status
 echo "📊 Service Status:"

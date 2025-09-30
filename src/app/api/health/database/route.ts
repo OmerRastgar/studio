@@ -7,8 +7,8 @@ export async function GET() {
     
     if (hasDatabase) {
       try {
-        // Dynamic import to avoid bundling pg during build
-        const { testConnection } = await import('@/lib/db');
+        // Dynamic import to avoid bundling during build
+        const { testConnection } = await import('@/lib/prisma');
         const dbConnected = await testConnection();
         
         return NextResponse.json({ 
