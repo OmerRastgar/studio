@@ -24,7 +24,8 @@ COPY --chown=node:node --from=dependencies /app/node_modules ./node_modules
 COPY --chown=node:node . .
 # Ensure public directory exists (even if empty) to prevent COPY error
 RUN mkdir -p public
-# Build the Next.js application for production
+# Build the Next.js application for production with increased memory
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
 
 # ---- Runner ----
@@ -38,6 +39,10 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Install PostgreSQL client for runtime
+USER node
+RUN npm install pg@^8.11.3
+
 # Set the user to the non-root user
 USER nextjs
 
@@ -48,6 +53,11 @@ COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
 
 # Expose the port the app will run on
 EXPOSE 3000
+
+# Install curl for health checks
+USER root
+RUN apk add --no-cache curl
+USER nextjs
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
