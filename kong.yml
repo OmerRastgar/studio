@@ -19,9 +19,38 @@ services:
           - DELETE
           - PATCH
         strip_path: false
+      # Public routes that don't require authentication
+      - name: public-routes
+        paths:
+          - /api/auth/login
+          - /api/auth/register
+          - /api/health
+          - /login
+          - /register
+          - /_next
+          - /favicon.ico
+        methods:
+          - GET
+          - POST
+        strip_path: false
+
+# JWT Consumers (users who can authenticate)
+consumers:
+  - username: audit-app
+    custom_id: audit-app-consumer
+    jwt_secrets:
+      - key: audit-app-key
+        secret: your-256-bit-secret-key-here-change-this-in-production
 
 # Security and rate limiting plugins
 plugins:
+  # JWT Authentication - applied to main route only
+  - name: jwt
+    route: nextjs-app-route
+    config:
+      key_claim_name: iss
+      secret_is_base64: false
+      
   # Rate limiting to prevent abuse
   - name: rate-limiting
     service: nextjs-app-service
@@ -59,6 +88,7 @@ plugins:
         - Authorization
       exposed_headers:
         - X-Auth-Token
+        - Authorization
       credentials: true
       max_age: 3600
       

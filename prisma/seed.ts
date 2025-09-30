@@ -1,6 +1,11 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
+
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12)
+}
 
 async function main() {
   console.log('🌱 Seeding database...')
@@ -14,46 +19,62 @@ async function main() {
     ]
   })
 
-  // Create users
-  const users = await prisma.user.createMany({
-    data: [
-      {
-        id: 'user-admin',
-        name: 'Admin Auditor',
-        email: 'admin@auditace.com',
-        avatarUrl: 'https://picsum.photos/seed/admin/100/100',
-        role: 'admin',
-        status: 'Active',
-        lastActive: new Date(Date.now() - 6 * 60 * 1000), // 6 minutes ago
-      },
-      {
-        id: 'user-jane',
-        name: 'Jane Doe',
-        email: 'jane.doe@example.com',
-        avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-        role: 'auditor',
-        status: 'Active',
-        lastActive: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      },
-      {
-        id: 'user-john',
-        name: 'John Smith',
-        email: 'john.smith@example.com',
-        avatarUrl: 'https://picsum.photos/seed/user2/100/100',
-        role: 'auditor',
-        status: 'Inactive',
-        lastActive: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-      },
-      {
-        id: 'user-client',
-        name: 'Customer Client',
-        email: 'client@customer.com',
-        avatarUrl: 'https://picsum.photos/seed/user3/100/100',
-        role: 'customer',
-        status: 'Active',
-        lastActive: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-      }
-    ]
+  // Create users with hashed passwords
+  const adminPassword = await hashPassword('admin123')
+  const janePassword = await hashPassword('jane123')
+  const johnPassword = await hashPassword('john123')
+  const clientPassword = await hashPassword('client123')
+
+  await prisma.user.create({
+    data: {
+      id: 'user-admin',
+      name: 'Admin Auditor',
+      email: 'admin@auditace.com',
+      password: adminPassword,
+      avatarUrl: 'https://picsum.photos/seed/admin/100/100',
+      role: 'admin',
+      status: 'Active',
+      lastActive: new Date(Date.now() - 6 * 60 * 1000), // 6 minutes ago
+    }
+  })
+
+  await prisma.user.create({
+    data: {
+      id: 'user-jane',
+      name: 'Jane Doe',
+      email: 'jane.doe@example.com',
+      password: janePassword,
+      avatarUrl: 'https://picsum.photos/seed/user1/100/100',
+      role: 'auditor',
+      status: 'Active',
+      lastActive: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+    }
+  })
+
+  await prisma.user.create({
+    data: {
+      id: 'user-john',
+      name: 'John Smith',
+      email: 'john.smith@example.com',
+      password: johnPassword,
+      avatarUrl: 'https://picsum.photos/seed/user2/100/100',
+      role: 'auditor',
+      status: 'Inactive',
+      lastActive: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+    }
+  })
+
+  await prisma.user.create({
+    data: {
+      id: 'user-client',
+      name: 'Customer Client',
+      email: 'client@customer.com',
+      password: clientPassword,
+      avatarUrl: 'https://picsum.photos/seed/user3/100/100',
+      role: 'customer',
+      status: 'Active',
+      lastActive: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+    }
   })
 
   // Create auditors
