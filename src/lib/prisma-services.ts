@@ -33,7 +33,7 @@ export async function getUsers(): Promise<UserProfile[]> {
     name: user.name,
     email: user.email,
     avatarUrl: user.avatarUrl || '',
-    role: user.role as 'admin' | 'auditor' | 'customer',
+    role: user.role as 'admin' | 'auditor' | 'customer' | 'manager' | 'reviewer',
     status: user.status as 'Active' | 'Inactive',
     lastActive: user.lastActive?.toISOString(),
   }));
@@ -54,7 +54,7 @@ export async function getAuditors(): Promise<Auditor[]> {
     avatarUrl: auditor.user.avatarUrl || '',
     projects: [], // TODO: Add project mapping
     progress: auditor.progress,
-    status: auditor.user.status as 'Active' | 'Inactive' | 'Delayed',
+    status: auditor.user.status === 'Inactive' ? 'On Hold' : (auditor.user.status as 'Active' | 'Delayed'),
     experience: auditor.experience || '',
     certifications: auditor.certifications,
   }));
@@ -71,7 +71,7 @@ export async function getAgents(): Promise<Agent[]> {
     name: agent.name,
     platform: agent.platform as 'windows' | 'macos' | 'linux',
     status: agent.status as 'Active' | 'Inactive' | 'Pending',
-    lastSync: agent.lastSync?.toISOString(),
+    lastSync: agent.lastSync?.toISOString() || '',
     version: agent.version || '',
   }));
 }
