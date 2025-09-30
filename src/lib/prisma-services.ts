@@ -54,7 +54,7 @@ export async function getAuditors(): Promise<Auditor[]> {
     avatarUrl: auditor.user.avatarUrl || '',
     projects: [], // TODO: Add project mapping
     progress: auditor.progress,
-    status: auditor.user.status === 'Inactive' ? 'On Hold' : (auditor.user.status as 'Active' | 'Delayed'),
+    status: auditor.user.status === 'Inactive' ? 'On Hold' : 'Active',
     experience: auditor.experience || '',
     certifications: auditor.certifications,
   }));
@@ -85,7 +85,7 @@ export async function getEvidence(): Promise<Evidence[]> {
   return evidence.map(item => ({
     id: item.id,
     projectId: item.projectId,
-    agentId: item.agentId,
+    agentId: item.agentId || undefined,
     name: item.name,
     type: item.type as 'document' | 'screenshot' | 'log' | 'network' | 'config',
     tags: item.tags,
