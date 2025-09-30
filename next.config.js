@@ -4,7 +4,7 @@ const nextConfig = {
   serverExternalPackages: ['pg'],
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      // Don't resolve 'pg' on the client side
+      // Don't resolve Node.js modules on the client side
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
@@ -15,27 +15,6 @@ const nextConfig = {
         'pg-native': false,
       };
     }
-    
-    // Optimize build performance
-    config.optimization = {
-      ...config.optimization,
-      splitChunks: {
-        chunks: 'all',
-        cacheGroups: {
-          default: {
-            minChunks: 1,
-            priority: -20,
-            reuseExistingChunk: true,
-          },
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            priority: -10,
-            chunks: 'all',
-          },
-        },
-      },
-    };
     
     return config;
   },

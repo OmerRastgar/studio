@@ -1,14 +1,8 @@
-// Dynamic import to avoid bundling pg on client side
+// Database connection utilities
+// This file is only loaded at runtime, not during build
+
 let Pool: any;
 let PoolClient: any;
-
-async function initPg() {
-  if (!Pool) {
-    const pg = await import('pg');
-    Pool = pg.Pool;
-    PoolClient = pg.PoolClient;
-  }
-}
 
 // Database connection configuration
 const dbConfig = {
@@ -19,6 +13,19 @@ const dbConfig = {
   connectionTimeoutMillis: 2000,
 };
 
+async function initPg() {
+  if (!Pool) {
+    try {
+      const pg = await import('pg');
+      Pool = pg.Pool;
+      PoolClient = pg.PoolClient;
+    } catch (error) {
+      console.error('Failed to import pg module:', error);
+      throw error;
+    }
+  }
+}
+
 // Create a connection pool
 let pool: any = null;
 
@@ -28,9 +35,8 @@ export async function getPool() {
     pool = new Pool(dbConfig);
     
     // Handle pool errors
-    pool.on('error', (err) => {
+    pool.on('error', (err: any) => {
       console.error('Unexpected error on idle client', err);
-      process.exit(-1);
     });
   }
   
@@ -39,14 +45,19 @@ export async function getPool() {
 
 // Helper function to execute queries
 export async function query(text: string, params?: any[]): Promise<any> {
-  const pool = await getPool();
-  const client = await pool.connect();
-  
   try {
-    const result = await client.query(text, params);
-    return result;
-  } finally {
-    client.release();
+    const pool = await getPool();
+    const client = await pool.connect();
+    
+    try {
+      const result = await client.query(text, params);
+      return result;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw error;
   }
 }
 
