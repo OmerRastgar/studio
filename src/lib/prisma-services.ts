@@ -32,7 +32,7 @@ export async function getUsers(): Promise<UserProfile[]> {
   return users.map(user => ({
     name: user.name,
     email: user.email,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: user.avatarUrl || '',
     role: user.role as 'admin' | 'auditor' | 'customer',
     status: user.status as 'Active' | 'Inactive',
     lastActive: user.lastActive?.toISOString(),
@@ -51,7 +51,7 @@ export async function getAuditors(): Promise<Auditor[]> {
   return auditors.map(auditor => ({
     id: auditor.id,
     name: auditor.user.name,
-    avatarUrl: auditor.user.avatarUrl,
+    avatarUrl: auditor.user.avatarUrl || '',
     projects: [], // TODO: Add project mapping
     progress: auditor.progress,
     status: auditor.user.status as 'Active' | 'Inactive' | 'Delayed',
@@ -72,7 +72,7 @@ export async function getAgents(): Promise<Agent[]> {
     platform: agent.platform as 'windows' | 'macos' | 'linux',
     status: agent.status as 'Active' | 'Inactive' | 'Pending',
     lastSync: agent.lastSync?.toISOString(),
-    version: agent.version,
+    version: agent.version || '',
   }));
 }
 
@@ -91,8 +91,8 @@ export async function getEvidence(): Promise<Evidence[]> {
     tags: item.tags,
     uploadedAt: item.uploadedAt.toISOString(),
     uploadedBy: item.uploadedBy,
-    previewUrl: item.previewUrl,
-    aiHint: item.aiHint,
+    previewUrl: item.previewUrl || '',
+    aiHint: item.aiHint || '',
   }));
 }
 
@@ -107,10 +107,10 @@ export async function getAuditLogs(): Promise<AuditLog[]> {
     id: log.id,
     user: {
       name: log.userName,
-      avatarUrl: log.userAvatarUrl,
+      avatarUrl: log.userAvatarUrl || '',
     },
     action: log.action,
-    details: log.details,
+    details: log.details || '',
     timestamp: log.timestamp.toISOString(),
     severity: log.severity as 'Low' | 'Medium' | 'High',
   }));
@@ -155,7 +155,7 @@ export async function getCustomerCourses(): Promise<CustomerCourse[]> {
     duration: course.duration || '',
     status: 'Not Started' as const,
     progress: 0,
-    thumbnailUrl: course.thumbnailUrl,
+    thumbnailUrl: course.thumbnailUrl || '',
     completionDate: null,
   }));
 }
