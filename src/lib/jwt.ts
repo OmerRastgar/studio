@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
 // JWT configuration
@@ -19,9 +19,11 @@ export function generateToken(payload: Omit<JWTPayload, 'iss'>): string {
     iss: 'audit-app-key' // This must match the key in Kong configuration
   };
   
-  return jwt.sign(tokenPayload, JWT_SECRET, {
+  const options: SignOptions = {
     expiresIn: JWT_EXPIRES_IN,
-  });
+  };
+  
+  return jwt.sign(tokenPayload, JWT_SECRET, options);
 }
 
 // Verify JWT token

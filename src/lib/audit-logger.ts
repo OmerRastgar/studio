@@ -64,12 +64,16 @@ export class AuditLogger {
       };
 
       // Send to Fluent Bit via HTTP (if running)
-      if (process.env.FLUENT_BIT_URL) {
-        await fetch(`${process.env.FLUENT_BIT_URL}/app`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(logEntry)
-        });
+      if (process.env.FLUENT_BIT_URL && typeof fetch !== 'undefined') {
+        try {
+          await fetch(`${process.env.FLUENT_BIT_URL}/app`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(logEntry)
+          });
+        } catch (fetchError) {
+          console.error('Failed to send to Fluent Bit:', fetchError);
+        }
       }
 
       // Also log to console for development
