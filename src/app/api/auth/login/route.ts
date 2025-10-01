@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       token,
       user: {
@@ -79,6 +79,20 @@ export async function POST(request: NextRequest) {
         avatarUrl: user.avatarUrl,
       }
     });
+
+    // Set JWT token in cookie for Kong to read
+    response.cookies.set('auth_token', token, {
+      httpOnly: false, // Allow JavaScript access for client-side usage
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60, // 24 hours
+      path: '/',
+    });
+
+    // Also set Authorization header for immediate use
+    response.headers.set('Authorization', `Bearer ${token}`);
+
+    return response;
 
   } catch (error) {
     console.error('Login error:', error);

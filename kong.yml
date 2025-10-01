@@ -9,43 +9,40 @@ services:
   - name: nextjs-app-service
     url: http://app:3000
     routes:
-      # Public routes that don't require authentication (MUST come first)
+      # Public authentication routes (only login/register allowed without JWT)
       - name: public-auth-routes
         paths:
           - /api/auth/login
           - /api/auth/register
+          - /api/auth/logout
         methods:
           - POST
         strip_path: false
+      # Public health check (for monitoring)
       - name: public-health-routes
         paths:
           - /api/health
         methods:
           - GET
         strip_path: false
+      # Static assets (CSS, JS, images) - needed for login page
       - name: public-static-routes
         paths:
           - /_next
           - /favicon.ico
-          - /login
-          - /register
+          - /static
         methods:
           - GET
-          - POST
         strip_path: false
-      # Protected routes that require JWT authentication
-      - name: protected-api-routes
+      # Login page route (public access to show login form)
+      - name: public-login-page
         paths:
-          - /api
+          - /login
         methods:
           - GET
-          - POST
-          - PUT
-          - DELETE
-          - PATCH
         strip_path: false
-      # Protected main application routes
-      - name: protected-app-routes
+      # ALL OTHER ROUTES - Require JWT authentication
+      - name: protected-all-routes
         paths:
           - /
         methods:
@@ -66,17 +63,21 @@ consumers:
 
 # Security and rate limiting plugins
 plugins:
-  # JWT Authentication - applied only to protected routes
+  # JWT Authentication - applied to ALL protected routes (everything except login/register/health/static)
   - name: jwt
-    route: protected-api-routes
+    route: protected-all-routes
     config:
       key_claim_name: iss
       secret_is_base64: false
-  - name: jwt
-    route: protected-app-routes
+      anonymous: null  # No anonymous access allowed
+      
+  # Request Termination for unauthorized access (optional - adds extra security)
+  - name: request-termination
+    route: protected-all-routes
     config:
-      key_claim_name: iss
-      secret_is_base64: false
+      status_code: 401
+      message: "Authentication required. Please login first."
+    enabled: false  # Only enable if JWT fails
       
   # Rate limiting to prevent abuse
   - name: rate-limiting
