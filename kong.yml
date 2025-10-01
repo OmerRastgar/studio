@@ -9,7 +9,43 @@ services:
   - name: nextjs-app-service
     url: http://app:3000
     routes:
-      - name: nextjs-app-route
+      # Public routes that don't require authentication (MUST come first)
+      - name: public-auth-routes
+        paths:
+          - /api/auth/login
+          - /api/auth/register
+        methods:
+          - POST
+        strip_path: false
+      - name: public-health-routes
+        paths:
+          - /api/health
+        methods:
+          - GET
+        strip_path: false
+      - name: public-static-routes
+        paths:
+          - /_next
+          - /favicon.ico
+          - /login
+          - /register
+        methods:
+          - GET
+          - POST
+        strip_path: false
+      # Protected routes that require JWT authentication
+      - name: protected-api-routes
+        paths:
+          - /api
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+        strip_path: false
+      # Protected main application routes
+      - name: protected-app-routes
         paths:
           - /
         methods:
@@ -18,20 +54,6 @@ services:
           - PUT
           - DELETE
           - PATCH
-        strip_path: false
-      # Public routes that don't require authentication
-      - name: public-routes
-        paths:
-          - /api/auth/login
-          - /api/auth/register
-          - /api/health
-          - /login
-          - /register
-          - /_next
-          - /favicon.ico
-        methods:
-          - GET
-          - POST
         strip_path: false
 
 # JWT Consumers (users who can authenticate)
@@ -44,9 +66,14 @@ consumers:
 
 # Security and rate limiting plugins
 plugins:
-  # JWT Authentication - applied to main route only
+  # JWT Authentication - applied only to protected routes
   - name: jwt
-    route: nextjs-app-route
+    route: protected-api-routes
+    config:
+      key_claim_name: iss
+      secret_is_base64: false
+  - name: jwt
+    route: protected-app-routes
     config:
       key_claim_name: iss
       secret_is_base64: false
@@ -102,3 +129,24 @@ plugins:
           - "X-Content-Type-Options: nosniff"
           - "X-XSS-Protection: 1; mode=block"
           - "Strict-Transport-Security: max-age=31536000; includeSubDomains"
+          
+  # HTTP Log plugin to send logs to Fluent Bit
+  - name: http-log
+    service: nextjs-app-service
+    config:
+      http_endpoint: http://fluent-bit:24224/kong
+      method: POST
+      timeout: 10000
+      keepalive: 60000
+      
+  # File Log plugin for local logging
+  - name: file-log
+    service: nextjs-app-service
+    config:
+      path: /tmp/kong_access.log
+      
+  # Prometheus plugin for metrics
+  - name: prometheus
+    service: nextjs-app-service
+    config:
+      per_consumer: true
