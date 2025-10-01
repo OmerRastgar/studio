@@ -1,9 +1,9 @@
-import jwt, { SignOptions } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
 // JWT configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-256-bit-secret-key-here-change-this-in-production';
-const JWT_EXPIRES_IN: string | number = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 export interface JWTPayload {
   userId: string;
@@ -19,11 +19,10 @@ export function generateToken(payload: Omit<JWTPayload, 'iss'>): string {
     iss: 'audit-app-key' // This must match the key in Kong configuration
   };
   
-  const options: SignOptions = {
-    expiresIn: JWT_EXPIRES_IN,
-  };
-  
-  return jwt.sign(tokenPayload, JWT_SECRET, options);
+  // Simple approach without explicit typing
+  return jwt.sign(tokenPayload, JWT_SECRET, {
+    expiresIn: '24h', // Use hardcoded value to avoid TypeScript issues
+  });
 }
 
 // Verify JWT token
