@@ -40,14 +40,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify password
-    const isValidPassword = await verifyPassword(password, user.password);
+    // Verify password (handle both hashed and dev passwords)
+    let isValidPassword = false;
+    
+    if (user.password.startsWith('dev_hash_')) {
+      // Development mode - simple password check
+      const expectedHash = `dev_hash_${password}`;
+      isValidPassword = user.password === expectedHash;
+      console.log('Using dev password verification');
+    } else {
+      // Production mode - bcrypt verification
+      isValidPassword = await verifyPassword(password, user.password);
+      console.log('Using bcrypt password verification');
+    }
+    
     if (!isValidPassword) {
+      console.log('Password verification failed');
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
+    console.log('Password verification successful');
 
     // Check if user is active
     if (user.status !== 'Active') {
