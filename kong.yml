@@ -22,6 +22,7 @@ services:
       - name: public-health-routes
         paths:
           - /api/health
+          - /api/debug
         methods:
           - GET
         strip_path: false

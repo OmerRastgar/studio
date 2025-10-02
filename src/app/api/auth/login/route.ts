@@ -1,23 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { generateToken, verifyPassword } from '@/lib/jwt';
+
+// Dynamic import to avoid build issues
+async function getPrisma() {
+  const { prisma } = await import('@/lib/prisma');
+  return prisma;
+}
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Login API called');
+    
     const { email, password } = await request.json();
+    console.log('Login attempt for email:', email);
 
     // Validate input
     if (!email || !password) {
+      console.log('Missing email or password');
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
       );
     }
 
+    // Get Prisma instance
+    const prisma = await getPrisma();
+    console.log('Prisma instance obtained');
+
     // Find user by email
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() }
     });
+    console.log('User found:', user ? 'Yes' : 'No');
 
     if (!user) {
       return NextResponse.json(
@@ -51,22 +65,32 @@ export async function POST(request: NextRequest) {
     });
 
     // Update last active timestamp
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastActive: new Date() }
-    });
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastActive: new Date() }
+      });
+      console.log('User last active updated');
+    } catch (updateError) {
+      console.error('Failed to update last active:', updateError);
+    }
 
     // Log the login
-    await prisma.auditLog.create({
-      data: {
-        id: `LOG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        userName: user.name,
-        userAvatarUrl: user.avatarUrl,
-        action: 'User Login',
-        details: `User ${user.email} logged in successfully`,
-        severity: 'Low'
-      }
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          id: `LOG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          userName: user.name,
+          userAvatarUrl: user.avatarUrl,
+          action: 'User Login',
+          details: `User ${user.email} logged in successfully`,
+          severity: 'Low'
+        }
+      });
+      console.log('Audit log created');
+    } catch (logError) {
+      console.error('Failed to create audit log:', logError);
+    }
 
     const response = NextResponse.json({
       success: true,
@@ -95,9 +119,14 @@ export async function POST(request: NextRequest) {
     return response;
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Login error details:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : String(error) : undefined
+      },
       { status: 500 }
     );
   }

@@ -63,7 +63,7 @@ export class AuditLogger {
         severity: entry.severity
       };
 
-      // Send to Fluent Bit via HTTP (if running)
+      // Send to Loki via Fluent Bit (if running)
       if (process.env.FLUENT_BIT_URL && typeof fetch !== 'undefined') {
         try {
           await fetch(`${process.env.FLUENT_BIT_URL}/app`, {
@@ -72,7 +72,40 @@ export class AuditLogger {
             body: JSON.stringify(logEntry)
           });
         } catch (fetchError) {
-          console.error('Failed to send to Fluent Bit:', fetchError);
+          console.error('Failed to send to Fluent Bit/Loki:', fetchError);
+        }
+      }
+
+      // Also send directly to Loki if available
+      if (process.env.LOKI_URL && typeof fetch !== 'undefined') {
+        try {
+          const lokiPayload = {
+            streams: [
+              {
+                stream: {
+                  job: 'audit-app',
+                  level: this.severityToLevel(entry.severity || 'Low'),
+                  component: 'audit-system',
+                  user_id: entry.userId || 'anonymous',
+                  environment: 'production'
+                },
+                values: [
+                  [String(Date.now() * 1000000), JSON.stringify(logEntry)]
+                ]
+              }
+            ]
+          };
+
+          await fetch(`${process.env.LOKI_URL}/loki/api/v1/push`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'X-Scope-OrgID': 'tenant1'
+            },
+            body: JSON.stringify(lokiPayload)
+          });
+        } catch (lokiError) {
+          console.error('Failed to send to Loki directly:', lokiError);
         }
       }
 

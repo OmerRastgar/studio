@@ -39,6 +39,7 @@ services:
       - JWT_SECRET=your-256-bit-secret-key-here-change-this-in-production
       - JWT_EXPIRES_IN=24h
       - FLUENT_BIT_URL=http://fluent-bit:24225
+      - LOKI_URL=http://loki:3100
       - LOG_LEVEL=info
     # Remove direct port exposure - only accessible through Kong
     expose:
@@ -96,26 +97,22 @@ services:
     depends_on:
       - postgres
 
-  # Prometheus for metrics collection
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
+  # Loki for log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "3100:3100"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
 
 volumes:
   postgres_data:
   grafana_data:
-  prometheus_data:
+  loki_data:
 
 networks:
   default:

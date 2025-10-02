@@ -1,5 +1,10 @@
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+
+// Dynamic import for bcrypt to avoid build issues
+async function getBcrypt() {
+  const bcrypt = await import('bcryptjs');
+  return bcrypt.default;
+}
 
 // JWT configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-256-bit-secret-key-here-change-this-in-production';
@@ -38,12 +43,14 @@ export function verifyToken(token: string): JWTPayload | null {
 
 // Hash password
 export async function hashPassword(password: string): Promise<string> {
+  const bcrypt = await getBcrypt();
   const saltRounds = 12;
   return bcrypt.hash(password, saltRounds);
 }
 
 // Verify password
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  const bcrypt = await getBcrypt();
   return bcrypt.compare(password, hashedPassword);
 }
 
