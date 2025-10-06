@@ -9,6 +9,9 @@ A comprehensive audit management application built with Next.js, PostgreSQL, and
 - Git
 - Node.js 18+ (for local development)
 
+### For Deployment on Another Machine
+If you're deploying on a different server/machine, see [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
+
 ### Step-by-Step Docker Setup
 
 #### Step 1: Clone the Repository
@@ -368,6 +371,34 @@ PORT=3000
 KONG_PROXY_URL=http://localhost:8000
 KONG_ADMIN_URL=http://localhost:8001
 ```
+
+## Deployment on Another Machine
+
+### Create Deployment Package
+```bash
+# Create a deployment package for transfer
+chmod +x create-deployment-package.sh
+./create-deployment-package.sh
+```
+
+This creates a `.tar.gz` file containing all necessary files for deployment.
+
+### Deploy on Target Machine
+```bash
+# Extract the package
+tar -xzf audit-app-deployment-*.tar.gz
+cd audit-app-deployment-*
+
+# Verify system requirements
+chmod +x verify-deployment.sh
+./verify-deployment.sh
+
+# Deploy the application
+chmod +x *.sh
+./dev-setup.sh
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
 
 ## Production Deployment
 
