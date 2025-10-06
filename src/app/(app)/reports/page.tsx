@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown, ShieldCheck, HelpCircle, Briefcase } from 'lucide-react';
+import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown, ShieldCheck, HelpCircle, Briefcase, Eye } from 'lucide-react';
 import { mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
@@ -28,7 +28,7 @@ import { reviewReport } from '@/ai/flows/review-report';
 import { useGuide } from '@/components/guide';
 import { reportGenerationTourSteps } from '@/lib/guide-steps';
 import { getProjects, addProject } from '@/lib/services/firestore';
-import type { Project } from '@/lib/types';
+import type { Project, User } from '@/lib/types';
 
 
 export type ReportRow = {
@@ -42,6 +42,15 @@ export type ReportRow = {
   isResolved: boolean;
   flagComment?: string;
 };
+
+// In a real app, this would come from an auth context or API call
+const currentUser: User = {
+  name: 'Admin Auditor',
+  email: 'admin@auditace.com',
+  avatarUrl: 'https://picsum.photos/seed/user1/100/100',
+  role: 'auditor', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
+};
+
 
 const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'isResolved'>[] = [
   {
@@ -86,6 +95,12 @@ export default function ReportsPage() {
     isFlagging: boolean; // true if we are adding a flag, false if we are resolving
     comment: string;
   }>({ isOpen: false, rowId: null, isFlagging: true, comment: '' });
+  
+  const userRole = currentUser.role;
+  const canEdit = userRole === 'auditor';
+  const canFlag = userRole === 'reviewer' || userRole === 'auditor';
+  const isViewOnly = userRole === 'admin';
+
 
   useEffect(() => {
     async function fetchProjects() {
@@ -212,8 +227,19 @@ export default function ReportsPage() {
 
   // Opens the dialog to either flag (and comment) or resolve a flag
   const handleFlagButtonClick = (row: ReportRow) => {
-    if (row.isFlagged) {
-      // If already flagged, open dialog in "resolve" mode
+    if (row.isFlagged && !canEdit) {
+        // For reviewers, show a read-only view of the comment
+         setDialogState({
+            isOpen: true,
+            rowId: row.id,
+            isFlagging: false,
+            comment: row.flagComment || '',
+        });
+        return;
+    }
+    
+    if (row.isFlagged && canEdit) {
+      // If already flagged, auditors can resolve it
       setDialogState({
         isOpen: true,
         rowId: row.id,
@@ -234,7 +260,7 @@ export default function ReportsPage() {
   // Handles the submission from the flag/comment dialog
   const submitFlagDialog = () => {
     const { rowId, isFlagging, comment } = dialogState;
-    if (!rowId) return;
+    if (!rowId || !canFlag) return;
 
     if (isFlagging) {
       // Logic to add a new flag
@@ -254,14 +280,12 @@ export default function ReportsPage() {
         )
       );
       toast({ title: 'Row Flagged', description: 'The item has been flagged for review.' });
-    } else {
-      // This case is now handled by the resolve button in the dialog
     }
     setDialogState({ isOpen: false, rowId: null, isFlagging: true, comment: '' }); // Reset and close
   };
 
   const resolveFlag = (rowId: string | null) => {
-    if (!rowId) return;
+    if (!rowId || !canEdit) return;
     setReportRows(rows =>
       rows.map(row =>
         row.id === rowId ? { ...row, isFlagged: false, isResolved: true } : row
@@ -392,6 +416,7 @@ export default function ReportsPage() {
                     ))}
                 </SelectContent>
             </Select>
+            {canEdit && (
             <Dialog open={isNewProjectDialogOpen} onOpenChange={setIsNewProjectDialogOpen}>
                 <DialogTrigger asChild>
                      <Button variant="outline">
@@ -452,6 +477,7 @@ export default function ReportsPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
 
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -470,14 +496,18 @@ export default function ReportsPage() {
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Chat
             </Button>
-            <Button variant="secondary" onClick={loadSampleData}>
-              <FileQuestion className="mr-2 h-4 w-4" />
-              Load Sample
-            </Button>
-             <Button onClick={handleAiQa} disabled={isQaRunning} data-tour-id="report-ai-qa-button">
-                {isQaRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                AI QA
-            </Button>
+            {canEdit && (
+              <>
+                <Button variant="secondary" onClick={loadSampleData}>
+                  <FileQuestion className="mr-2 h-4 w-4" />
+                  Load Sample
+                </Button>
+                <Button onClick={handleAiQa} disabled={isQaRunning} data-tour-id="report-ai-qa-button">
+                    {isQaRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                    AI QA
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -523,7 +553,8 @@ export default function ReportsPage() {
                                         placeholder="e.g., Access Control" 
                                         value={row.control} 
                                         onChange={(e) => handleControlChange(row.id, e.target.value)}
-                                        className="min-h-[100px]" 
+                                        className="min-h-[100px]"
+                                        readOnly={!canEdit}
                                     />
                                     </div>
                                 </TableCell>
@@ -532,17 +563,19 @@ export default function ReportsPage() {
                                         placeholder="e.g., System access is restricted..." 
                                         value={row.observation} 
                                         onChange={(e) => handleObservationChange(row.id, e.target.value)}
-                                        className="min-h-[100px]" 
+                                        className="min-h-[100px]"
+                                        readOnly={!canEdit}
                                     />
                                 </TableCell>
                                 <TableCell>
                                     <Popover>
-                                        <PopoverTrigger asChild>
+                                        <PopoverTrigger asChild disabled={!canEdit}>
                                           <div
                                             role="combobox"
                                             className={cn(
                                               buttonVariants({ variant: 'outline', size: 'default' }),
-                                              'w-full justify-between h-auto cursor-pointer flex-wrap'
+                                              'w-full justify-between h-auto flex-wrap',
+                                              canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
                                             )}
                                             data-tour-id={index === 0 ? "report-evidence-selector" : undefined}
                                           >
@@ -556,15 +589,17 @@ export default function ReportsPage() {
                                                         className="mr-1"
                                                     >
                                                         {evidence?.name}
-                                                        <div
-                                                            className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleEvidenceChange(row.id, evidenceId);
-                                                            }}
-                                                        >
-                                                            <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                                                        </div>
+                                                        {canEdit && (
+                                                          <div
+                                                              className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                                              onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  handleEvidenceChange(row.id, evidenceId);
+                                                              }}
+                                                          >
+                                                              <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                                          </div>
+                                                        )}
                                                     </Badge>
                                                     );
                                                 }) : <span>Select evidence...</span>}
@@ -608,23 +643,32 @@ export default function ReportsPage() {
                                             <span>Analyzing...</span>
                                         </div>
                                     ) : (
-                                        <Textarea readOnly value={row.analysis} placeholder="AI analysis will appear here." className="min-h-[100px] bg-muted/50" />
+                                        <Textarea readOnly value={row.analysis} placeholder={isViewOnly ? "No analysis generated." : "AI analysis will appear here."} className="min-h-[100px] bg-muted/50" />
                                     )}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className='flex flex-col gap-2 items-end'>
-                                        <Button size="sm" onClick={() => handleGenerate(row.id)} disabled={row.isGenerating} data-tour-id={index === 0 ? "report-generate-button" : undefined}>
-                                            <Sparkles className="mr-2 h-4 w-4" />
-                                            Generate
-                                        </Button>
+                                        {canEdit && (
+                                          <Button size="sm" onClick={() => handleGenerate(row.id)} disabled={row.isGenerating} data-tour-id={index === 0 ? "report-generate-button" : undefined}>
+                                              <Sparkles className="mr-2 h-4 w-4" />
+                                              Generate
+                                          </Button>
+                                        )}
+                                        {isViewOnly && (
+                                            <Button size="sm" variant="outline" disabled><Eye className="mr-2 h-4 w-4" /> View</Button>
+                                        )}
                                         <div className="flex items-center">
-                                             <button onClick={() => handleFlagButtonClick(row)} data-tour-id={index === 0 ? "report-flag-button" : undefined} className="p-2">
-                                                <Flag className={cn("h-4 w-4", row.isFlagged ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
-                                                 <span className="sr-only">{row.isResolved ? "Re-flag" : "Flag"}</span>
-                                            </button>
-                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeRow(row.id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                             {canFlag && (
+                                                <button onClick={() => handleFlagButtonClick(row)} data-tour-id={index === 0 ? "report-flag-button" : undefined} className="p-2">
+                                                    <Flag className={cn("h-4 w-4", row.isFlagged ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} />
+                                                    <span className="sr-only">{row.isResolved ? "Re-flag" : "Flag"}</span>
+                                                </button>
+                                             )}
+                                            {canEdit && (
+                                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeRow(row.id)}>
+                                                  <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            )}
                                         </div>
                                     </div>
                                 </TableCell>
@@ -635,10 +679,12 @@ export default function ReportsPage() {
             </Table>
         </div>
         <div className="flex justify-start mt-4">
+          {canEdit && (
             <Button variant="outline" onClick={addRow}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Row
             </Button>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -664,11 +710,11 @@ export default function ReportsPage() {
             <DialogDescription>
               {dialogState.isFlagging
                 ? 'Please provide a comment explaining why this item is being flagged.'
-                : 'Review the comment below and resolve the flag.'}
+                : 'Review the comment below and resolve the flag if you are an auditor.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {dialogState.isFlagging ? (
+            {(dialogState.isFlagging && canFlag) || (dialogState.isFlagging && canEdit) ? (
               <Textarea
                 id="flag-comment"
                 placeholder="Type your comment here..."
@@ -694,11 +740,11 @@ export default function ReportsPage() {
               </Button>
             </DialogClose>
             {dialogState.isFlagging ? (
-              <Button onClick={submitFlagDialog}>
+              <Button onClick={submitFlagDialog} disabled={!canFlag}>
                 <Flag className="mr-2 h-4 w-4" /> Flag Item
               </Button>
             ) : (
-              <Button onClick={() => resolveFlag(dialogState.rowId)}>
+              <Button onClick={() => resolveFlag(dialogState.rowId)} disabled={!canEdit}>
                 <CheckCircle className="mr-2 h-4 w-4" /> Resolve Flag
               </Button>
             )}
