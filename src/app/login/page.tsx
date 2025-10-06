@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,7 @@ export default function LoginPage() {
       <Card className="mx-auto max-w-sm w-full bg-card/80 backdrop-blur-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center gap-2 mb-4">
-             <div className="text-2xl font-bold font-headline">AuditAce</div>
+             <div className="text-2xl font-bold font-headline">CyberGaar</div>
           </div>
           <CardTitle className="text-2xl font-headline">Login</CardTitle>
           <CardDescription>Enter your email below to login to your account</CardDescription>
@@ -49,7 +50,7 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   placeholder="m@example.com"
-                  defaultValue="admin@auditace.com"
+                  defaultValue="admin@cybergaar.com"
                   required
                 />
               </div>

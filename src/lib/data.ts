@@ -24,7 +24,7 @@ export const mockProjects: Project[] = [
 export const mockUsers: UserProfile[] = [
     {
         name: 'Admin Auditor',
-        email: 'admin@auditace.com',
+        email: 'admin@cybergaar.com',
         avatarUrl: 'https://picsum.photos/seed/admin/100/100',
         role: 'admin',
         status: 'Active',

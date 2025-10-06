@@ -33,9 +33,9 @@ import React from 'react';
 // In a real app, this would come from an auth context or API call
 const currentUser: User = {
   name: 'Admin Auditor',
-  email: 'admin@auditace.com',
+  email: 'admin@cybergaar.com',
   avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-  role: 'auditor', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
+  role: 'admin', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
 };
 
 function Nav({ userRole }: { userRole: User['role'] }) {
@@ -93,7 +93,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Sidebar>
             <SidebarHeader className="p-4">
               <div className="flex items-center justify-between" data-tour-id="logo">
-                <div className="text-lg font-bold font-headline group-data-[collapsible=icon]:hidden">AuditAce</div>
+                <div className="text-lg font-bold font-headline group-data-[collapsible=icon]:hidden">CyberGaar</div>
               </div>
             </SidebarHeader>
             <SidebarContent>
