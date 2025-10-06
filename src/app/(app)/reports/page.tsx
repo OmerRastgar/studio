@@ -486,17 +486,15 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Chat
             </Button>
+            <Button variant="secondary" onClick={loadSampleData}>
+                <FileQuestion className="mr-2 h-4 w-4" />
+                Load Sample
+            </Button>
             {canEdit && (
-              <>
-                <Button variant="secondary" onClick={loadSampleData}>
-                  <FileQuestion className="mr-2 h-4 w-4" />
-                  Load Sample
-                </Button>
-                <Button onClick={handleAiQa} disabled={isQaRunning} data-tour-id="report-ai-qa-button">
-                    {isQaRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                    AI QA
-                </Button>
-              </>
+              <Button onClick={handleAiQa} disabled={isQaRunning} data-tour-id="report-ai-qa-button">
+                  {isQaRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                  AI QA
+              </Button>
             )}
           </div>
         </div>
@@ -744,3 +742,5 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
     </>
   );
 }
+
+    
