@@ -27,6 +27,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - NODE_OPTIONS=--max-old-space-size=4096
+        - SKIP_ENV_VALIDATION=1
+        - NEXT_TELEMETRY_DISABLED=1
     container_name: nextjs-app
     restart: unless-stopped
     depends_on:
@@ -41,9 +45,13 @@ services:
       - FLUENT_BIT_URL=http://fluent-bit:24225
       - LOKI_URL=http://loki:3100
       - LOG_LEVEL=info
+      - NODE_OPTIONS=--max-old-space-size=2048
     # Remove direct port exposure - only accessible through Kong
     expose:
       - "3000"
+    # Increase memory limits for the container
+    mem_limit: 2g
+    memswap_limit: 4g
 
   # Kong API Gateway
   kong:

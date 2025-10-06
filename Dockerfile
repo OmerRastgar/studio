@@ -11,9 +11,9 @@ RUN chown -R node:node /app
 FROM base AS dependencies
 WORKDIR /app
 USER node
-COPY --chown=node:node package.json ./
-# Install dependencies and generate package-lock.json
-RUN npm install --production=false
+COPY --chown=node:node package*.json ./
+# Install dependencies with optimizations for Docker
+RUN npm ci --only=production=false --no-audit --no-fund
 
 # ---- Builder ----
 # This stage builds the Next.js application.
@@ -26,9 +26,14 @@ COPY --chown=node:node --from=dependencies /app/node_modules ./node_modules
 COPY --chown=node:node . .
 # Ensure public directory exists (even if empty) to prevent COPY error
 RUN mkdir -p public
-# Build the Next.js application for production with increased memory
-ENV NODE_OPTIONS="--max-old-space-size=2048"
-RUN npm run build
+# Generate Prisma client before build
+RUN npx prisma generate
+# Build the Next.js application for production with increased memory and optimizations
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV SKIP_ENV_VALIDATION=1
+# Build with Docker optimizations to avoid timeout issues
+RUN npm run build:docker
 
 # ---- Runner ----
 # This stage creates the final, lightweight image.

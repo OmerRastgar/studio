@@ -123,6 +123,21 @@ npm run dev
 
 ### Docker Issues
 
+**Build failures or timeouts:**
+```bash
+# Use the optimized build script
+chmod +x docker-build.sh
+./docker-build.sh
+
+# Or build manually with optimizations
+export DOCKER_BUILDKIT=1
+docker build --memory=4g --memory-swap=8g -t nextjs-app .
+
+# Clean Docker cache if build fails
+docker system prune -a
+docker build --no-cache -t nextjs-app .
+```
+
 **Services not starting:**
 ```bash
 # Check Docker is running
@@ -144,6 +159,15 @@ netstat -tulpn | grep :8000  # Kong
 netstat -tulpn | grep :3000  # App
 
 # Stop conflicting services or change ports in docker-compose.yml
+```
+
+**Memory issues during build:**
+```bash
+# Increase Docker memory in Docker Desktop settings
+# Recommended: 4GB RAM, 2GB Swap
+
+# Or use the optimized build script
+./docker-build.sh
 ```
 
 ### Database Issues
