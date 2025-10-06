@@ -49,7 +49,9 @@ services:
       - LOKI_URL=http://loki:3100
       - LOG_LEVEL=info
       - NODE_OPTIONS=--max-old-space-size=2048
-    # Remove direct port exposure - only accessible through Kong
+    # Expose port for direct access during development
+    ports:
+      - "3000:3000"
     expose:
       - "3000"
     # Increase memory limits for the container

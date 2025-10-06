@@ -18,12 +18,22 @@ fi
 
 echo ""
 echo "2. Setting up database and users..."
-# Use Docker container for npm operations
-docker run --rm -v "$(pwd)":/app -w /app --network host node:20-alpine sh -c "
-    npm install --no-audit --no-fund &&
-    npx prisma generate &&
-    npm run db:seed
-"
+# Use the existing app container for database operations
+if docker ps | grep -q nextjs-app; then
+    echo "Using existing nextjs-app container..."
+    docker exec nextjs-app sh -c "
+        npx prisma generate &&
+        npm run db:seed
+    "
+else
+    echo "nextjs-app container not running, starting services first..."
+    docker-compose up -d
+    sleep 20
+    docker exec nextjs-app sh -c "
+        npx prisma generate &&
+        npm run db:seed
+    "
+fi
 
 echo ""
 echo "4. Verifying users were created..."

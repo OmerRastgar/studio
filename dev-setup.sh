@@ -25,41 +25,33 @@ echo "2. Waiting for database to be ready..."
 sleep 15
 
 echo ""
-echo "3. Installing dependencies and generating Prisma client..."
-# Use a temporary Node container to install dependencies and generate Prisma client
-docker run --rm -v "$(pwd)":/app -w /app node:20-alpine sh -c "
-    npm install --no-audit --no-fund && 
-    npx prisma generate
-"
+echo "3. Building and starting the application..."
+$DOCKER_COMPOSE_CMD up -d --build
 
 echo ""
-echo "4. Applying database schema..."
-# Use a temporary container to push the schema
-docker run --rm -v "$(pwd)":/app -w /app --network host node:20-alpine sh -c "
-    npm install --no-audit --no-fund &&
-    npx prisma generate &&
-    npx prisma db push --force-reset
-"
+echo "4. Waiting for application container to be ready..."
+sleep 20
 
 echo ""
-echo "5. Seeding database with sample data..."
-# Use a temporary container to seed the database
-docker run --rm -v "$(pwd)":/app -w /app --network host node:20-alpine sh -c "
-    npm install --no-audit --no-fund &&
+echo "5. Setting up database schema and seeding data..."
+# Use the existing app container to setup database
+docker exec nextjs-app sh -c "
     npx prisma generate &&
+    npx prisma db push --force-reset &&
     npm run db:seed
-"
+" || echo "⚠️  Database setup failed, will retry after container is fully ready"
 
 echo ""
-echo "6. Starting the application..."
-$DOCKER_COMPOSE_CMD up -d
-
-echo ""
-echo "7. Waiting for application to start..."
+echo "6. Retrying database setup if needed..."
 sleep 10
+docker exec nextjs-app sh -c "
+    npx prisma generate &&
+    npx prisma db push --force-reset &&
+    npm run db:seed
+" || echo "⚠️  Database setup still failing, check logs with: docker logs nextjs-app"
 
 echo ""
-echo "8. Verifying users were created..."
+echo "7. Verifying users were created..."
 echo "Checking admin user exists:"
 docker exec -i audit-postgres psql -U audituser -d auditdb -c "SELECT id, name, email, role, status FROM users WHERE email = 'admin@auditace.com';" 2>/dev/null || echo "Database not ready yet, this is normal on first run"
 
