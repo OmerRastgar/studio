@@ -5,7 +5,10 @@ const prisma = new PrismaClient()
 async function hashPassword(password: string): Promise<string> {
   try {
     const bcrypt = require('bcryptjs');
-    return await bcrypt.hash(password, 12);
+    const salt = await bcrypt.genSalt(12);
+    const hash = await bcrypt.hash(password, salt);
+    console.log(`Hashed password for development: ${password} -> ${hash.substring(0, 20)}...`);
+    return hash;
   } catch (error) {
     console.log('bcryptjs not available, using simple hash for development');
     return `dev_hash_${password}`;
@@ -24,14 +27,21 @@ async function main() {
     ]
   })
 
-  // Create users with hashed passwords
+  // Create users with hashed passwords (using upsert to ensure they exist)
   const adminPassword = await hashPassword('admin123')
   const janePassword = await hashPassword('jane123')
   const johnPassword = await hashPassword('john123')
   const clientPassword = await hashPassword('client123')
 
-  await prisma.user.create({
-    data: {
+  console.log('Creating admin user...')
+  await prisma.user.upsert({
+    where: { email: 'admin@auditace.com' },
+    update: {
+      password: adminPassword, // Update password in case it changed
+      status: 'Active',
+      lastActive: new Date(Date.now() - 6 * 60 * 1000),
+    },
+    create: {
       id: 'user-admin',
       name: 'Admin Auditor',
       email: 'admin@auditace.com',
@@ -43,8 +53,14 @@ async function main() {
     }
   })
 
-  await prisma.user.create({
-    data: {
+  console.log('Creating Jane Doe user...')
+  await prisma.user.upsert({
+    where: { email: 'jane.doe@example.com' },
+    update: {
+      password: janePassword,
+      status: 'Active',
+    },
+    create: {
       id: 'user-jane',
       name: 'Jane Doe',
       email: 'jane.doe@example.com',
@@ -56,8 +72,13 @@ async function main() {
     }
   })
 
-  await prisma.user.create({
-    data: {
+  console.log('Creating John Smith user...')
+  await prisma.user.upsert({
+    where: { email: 'john.smith@example.com' },
+    update: {
+      password: johnPassword,
+    },
+    create: {
       id: 'user-john',
       name: 'John Smith',
       email: 'john.smith@example.com',
@@ -69,8 +90,14 @@ async function main() {
     }
   })
 
-  await prisma.user.create({
-    data: {
+  console.log('Creating customer client user...')
+  await prisma.user.upsert({
+    where: { email: 'client@customer.com' },
+    update: {
+      password: clientPassword,
+      status: 'Active',
+    },
+    create: {
       id: 'user-client',
       name: 'Customer Client',
       email: 'client@customer.com',
@@ -81,6 +108,8 @@ async function main() {
       lastActive: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
     }
   })
+
+  console.log('✅ All users created/updated successfully!')
 
   // Create auditors
   await prisma.auditor.createMany({
