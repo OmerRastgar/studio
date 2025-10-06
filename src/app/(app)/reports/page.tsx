@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, MessageCircle, CheckCircle, X, ChevronsUpDown, ShieldCheck, HelpCircle, Briefcase, Eye } from 'lucide-react';
+import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, CheckCircle, X, ChevronsUpDown, ShieldCheck, Eye, Briefcase } from 'lucide-react';
 import { mockEvidence } from '@/lib/data';
 import {
   DropdownMenu,
@@ -43,15 +43,6 @@ export type ReportRow = {
   flagComment?: string;
 };
 
-// In a real app, this would come from an auth context or API call
-const currentUser: User = {
-  name: 'Admin Auditor',
-  email: 'admin@auditace.com',
-  avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-  role: 'auditor', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
-};
-
-
 const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'isResolved'>[] = [
   {
     control: 'Access Control Policy',
@@ -73,7 +64,7 @@ const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'i
   },
 ];
 
-export default function ReportsPage() {
+export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [reportRows, setReportRows] = useState<ReportRow[]>([]);
@@ -96,7 +87,6 @@ export default function ReportsPage() {
     comment: string;
   }>({ isOpen: false, rowId: null, isFlagging: true, comment: '' });
   
-  const userRole = currentUser.role;
   const canEdit = userRole === 'auditor';
   const canFlag = userRole === 'reviewer' || userRole === 'auditor';
   const isViewOnly = userRole === 'admin';
@@ -754,4 +744,3 @@ export default function ReportsPage() {
     </>
   );
 }
-    

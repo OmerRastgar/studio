@@ -53,21 +53,13 @@ import Image from 'next/image';
 import { mockEvidence, mockProjects, mockAgents } from '@/lib/data';
 import { format } from 'date-fns';
 import { MoreHorizontal, PlusCircle, Trash2, Edit, Eye, FolderArchive, X, UploadCloud, Tag } from 'lucide-react';
-import { useState, useMemo, Suspense, useEffect } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { Evidence, User } from '@/lib/types';
 
-// In a real app, this would come from an auth context or API call
-const currentUser: User = {
-  name: 'Admin Auditor',
-  email: 'admin@auditace.com',
-  avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-  role: 'admin', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
-};
 
-
-function EvidencePageComponent() {
+function EvidencePageComponent({ userRole }: { userRole: User['role']}) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const agentId = searchParams.get('agentId');
@@ -89,8 +81,6 @@ function EvidencePageComponent() {
     const [editName, setEditName] = useState('');
     const [editTags, setEditTags] = useState<string[]>([]);
     const [currentEditTag, setCurrentEditTag] = useState('');
-
-    const userRole = currentUser.role;
 
     const filteredEvidence = useMemo(() => {
         return evidenceList
@@ -499,10 +489,10 @@ function EvidencePageComponent() {
   );
 }
 
-export default function EvidencePage() {
+export default function EvidencePage({ userRole }: { userRole: User['role'] }) {
     return (
         <Suspense fallback={<div>Loading...</div>}>
-            <EvidencePageComponent />
+            <EvidencePageComponent userRole={userRole} />
         </Suspense>
     );
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -26,24 +27,23 @@ import type { User } from '@/lib/types';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeProvider } from '@/components/providers';
-import { cn } from '@/lib/utils';
-import Image from 'next/image';
 import { GuideProvider } from '@/components/guide';
+import React from 'react';
 
 // In a real app, this would come from an auth context or API call
 const currentUser: User = {
   name: 'Admin Auditor',
   email: 'admin@auditace.com',
   avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-  role: 'admin', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
+  role: 'customer', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
 };
 
-function Nav() {
+function Nav({ userRole }: { userRole: User['role'] }) {
   const pathname = usePathname();
   
   const allNavItems = [
     { href: '/dashboard', title: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'auditor', 'customer', 'manager', 'reviewer'], tourId: 'dashboard' },
-    { href: '/reports', title: 'Report Generation', icon: FileText, roles: ['admin', 'auditor', 'manager'], tourId: 'report-generation' },
+    { href: '/reports', title: 'Report Generation', icon: FileText, roles: ['admin', 'auditor', 'manager', 'reviewer'], tourId: 'report-generation' },
     { href: '/agents', title: 'Agents', icon: Bot, roles: ['admin', 'customer'], tourId: 'agents' },
     { href: '/learning', title: 'Learning', icon: BookOpen, roles: ['admin', 'auditor', 'customer'], tourId: 'learning' },
     { href: '/evidence', title: 'Evidence', icon: Database, roles: ['admin', 'auditor', 'customer', 'manager'], tourId: 'evidence' },
@@ -51,7 +51,7 @@ function Nav() {
     { href: '/audit-log', title: 'Audit Log', icon: ScrollText, roles: ['admin', 'manager'], tourId: 'audit-log' },
   ];
 
-  const navItems = allNavItems.filter(item => item.roles.includes(currentUser.role));
+  const navItems = allNavItems.filter(item => item.roles.includes(userRole));
 
   return (
     <SidebarMenu>
@@ -97,7 +97,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             </SidebarHeader>
             <SidebarContent>
-              <Nav />
+              <Nav userRole={user.role} />
             </SidebarContent>
             <SidebarFooter className="p-4">
               <SidebarMenu>
@@ -119,7 +119,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarInset>
             <Header user={user} pageTitle={pageTitle} />
             <main className="flex-1 p-4 md:p-6" data-tour-id="main-content">
-              {children}
+              {React.cloneElement(children as React.ReactElement, { userRole: user.role })}
             </main>
           </SidebarInset>
         </SidebarProvider>
