@@ -59,7 +59,7 @@ const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'i
   {
     control: 'Data Encryption',
     observation: 'All production databases are encrypted at rest using AES-256.',
-    evidence: [],
+    evidence: ['EV001', 'EV002'],
     analysis: '',
   },
 ];
@@ -87,9 +87,9 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
     comment: string;
   }>({ isOpen: false, rowId: null, isFlagging: true, comment: '' });
   
-  const canEdit = userRole === 'auditor';
-  const canFlag = userRole === 'reviewer' || userRole === 'auditor';
-  const isViewOnly = userRole === 'admin';
+  const canEdit = userRole === 'auditor' || userRole === 'admin';
+  const canFlag = userRole === 'reviewer' || userRole === 'auditor' || userRole === 'admin';
+  const isViewOnly = userRole !== 'auditor' && userRole !== 'admin';
 
 
   useEffect(() => {
@@ -742,6 +742,8 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
     </>
   );
 }
+
+    
 
     
 
