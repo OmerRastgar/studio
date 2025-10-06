@@ -2,25 +2,34 @@
 
 echo "Starting database setup..."
 
+# Check if docker-compose exists, if not try docker compose
+DOCKER_COMPOSE_CMD="docker-compose"
+if ! command -v docker-compose &> /dev/null; then
+    if docker compose version &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker compose"
+    else
+        echo "❌ Neither 'docker-compose' nor 'docker compose' found!"
+        exit 1
+    fi
+fi
+
 echo ""
 echo "1. Starting Docker services..."
-docker-compose up -d postgres
+$DOCKER_COMPOSE_CMD up -d postgres
 
 echo ""
 echo "2. Waiting for PostgreSQL to be ready..."
 sleep 10
 
 echo ""
-echo "3. Generating Prisma client..."
-npm run db:generate
-
-echo ""
-echo "4. Applying database migrations..."
-npm run db:push
-
-echo ""
-echo "5. Seeding database with initial data..."
-npm run db:seed
+echo "3. Setting up database schema and data..."
+# Use Docker container for all npm operations
+docker run --rm -v "$(pwd)":/app -w /app --network host node:20-alpine sh -c "
+    npm install --no-audit --no-fund &&
+    npx prisma generate &&
+    npx prisma db push &&
+    npm run db:seed
+"
 
 echo ""
 echo "6. Verifying users were created..."

@@ -40,16 +40,14 @@ docker exec -i audit-postgres psql -U audituser -d auditdb -c "DROP TYPE IF EXIS
 docker exec -i audit-postgres psql -U audituser -d auditdb -c "DROP TYPE IF EXISTS \"UserStatus\" CASCADE;" 2>/dev/null || true
 
 echo ""
-echo "6. Generating Prisma client..."
-npm run db:generate
-
-echo ""
-echo "7. Applying database schema..."
-npm run db:push
-
-echo ""
-echo "8. Seeding database with initial data..."
-npm run db:seed
+echo "6. Setting up database schema and data..."
+# Use Docker container for all npm operations
+docker run --rm -v "$(pwd)":/app -w /app --network host node:20-alpine sh -c "
+    npm install --no-audit --no-fund &&
+    npx prisma generate &&
+    npx prisma db push --force-reset &&
+    npm run db:seed
+"
 
 echo ""
 echo "9. Verifying the fix..."

@@ -15,8 +15,11 @@ fi
 
 if command -v docker-compose &> /dev/null; then
     echo "✅ Docker Compose is installed: $(docker-compose --version)"
+elif docker compose version &> /dev/null; then
+    echo "✅ Docker Compose is installed: $(docker compose version)"
 else
     echo "❌ Docker Compose is not installed"
+    echo "Install with: sudo apt-get install docker-compose-plugin"
     exit 1
 fi
 

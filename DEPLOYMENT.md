@@ -21,8 +21,8 @@ cd studio
 # Make scripts executable
 chmod +x *.sh
 
-# Start the application
-./dev-setup.sh
+# Start the application (Docker-only approach)
+./docker-setup.sh
 ```
 
 ### Option 2: Transfer Files to Target Machine
@@ -42,7 +42,7 @@ If you can't use git on the target machine:
    unzip audit-app.zip
    cd studio
    chmod +x *.sh
-   ./dev-setup.sh
+   ./docker-setup.sh
    ```
 
 ### Option 3: Docker Image Transfer

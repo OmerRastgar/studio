@@ -17,12 +17,13 @@ if ! docker ps | grep -q audit-postgres; then
 fi
 
 echo ""
-echo "2. Generating Prisma client..."
-npm run db:generate
-
-echo ""
-echo "3. Running seed script to ensure users exist..."
-npm run db:seed
+echo "2. Setting up database and users..."
+# Use Docker container for npm operations
+docker run --rm -v "$(pwd)":/app -w /app --network host node:20-alpine sh -c "
+    npm install --no-audit --no-fund &&
+    npx prisma generate &&
+    npm run db:seed
+"
 
 echo ""
 echo "4. Verifying users were created..."
