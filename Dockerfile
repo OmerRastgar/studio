@@ -11,9 +11,11 @@ RUN chown -R node:node /app
 FROM base AS dependencies
 WORKDIR /app
 USER node
-COPY --chown=node:node package*.json ./
-# Install dependencies with optimizations for Docker
-RUN npm ci --only=production=false --no-audit --no-fund
+COPY --chown=node:node package.json ./
+# Copy package-lock.json if it exists, otherwise npm install will create it
+COPY --chown=node:node package-lock.json* ./
+# Install dependencies - use npm install since package-lock.json might not exist
+RUN npm install --no-audit --no-fund
 
 # ---- Builder ----
 # This stage builds the Next.js application.

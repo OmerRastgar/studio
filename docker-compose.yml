@@ -24,13 +24,16 @@ services:
 
   # The Next.js Application
   app:
+    # Option 1: Build from source (comment out 'image' line below)
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.simple
       args:
         - NODE_OPTIONS=--max-old-space-size=4096
         - SKIP_ENV_VALIDATION=1
         - NEXT_TELEMETRY_DISABLED=1
+    # Option 2: Use pre-built image (uncomment line below and comment out 'build' section)
+    # image: nextjs-app
     container_name: nextjs-app
     restart: unless-stopped
     depends_on:

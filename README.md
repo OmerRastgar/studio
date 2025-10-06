@@ -29,12 +29,37 @@ cp .env.example .env
 # The .env file is already configured for Docker setup
 ```
 
-#### Step 4: Start Docker Services
-```bash
-# Start all services (PostgreSQL, Kong, Grafana, etc.)
-docker-compose up -d
+#### Step 4: Build the Application (Choose One Method)
 
-# Verify services are running
+**Method A: Simple Build (Recommended)**
+```bash
+# Build the Docker image first
+chmod +x docker-build-simple.sh
+./docker-build-simple.sh
+
+# Then start all services
+docker-compose up -d
+```
+
+**Method B: Build with Docker Compose**
+```bash
+# Start all services (will build automatically)
+docker-compose up -d --build
+```
+
+**Method C: Pre-build with Optimizations**
+```bash
+# Use the advanced build script
+chmod +x docker-build.sh
+./docker-build.sh
+
+# Then start services
+docker-compose up -d
+```
+
+#### Step 5: Verify Services
+```bash
+# Check all services are running
 docker ps
 ```
 
@@ -46,7 +71,7 @@ You should see these containers running:
 - `fluent-bit` - Log collection
 - `loki` - Log aggregation
 
-#### Step 5: Initialize Database
+#### Step 6: Initialize Database
 ```bash
 # Make scripts executable
 chmod +x *.sh
@@ -58,7 +83,7 @@ chmod +x *.sh
 ./setup-database.sh
 ```
 
-#### Step 6: Verify Setup
+#### Step 7: Verify Setup
 ```bash
 # Check database and users
 ./verify-database.sh
@@ -67,7 +92,7 @@ chmod +x *.sh
 ./ensure-users.sh
 ```
 
-#### Step 7: Access the Application
+#### Step 8: Access the Application
 
 **Option A: Through Kong Gateway (Recommended)**
 - URL: http://localhost:8000
@@ -125,17 +150,20 @@ npm run dev
 
 **Build failures or timeouts:**
 ```bash
-# Use the optimized build script
+# Option 1: Use the simple build script (recommended)
+chmod +x docker-build-simple.sh
+./docker-build-simple.sh
+
+# Option 2: Use the optimized build script
 chmod +x docker-build.sh
 ./docker-build.sh
 
-# Or build manually with optimizations
-export DOCKER_BUILDKIT=1
-docker build --memory=4g --memory-swap=8g -t nextjs-app .
+# Option 3: Build manually with simple Dockerfile
+docker build -f Dockerfile.simple -t nextjs-app .
 
 # Clean Docker cache if build fails
 docker system prune -a
-docker build --no-cache -t nextjs-app .
+docker build --no-cache -f Dockerfile.simple -t nextjs-app .
 ```
 
 **Services not starting:**
