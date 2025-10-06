@@ -53,13 +53,13 @@ const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'i
   {
     control: 'Quarterly Access Reviews',
     observation: 'Access reviews for critical systems were not completed for Q2.',
-    evidence: ['EV002', 'EV003'],
+    evidence: ['EV002'],
     analysis: '',
   },
   {
     control: 'Data Encryption',
     observation: 'All production databases are encrypted at rest using AES-256.',
-    evidence: ['EV004', 'EV005'],
+    evidence: [],
     analysis: '',
   },
 ];
@@ -742,6 +742,8 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
     </>
   );
 }
+
+    
 
     
 
