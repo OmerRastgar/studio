@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Bot, FileQuestion, MessageSquare, PlusCircle, Sparkles, Trash2, Loader2, Flag, FileDown, CheckCircle, X, ChevronsUpDown, ShieldCheck, Eye, Briefcase } from 'lucide-react';
-import { mockEvidence } from '@/lib/data';
+import { mockEvidence, mockProjects } from '@/lib/data';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +27,6 @@ import { Badge } from '@/components/ui/badge';
 import { reviewReport } from '@/ai/flows/review-report';
 import { useGuide } from '@/components/guide';
 import { reportGenerationTourSteps } from '@/lib/guide-steps';
-import { getProjects, addProject } from '@/lib/services/firestore';
 import type { Project, User } from '@/lib/types';
 
 
@@ -65,8 +64,8 @@ const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'i
 ];
 
 export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [projects, setProjects] = useState<Project[]>(mockProjects);
+  const [selectedProject, setSelectedProject] = useState<string>(mockProjects[0].id);
   const [reportRows, setReportRows] = useState<ReportRow[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [highlightedRow, setHighlightedRow] = useState<string | null>(null);
@@ -91,27 +90,6 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
   const canFlag = userRole === 'reviewer' || userRole === 'auditor' || userRole === 'admin';
   const isViewOnly = userRole !== 'auditor' && userRole !== 'admin';
 
-
-  useEffect(() => {
-    async function fetchProjects() {
-      try {
-        const fetchedProjects = await getProjects();
-        setProjects(fetchedProjects);
-        if (fetchedProjects.length > 0) {
-          setSelectedProject(fetchedProjects[0].id);
-        }
-      } catch (error) {
-        console.error("Failed to fetch projects:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Could not fetch projects from the database."
-        });
-      }
-    }
-    fetchProjects();
-  }, [toast]);
-
   useEffect(() => {
     if (highlightedRow) {
       const timer = setTimeout(() => setHighlightedRow(null), 3000);
@@ -122,6 +100,8 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
   const projectEvidence = mockEvidence.filter(e => e.projectId === selectedProject);
 
   const loadSampleData = () => {
+    const sampleProjectId = 'proj-001';
+    setSelectedProject(sampleProjectId);
     setReportRows(
       sampleReportData.map((row, index) => ({
         ...row,
@@ -351,31 +331,21 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
         return;
     }
 
-    try {
-        const newProjectId = await addProject({ name: projectName, customerName });
-        const newProject: Project = {
-            id: newProjectId,
-            name: projectName,
-            customerName: customerName,
-        };
+    const newProject: Project = {
+        id: `proj-00${projects.length + 1}`,
+        name: projectName,
+        customerName: customerName,
+    };
 
-        setProjects(prev => [...prev, newProject]);
-        setSelectedProject(newProject.id);
-        setNewProjectData({ projectName: '', customerName: '' });
-        setIsNewProjectDialogOpen(false);
-        
-        toast({
-            title: 'Project Created',
-            description: `'${projectName}' has been successfully created.`
-        });
-    } catch (error) {
-        console.error("Failed to create project:", error);
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Could not create the new project."
-        });
-    }
+    setProjects(prev => [...prev, newProject]);
+    setSelectedProject(newProject.id);
+    setNewProjectData({ projectName: '', customerName: '' });
+    setIsNewProjectDialogOpen(false);
+    
+    toast({
+        title: 'Project Created',
+        description: `'${projectName}' has been successfully created.`
+    });
   };
 
   const currentProjectDetails = projects.find(p => p.id === selectedProject);
@@ -406,69 +376,70 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
                     ))}
                 </SelectContent>
             </Select>
-            {canEdit && (
+            
             <Dialog open={isNewProjectDialogOpen} onOpenChange={setIsNewProjectDialogOpen}>
+              {canEdit && (
                 <DialogTrigger asChild>
                      <Button variant="outline">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         New Project
                     </Button>
                 </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Create New Project</DialogTitle>
-                        <DialogDescription>
-                           Provide customer and project details. This context will be used by the AI.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="project-name" className="text-right">Project Name</Label>
-                            <Input 
-                              id="project-name" 
-                              placeholder="e.g. Q3 Security Audit" 
-                              className="col-span-3" 
-                              value={newProjectData.projectName}
-                              onChange={(e) => setNewProjectData(prev => ({ ...prev, projectName: e.target.value }))}
-                            />
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="customer-name" className="text-right">Customer Name</Label>
-                            <Input 
-                              id="customer-name" 
-                              placeholder="e.g. Innovate Inc." 
-                              className="col-span-3" 
-                              value={newProjectData.customerName}
-                              onChange={(e) => setNewProjectData(prev => ({ ...prev, customerName: e.target.value }))}
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="company-size" className="text-right">Company Size</Label>
-                             <Select>
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Select company size" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="small">Small (1-50 employees)</SelectItem>
-                                    <SelectItem value="medium">Medium (51-500 employees)</SelectItem>
-                                    <SelectItem value="large">Large (501-5000 employees)</SelectItem>
-                                    <SelectItem value="enterprise">Enterprise (5000+ employees)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="service-offering" className="text-right">Service Offering</Label>
-                            <Textarea id="service-offering" placeholder="Briefly describe the customer's main product or service (e.g., 'B2B SaaS for financial planning')." className="col-span-3" />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" variant="secondary" onClick={() => setIsNewProjectDialogOpen(false)}>Cancel</Button>
-                        <Button type="submit" onClick={handleCreateProject}>Create Project</Button>
-                    </DialogFooter>
-                </DialogContent>
+              )}
+              <DialogContent>
+                  <DialogHeader>
+                      <DialogTitle>Create New Project</DialogTitle>
+                      <DialogDescription>
+                         Provide customer and project details. This context will be used by the AI.
+                      </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="project-name" className="text-right">Project Name</Label>
+                          <Input 
+                            id="project-name" 
+                            placeholder="e.g. Q3 Security Audit" 
+                            className="col-span-3" 
+                            value={newProjectData.projectName}
+                            onChange={(e) => setNewProjectData(prev => ({ ...prev, projectName: e.target.value }))}
+                          />
+                      </div>
+                       <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="customer-name" className="text-right">Customer Name</Label>
+                          <Input 
+                            id="customer-name" 
+                            placeholder="e.g. Innovate Inc." 
+                            className="col-span-3" 
+                            value={newProjectData.customerName}
+                            onChange={(e) => setNewProjectData(prev => ({ ...prev, customerName: e.target.value }))}
+                          />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="company-size" className="text-right">Company Size</Label>
+                           <Select>
+                              <SelectTrigger className="col-span-3">
+                                  <SelectValue placeholder="Select company size" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="small">Small (1-50 employees)</SelectItem>
+                                  <SelectItem value="medium">Medium (51-500 employees)</SelectItem>
+                                  <SelectItem value="large">Large (501-5000 employees)</SelectItem>
+                                  <SelectItem value="enterprise">Enterprise (5000+ employees)</SelectItem>
+                              </SelectContent>
+                          </Select>
+                      </div>
+                       <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="service-offering" className="text-right">Service Offering</Label>
+                          <Textarea id="service-offering" placeholder="Briefly describe the customer's main product or service (e.g., 'B2B SaaS for financial planning')." className="col-span-3" />
+                      </div>
+                  </div>
+                  <DialogFooter>
+                      <Button type="button" variant="secondary" onClick={() => setIsNewProjectDialogOpen(false)}>Cancel</Button>
+                      <Button type="submit" onClick={handleCreateProject}>Create Project</Button>
+                  </DialogFooter>
+              </DialogContent>
             </Dialog>
-            )}
-
+            
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="outline">
@@ -742,11 +713,5 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
     </>
   );
 }
-
-    
-
-    
-
-    
 
     
