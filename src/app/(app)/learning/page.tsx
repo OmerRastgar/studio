@@ -373,16 +373,15 @@ const CustomerLearningPage = () => {
   );
 };
 
+// In a real app, this would come from an auth context or API call
+const currentUser: User = {
+  name: 'Admin Auditor',
+  email: 'admin@auditace.com',
+  avatarUrl: 'https://picsum.photos/seed/user1/100/100',
+  role: 'admin', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
+};
 
 export default function LearningPage() {
-  // In a real app, this would come from an auth context or API call
-  const currentUser: User = {
-    name: 'Admin Auditor',
-    email: 'admin@auditace.com',
-    avatarUrl: '...',
-    role: 'auditor',
-  };
-
   if (currentUser.role === 'customer') {
     return <CustomerLearningPage />;
   }

@@ -47,6 +47,7 @@ import { Separator } from '@/components/ui/separator';
 import { useGuide } from '@/components/guide';
 import { dashboardTourSteps } from '@/lib/guide-steps';
 import { useState, useEffect } from 'react';
+import type { User } from '@/lib/types';
 
 
 const chartConfig = {
@@ -123,6 +124,14 @@ const TimeAgo = ({ date }: { date: string }) => {
   return <>{timeAgo}</>;
 };
 
+// In a real app, this would come from an auth context or API call
+const currentUser: User = {
+  name: 'Admin Auditor',
+  email: 'admin@auditace.com',
+  avatarUrl: 'https://picsum.photos/seed/user1/100/100',
+  role: 'admin', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
+};
+
 export default function DashboardPage() {
   const { startTour } = useGuide();
   const getInitials = (name: string) =>
@@ -136,6 +145,8 @@ export default function DashboardPage() {
       { name: 'completed', value: overallProgress, fill: 'hsl(var(--primary))' },
       { name: 'remaining', value: 100 - overallProgress, fill: 'hsl(var(--muted))' }
   ];
+  
+  const userRole = currentUser.role;
 
   return (
     <div className="grid gap-6">
@@ -256,7 +267,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-
+      {(userRole === 'admin' || userRole === 'manager' || userRole === 'auditor') && (
       <Card>
         <CardHeader>
           <CardTitle className="font-headline">Auditor Overview</CardTitle>
@@ -340,6 +351,7 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -375,6 +387,7 @@ export default function DashboardPage() {
             </ChartContainer>
           </CardContent>
         </Card>
+        {(userRole === 'admin' || userRole === 'manager' || userRole === 'auditor') && (
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Recent Audit Logs</CardTitle>
@@ -425,6 +438,7 @@ export default function DashboardPage() {
             </Table>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );

@@ -42,7 +42,7 @@ function ProfileSettings() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" defaultValue="admin@cybergaar.com" />
+          <Input id="email" type="email" defaultValue="admin@auditace.com" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="bio">Bio</Label>
@@ -115,7 +115,7 @@ function IntegrationsSettings() {
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="minio-bucket">Bucket Name</Label>
-                    <Input id="minio-bucket" defaultValue="cybergaar-evidence" aria-label="MinIO Bucket Name input" />
+                    <Input id="minio-bucket" defaultValue="auditace-evidence" aria-label="MinIO Bucket Name input" />
                 </div>
                 <div className='flex justify-between items-center'>
                     <Button variant="outline">Test Connection</Button>

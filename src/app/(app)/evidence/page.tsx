@@ -56,7 +56,16 @@ import { MoreHorizontal, PlusCircle, Trash2, Edit, Eye, FolderArchive, X, Upload
 import { useState, useMemo, Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { Evidence } from '@/lib/types';
+import type { Evidence, User } from '@/lib/types';
+
+// In a real app, this would come from an auth context or API call
+const currentUser: User = {
+  name: 'Admin Auditor',
+  email: 'admin@auditace.com',
+  avatarUrl: 'https://picsum.photos/seed/user1/100/100',
+  role: 'admin', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
+};
+
 
 function EvidencePageComponent() {
     const searchParams = useSearchParams();
@@ -81,6 +90,7 @@ function EvidencePageComponent() {
     const [editTags, setEditTags] = useState<string[]>([]);
     const [currentEditTag, setCurrentEditTag] = useState('');
 
+    const userRole = currentUser.role;
 
     const filteredEvidence = useMemo(() => {
         return evidenceList
@@ -228,6 +238,7 @@ function EvidencePageComponent() {
                 ))}
               </SelectContent>
             </Select>
+            {userRole !== 'customer' && (
             <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
                 <DialogTrigger asChild>
                     <Button className='w-full sm:w-auto'>
@@ -296,6 +307,7 @@ function EvidencePageComponent() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
         </div>
       </CardHeader>
       <CardContent>
@@ -357,14 +369,18 @@ function EvidencePageComponent() {
                         <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem><Eye className="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditClick(evidence)}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive" onClick={() => setItemToDelete(evidence.id)}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                            </DropdownMenuItem>
-                        </AlertDialogTrigger>
+                        {userRole !== 'customer' && (
+                            <>
+                            <DropdownMenuItem onClick={() => handleEditClick(evidence)}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <AlertDialogTrigger asChild>
+                                <DropdownMenuItem className="text-destructive" onClick={() => setItemToDelete(evidence.id)}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            </>
+                        )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                     </TableCell>
@@ -395,7 +411,7 @@ function EvidencePageComponent() {
                 <p className="mt-1 text-sm">{agentId ? 'This agent has not uploaded any evidence.' : 'Get started by uploading some evidence.'}</p>
             </div>
         )}
-        {filteredEvidence.length > 0 && !agentId && (
+        {filteredEvidence.length > 0 && !agentId && userRole !== 'customer' && (
           <div className='flex justify-end pt-6'>
             <AlertDialog>
                 <AlertDialogTrigger asChild>
