@@ -59,7 +59,7 @@ const sampleReportData: Omit<ReportRow, 'id' | 'isGenerating' | 'isFlagged' | 'i
   {
     control: 'Data Encryption',
     observation: 'All production databases are encrypted at rest using AES-256.',
-    evidence: [],
+    evidence: ['EV004', 'EV005'],
     analysis: '',
   },
 ];
@@ -742,5 +742,7 @@ export default function ReportsPage({ userRole }: { userRole: User['role'] }) {
     </>
   );
 }
+
+    
 
     
