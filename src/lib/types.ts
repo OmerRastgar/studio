@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from "lucide-react";
 
 export type User = {
@@ -68,6 +69,16 @@ export type NavItem = {
   title: string;
   icon: LucideIcon;
   label?: string;
+};
+
+export type Notification = {
+  id: string;
+  type: 'global' | 'chat' | 'evidence' | 'agent';
+  title: string;
+  description: string;
+  timestamp: string;
+  isRead: boolean;
+  icon: React.ElementType;
 };
 
 export type Course = {

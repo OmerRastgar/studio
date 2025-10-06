@@ -1,5 +1,7 @@
-import type { Evidence, AuditLog, Project, Auditor, UserProfile, Agent, Course, CustomerCourse } from '@/lib/types';
+
+import type { Evidence, AuditLog, Project, Auditor, UserProfile, Agent, Course, CustomerCourse, Notification } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Megaphone, MessageSquare, UploadCloud, AlertTriangle } from 'lucide-react';
 
 const userAvatar1 = PlaceHolderImages.find(img => img.id === 'user-avatar-1')?.imageUrl || '';
 const userAvatar2 = PlaceHolderImages.find(img => img.id === 'user-avatar-2')?.imageUrl || '';
@@ -313,6 +315,45 @@ export const complianceProgress = {
         { id: 'act-4', evidenceName: 'New Server Setup Log', status: 'Pending' as const, timestamp: new Date(Date.now() - 8.64e+7).toISOString() },
     ]
 };
+
+export const mockNotifications: Notification[] = [
+    {
+        id: '1',
+        type: 'global',
+        title: 'System Maintenance Scheduled',
+        description: 'The system will be down for scheduled maintenance on Sunday at 2 AM EST.',
+        timestamp: new Date(Date.now() - 1.8e+6).toISOString(),
+        isRead: false,
+        icon: Megaphone
+    },
+    {
+        id: '2',
+        type: 'chat',
+        title: 'New Chat Message',
+        description: 'Jane Doe mentioned you in the "SOC 2" report.',
+        timestamp: new Date(Date.now() - 3.6e+6).toISOString(),
+        isRead: false,
+        icon: MessageSquare
+    },
+    {
+        id: '3',
+        type: 'evidence',
+        title: 'Evidence Uploaded',
+        description: 'Agent "DC Server" uploaded "Firewall Logs Q3".',
+        timestamp: new Date(Date.now() - 7.2e+6).toISOString(),
+        isRead: true,
+        icon: UploadCloud
+    },
+    {
+        id: '4',
+        type: 'agent',
+        title: 'Agent Error',
+        description: 'Agent "Staging Server" is offline.',
+        timestamp: new Date(Date.now() - 1.44e+7).toISOString(),
+        isRead: false,
+        icon: AlertTriangle
+    }
+];
 
 export const mockLearningData = {
   performanceStats: {
