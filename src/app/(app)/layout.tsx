@@ -35,7 +35,7 @@ const currentUser: User = {
   name: 'Admin Auditor',
   email: 'admin@auditace.com',
   avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-  role: 'customer', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
+  role: 'admin', // Switch between 'admin', 'auditor', 'customer', 'reviewer'
 };
 
 function Nav({ userRole }: { userRole: User['role'] }) {
