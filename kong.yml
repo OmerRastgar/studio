@@ -9,94 +9,37 @@ services:
   - name: nextjs-app-service
     url: http://app:3000
     routes:
-      # Public authentication routes (only login/register allowed without JWT)
-      - name: public-auth-routes
+      # PUBLIC ROUTES (No authentication required)
+      - name: public-routes
         paths:
+          - /
+          - /login
           - /api/auth/login
           - /api/auth/register
           - /api/auth/logout
-        methods:
-          - POST
-        strip_path: false
-      # Public health check (for monitoring)
-      - name: public-health-routes
-        paths:
           - /api/health
           - /api/debug
-        methods:
-          - GET
-        strip_path: false
-      # Static assets (CSS, JS, images) - needed for login page
-      - name: public-static-routes
-        paths:
           - /_next
           - /favicon.ico
           - /static
         methods:
           - GET
-        strip_path: false
-      # Login page route (public access to show login form)
-      - name: public-login-page
-        paths:
-          - /login
-        methods:
-          - GET
+          - POST
         strip_path: false
       
-      # Root path redirect to login (public access)
-      - name: public-root-redirect
-        paths:
-          - /
-        methods:
-          - GET
-        strip_path: false
-      
-      # Routes accessible to all authenticated users (customer, auditor, admin)
-      - name: customer-accessible-routes
+      # PROTECTED ROUTES (Authentication required)
+      - name: protected-routes
         paths:
           - /dashboard
           - /agents
           - /learning
           - /evidence
-          - /api/auth/me
-        methods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
-          - PATCH
-        strip_path: false
-      
-      # Routes accessible to auditor and admin only
-      - name: auditor-admin-routes
-        paths:
           - /reports
           - /audit-log
-        methods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
-          - PATCH
-        strip_path: false
-      
-      # Routes accessible to admin only
-      - name: admin-only-routes
-        paths:
           - /users
           - /settings
-        methods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
-          - PATCH
-        strip_path: false
-      
-      # Catch-all for any other routes - require authentication (excluding root)
-      - name: protected-fallback-routes
-        paths:
-          - /api
+          - /api/auth/me
+          - /api/users
         methods:
           - GET
           - POST
@@ -124,45 +67,9 @@ consumers:
 
 # Security and rate limiting plugins
 plugins:
-  # JWT Authentication for customer-accessible routes (all authenticated users)
+  # JWT Authentication - ONLY for protected routes
   - name: jwt
-    route: customer-accessible-routes
-    config:
-      key_claim_name: iss
-      secret_is_base64: false
-      anonymous: null
-      cookie_names:
-        - auth_token
-      header_names:
-        - authorization
-        
-  # JWT Authentication for auditor-admin routes
-  - name: jwt
-    route: auditor-admin-routes
-    config:
-      key_claim_name: iss
-      secret_is_base64: false
-      anonymous: null
-      cookie_names:
-        - auth_token
-      header_names:
-        - authorization
-        
-  # JWT Authentication for admin-only routes
-  - name: jwt
-    route: admin-only-routes
-    config:
-      key_claim_name: iss
-      secret_is_base64: false
-      anonymous: null
-      cookie_names:
-        - auth_token
-      header_names:
-        - authorization
-        
-  # JWT Authentication for fallback API routes
-  - name: jwt
-    route: protected-fallback-routes
+    route: protected-routes
     config:
       key_claim_name: iss
       secret_is_base64: false
@@ -172,38 +79,28 @@ plugins:
       header_names:
         - authorization
 
-  # Role-based access control using pre-function plugin for auditor-admin routes
+  # Role-based access control using pre-function plugin
   - name: pre-function
-    route: auditor-admin-routes
+    route: protected-routes
     config:
       access:
         - |
+          local path = kong.request.get_path()
           local jwt = kong.ctx.shared.jwt_keyset_key
+          
           if jwt then
             local claims = jwt.claims or {}
             local role = claims.role
-            if role ~= "admin" and role ~= "auditor" then
-              kong.response.exit(403, {message = "Access denied. Insufficient permissions."})
-            end
-          else
-            kong.response.exit(401, {message = "Authentication required."})
-          end
-
-  # Role-based access control using pre-function plugin for admin-only routes  
-  - name: pre-function
-    route: admin-only-routes
-    config:
-      access:
-        - |
-          local jwt = kong.ctx.shared.jwt_keyset_key
-          if jwt then
-            local claims = jwt.claims or {}
-            local role = claims.role
-            if role ~= "admin" then
+            
+            -- Admin-only routes
+            if (string.find(path, "/users") or string.find(path, "/settings")) and role ~= "admin" then
               kong.response.exit(403, {message = "Access denied. Admin access required."})
             end
-          else
-            kong.response.exit(401, {message = "Authentication required."})
+            
+            -- Auditor/Admin routes
+            if (string.find(path, "/reports") or string.find(path, "/audit-log")) and (role ~= "admin" and role ~= "auditor") then
+              kong.response.exit(403, {message = "Access denied. Insufficient permissions."})
+            end
           end
       
   # Rate limiting to prevent abuse
