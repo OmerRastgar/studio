@@ -1,30 +1,16 @@
-# kong.yml - Clean minimal configuration
+# kong.yml - Absolute minimal configuration
 _format_version: "3.0"
 
 services:
   - name: nextjs-app
     url: http://app:3000
-    routes:
-      - name: app-route
-        paths:
-          - /
-        strip_path: false
 
-consumers:
-  - username: audit-app
-    jwt_secrets:
-      - key: audit-app-key
-        secret: your-256-bit-secret-key-here-change-this-in-production
-        algorithm: HS256
-
-plugins:
-  - name: cors
+routes:
+  - name: app-route
     service: nextjs-app
-    config:
-      origins: ["*"]
-      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
-      headers: ["Accept", "Content-Type", "Authorization"]
-      credentials: true
+    paths:
+      - /
+    strip_path: false
       
   # Rate limiting to prevent abuse
   - name: rate-limiting
