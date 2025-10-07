@@ -4,16 +4,29 @@ import jwt from 'jsonwebtoken';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get JWT from Authorization header
+    let token: string | null = null;
+    
+    // Try to get JWT from Authorization header first
     const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    } else {
+      // If no Authorization header, try to get from cookie
+      const cookies = request.headers.get('cookie');
+      if (cookies) {
+        const authTokenMatch = cookies.match(/auth_token=([^;]+)/);
+        if (authTokenMatch) {
+          token = authTokenMatch[1];
+        }
+      }
+    }
+
+    if (!token) {
       return NextResponse.json(
         { error: 'No authorization token provided' },
         { status: 401 }
       );
     }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
     // Decode JWT to get user info (Kong already validated it)
     const decoded = jwt.decode(token) as any;
