@@ -30,9 +30,9 @@ export function generateToken(payload: Omit<JWTPayload, 'iss' | 'iat' | 'exp'>):
   };
   
   // Generate token with HS256 algorithm (Kong default)
+  // Don't use expiresIn since we're setting exp manually
   return jwt.sign(tokenPayload, JWT_SECRET, {
     algorithm: 'HS256',
-    expiresIn: '24h',
   });
 }
 
