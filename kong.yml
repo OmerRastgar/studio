@@ -93,10 +93,10 @@ services:
           - PATCH
         strip_path: false
       
-      # Catch-all for any other routes - require authentication
+      # Catch-all for any other routes - require authentication (excluding root)
       - name: protected-fallback-routes
         paths:
-          - /
+          - /api
         methods:
           - GET
           - POST
@@ -160,7 +160,7 @@ plugins:
       header_names:
         - authorization
         
-  # JWT Authentication for fallback routes
+  # JWT Authentication for fallback API routes
   - name: jwt
     route: protected-fallback-routes
     config:
