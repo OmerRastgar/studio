@@ -34,8 +34,9 @@ export default function LoginPage() {
         // Set cookie for server-side access (remove secure for development)
         document.cookie = `auth_token=${data.token}; path=/; max-age=86400; samesite=lax`;
         
-        // Redirect to dashboard using Next.js router
-        router.push('/dashboard');
+        // Use window.location.href for more reliable redirect
+        // This ensures a full page reload which will properly initialize the auth state
+        window.location.href = '/dashboard';
       } else {
         setError(data.error || 'Login failed');
       }
