@@ -42,8 +42,51 @@ services:
         methods:
           - GET
         strip_path: false
-      # ALL OTHER ROUTES - Require JWT authentication
-      - name: protected-all-routes
+      
+      # Routes accessible to all authenticated users (customer, auditor, admin)
+      - name: customer-accessible-routes
+        paths:
+          - /dashboard
+          - /agents
+          - /learning
+          - /evidence
+          - /api/auth/me
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+        strip_path: false
+      
+      # Routes accessible to auditor and admin only
+      - name: auditor-admin-routes
+        paths:
+          - /reports
+          - /audit-log
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+        strip_path: false
+      
+      # Routes accessible to admin only
+      - name: admin-only-routes
+        paths:
+          - /users
+          - /settings
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+        strip_path: false
+      
+      # Catch-all for any other routes - require authentication
+      - name: protected-fallback-routes
         paths:
           - /
         methods:
@@ -65,25 +108,85 @@ consumers:
 
 # Security and rate limiting plugins
 plugins:
-  # JWT Authentication - applied to ALL protected routes (everything except login/register/health/static)
+  # JWT Authentication for customer-accessible routes (all authenticated users)
   - name: jwt
-    route: protected-all-routes
+    route: customer-accessible-routes
     config:
       key_claim_name: iss
       secret_is_base64: false
-      anonymous: null  # No anonymous access allowed
+      anonymous: null
       cookie_names:
         - auth_token
       header_names:
         - authorization
-      
-  # Request Termination for unauthorized access (optional - adds extra security)
-  - name: request-termination
-    route: protected-all-routes
+        
+  # JWT Authentication for auditor-admin routes
+  - name: jwt
+    route: auditor-admin-routes
     config:
-      status_code: 401
-      message: "Authentication required. Please login first."
-    enabled: false  # Only enable if JWT fails
+      key_claim_name: iss
+      secret_is_base64: false
+      anonymous: null
+      cookie_names:
+        - auth_token
+      header_names:
+        - authorization
+        
+  # JWT Authentication for admin-only routes
+  - name: jwt
+    route: admin-only-routes
+    config:
+      key_claim_name: iss
+      secret_is_base64: false
+      anonymous: null
+      cookie_names:
+        - auth_token
+      header_names:
+        - authorization
+        
+  # JWT Authentication for fallback routes
+  - name: jwt
+    route: protected-fallback-routes
+    config:
+      key_claim_name: iss
+      secret_is_base64: false
+      anonymous: null
+      cookie_names:
+        - auth_token
+      header_names:
+        - authorization
+
+  # Role-based access control using pre-function plugin for auditor-admin routes
+  - name: pre-function
+    route: auditor-admin-routes
+    config:
+      access: |
+        local jwt = kong.ctx.shared.jwt_keyset_key
+        if jwt then
+          local claims = jwt.claims or {}
+          local role = claims.role
+          if role ~= "admin" and role ~= "auditor" then
+            kong.response.exit(403, {message = "Access denied. Insufficient permissions."})
+          end
+        else
+          kong.response.exit(401, {message = "Authentication required."})
+        end
+
+  # Role-based access control using pre-function plugin for admin-only routes  
+  - name: pre-function
+    route: admin-only-routes
+    config:
+      access: |
+        local jwt = kong.ctx.shared.jwt_keyset_key
+        if jwt then
+          local claims = jwt.claims or {}
+          local role = claims.role
+          if role ~= "admin" then
+            kong.response.exit(403, {message = "Access denied. Admin access required."})
+          end
+        else
+          kong.response.exit(401, {message = "Authentication required."})
+        end
       
   # Rate limiting to prevent abuse
   - name: rate-limiting

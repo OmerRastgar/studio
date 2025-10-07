@@ -31,15 +31,65 @@ import { useRouter } from 'next/navigation';
 
 function Nav() {
   const pathname = usePathname();
-  const navItems = [
-    { href: '/dashboard', title: 'Dashboard', icon: LayoutDashboard, tourId: 'dashboard' },
-    { href: '/reports', title: 'Report Generation', icon: FileText, tourId: 'report-generation' },
-    { href: '/agents', title: 'Agents', icon: Bot, tourId: 'agents' },
-    { href: '/learning', title: 'Learning', icon: BookOpen, tourId: 'learning' },
-    { href: '/evidence', title: 'Evidence', icon: Database, tourId: 'evidence' },
-    { href: '/users', title: 'Users', icon: Users, tourId: 'users' },
-    { href: '/audit-log', title: 'Audit Log', icon: ScrollText, tourId: 'audit-log' },
+  const { user } = useAuth();
+  
+  // Define all navigation items with role permissions
+  const allNavItems = [
+    { 
+      href: '/dashboard', 
+      title: 'Dashboard', 
+      icon: LayoutDashboard, 
+      tourId: 'dashboard',
+      roles: ['admin', 'auditor', 'customer'] // All roles can see dashboard
+    },
+    { 
+      href: '/reports', 
+      title: 'Report Generation', 
+      icon: FileText, 
+      tourId: 'report-generation',
+      roles: ['admin', 'auditor'] // Only admin and auditor can generate reports
+    },
+    { 
+      href: '/agents', 
+      title: 'Agents', 
+      icon: Bot, 
+      tourId: 'agents',
+      roles: ['admin', 'auditor', 'customer'] // All roles can see agents
+    },
+    { 
+      href: '/learning', 
+      title: 'Learning', 
+      icon: BookOpen, 
+      tourId: 'learning',
+      roles: ['admin', 'auditor', 'customer'] // All roles can access learning
+    },
+    { 
+      href: '/evidence', 
+      title: 'Evidence', 
+      icon: Database, 
+      tourId: 'evidence',
+      roles: ['admin', 'auditor', 'customer'] // All roles can see evidence
+    },
+    { 
+      href: '/users', 
+      title: 'Users', 
+      icon: Users, 
+      tourId: 'users',
+      roles: ['admin'] // Only admin can manage users
+    },
+    { 
+      href: '/audit-log', 
+      title: 'Audit Log', 
+      icon: ScrollText, 
+      tourId: 'audit-log',
+      roles: ['admin', 'auditor'] // Only admin and auditor can see audit logs
+    },
   ];
+
+  // Filter navigation items based on user role
+  const navItems = allNavItems.filter(item => 
+    user && item.roles.includes(user.role)
+  );
 
   return (
     <SidebarMenu>
@@ -105,18 +155,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarContent>
             <SidebarFooter className="p-4">
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === '/settings'}
-                    tooltip={{ children: 'Settings', side: 'right', align: 'center' }}
-                  >
-                    <Link href="/settings">
-                      <Settings />
-                      <span>Settings</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                {/* Only show settings for admin users */}
+                {user && user.role === 'admin' && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === '/settings'}
+                      tooltip={{ children: 'Settings', side: 'right', align: 'center' }}
+                    >
+                      <Link href="/settings">
+                        <Settings />
+                        <span>Settings</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarFooter>
           </Sidebar>
