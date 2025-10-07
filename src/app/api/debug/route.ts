@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     console.log('Debug endpoint called');
     
@@ -19,13 +19,20 @@ export async function GET() {
     });
     console.log('Test user:', testUser);
     
+    // Get all headers to see what Kong is sending
+    const headers: Record<string, string> = {};
+    request.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+    
     return NextResponse.json({
       success: true,
       database: 'connected',
       userCount,
       testUser,
       environment: process.env.NODE_ENV,
-      databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
+      databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing',
+      headers: headers
     });
     
   } catch (error) {
