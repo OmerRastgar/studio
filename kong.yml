@@ -322,24 +322,14 @@ plugins:
         - "web-users"
       hide_groups_header: true
 
-  # Pre-function plugin to block direct port 3000 access
+  # Pre-function plugin to block only direct port 3000 access
   - name: pre-function
     service: nextjs-app-service
     config:
       access:
         - |
-          -- Block requests that try to access port 3000 directly
+          -- Only block requests that try to access port 3000 directly
           local host = kong.request.get_header("host")
           if host and string.find(host, ":3000") then
             kong.response.exit(403, {message = "Direct access to port 3000 is not allowed. Please use the main application URL."})
-          end
-          
-          -- Ensure request came through Kong by checking for Kong headers
-          local kong_request_id = kong.request.get_header("x-kong-request-id")
-          local forwarded_host = kong.request.get_header("x-forwarded-host")
-          
-          -- Allow health checks and requests with proper Kong headers
-          local path = kong.request.get_path()
-          if not (kong_request_id or forwarded_host) and not string.find(path, "/api/health") then
-            kong.response.exit(403, {message = "Access denied. Requests must go through the API gateway."})
           end
