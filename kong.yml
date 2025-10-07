@@ -1,54 +1,23 @@
-# kong.yml
-# This is a declarative configuration file for Kong.
-# It defines the services, routes, and plugins for the API gateway.
-
+# kong.yml - Minimal configuration for debugging
 _format_version: "3.0"
 
-# Define a service that points to our Next.js application.
 services:
   - name: nextjs-app-service
     url: http://app:3000
     routes:
-      # PUBLIC ROUTES (No authentication required)
-      - name: public-routes
+      # All routes - no restrictions for now
+      - name: all-routes
         paths:
           - /
-          - /login
-          - /api/auth/login
-          - /api/auth/register
-          - /api/auth/logout
-          - /api/health
-          - /api/debug
-          - /_next
-          - /favicon.ico
-          - /static
-        methods:
-          - GET
-          - POST
-        strip_path: false
-      
-      # PROTECTED ROUTES (Authentication required)
-      - name: protected-routes
-        paths:
-          - /dashboard
-          - /agents
-          - /learning
-          - /evidence
-          - /reports
-          - /audit-log
-          - /users
-          - /settings
-          - /api/auth/me
-          - /api/users
         methods:
           - GET
           - POST
           - PUT
           - DELETE
           - PATCH
+          - OPTIONS
         strip_path: false
 
-# JWT Consumers (users who can authenticate)
 consumers:
   - username: audit-app
     custom_id: audit-app-consumer
@@ -56,52 +25,26 @@ consumers:
       - key: audit-app-key
         secret: your-256-bit-secret-key-here-change-this-in-production
         algorithm: HS256
-    acls:
-      - group: web-users
 
-  # Anonymous consumer for public routes
-  - username: anonymous
-    custom_id: anonymous-user
-    acls:
-      - group: web-users
-
-# Security and rate limiting plugins
 plugins:
-  # JWT Authentication - ONLY for protected routes
-  - name: jwt
-    route: protected-routes
+  # CORS for web access
+  - name: cors
+    service: nextjs-app-service
     config:
-      key_claim_name: iss
-      secret_is_base64: false
-      anonymous: null
-      cookie_names:
-        - auth_token
-      header_names:
-        - authorization
-
-  # Role-based access control using pre-function plugin
-  - name: pre-function
-    route: protected-routes
-    config:
-      access:
-        - |
-          local path = kong.request.get_path()
-          local jwt = kong.ctx.shared.jwt_keyset_key
-          
-          if jwt then
-            local claims = jwt.claims or {}
-            local role = claims.role
-            
-            -- Admin-only routes
-            if (string.find(path, "/users") or string.find(path, "/settings")) and role ~= "admin" then
-              kong.response.exit(403, {message = "Access denied. Admin access required."})
-            end
-            
-            -- Auditor/Admin routes
-            if (string.find(path, "/reports") or string.find(path, "/audit-log")) and (role ~= "admin" and role ~= "auditor") then
-              kong.response.exit(403, {message = "Access denied. Insufficient permissions."})
-            end
-          end
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - PATCH
+        - OPTIONS
+      headers:
+        - Accept
+        - Content-Type
+        - Authorization
+      credentials: true
       
   # Rate limiting to prevent abuse
   - name: rate-limiting
