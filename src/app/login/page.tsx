@@ -30,11 +30,11 @@ export default function LoginPage() {
         // Store JWT token in localStorage
         localStorage.setItem('auth_token', data.token);
         
-        // Set Authorization header for future requests
-        document.cookie = `auth_token=${data.token}; path=/; max-age=86400; secure; samesite=strict`;
+        // Set cookie for server-side access (remove secure for development)
+        document.cookie = `auth_token=${data.token}; path=/; max-age=86400; samesite=lax`;
         
-        // Redirect to dashboard
-        window.location.href = '/dashboard';
+        // Redirect to dashboard using Next.js router
+        router.push('/dashboard');
       } else {
         setError(data.error || 'Login failed');
       }

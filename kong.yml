@@ -61,6 +61,7 @@ consumers:
     jwt_secrets:
       - key: audit-app-key
         secret: your-256-bit-secret-key-here-change-this-in-production
+        algorithm: HS256
 
 # Security and rate limiting plugins
 plugins:
@@ -71,6 +72,10 @@ plugins:
       key_claim_name: iss
       secret_is_base64: false
       anonymous: null  # No anonymous access allowed
+      cookie_names:
+        - auth_token
+      header_names:
+        - authorization
       
   # Request Termination for unauthorized access (optional - adds extra security)
   - name: request-termination

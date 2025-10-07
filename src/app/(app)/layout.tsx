@@ -22,20 +22,12 @@ import {
   BookOpen,
   Users
 } from 'lucide-react';
-import type { User } from '@/lib/types';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeProvider } from '@/components/providers';
-import { cn } from '@/lib/utils';
-import Image from 'next/image';
 import { GuideProvider } from '@/components/guide';
-
-const user: User = {
-  name: 'Admin Auditor',
-  email: 'admin@auditace.com',
-  avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-  role: 'admin',
-};
+import { useAuth } from '../auth-provider';
+import { useRouter } from 'next/navigation';
 
 function Nav() {
   const pathname = usePathname();
@@ -71,9 +63,27 @@ function Nav() {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading } = useAuth();
+  
   const pageTitle =
     pathname.split('/').pop()?.replace('-', ' ')?.replace(/\b\w/g, (l) => l.toUpperCase()) ||
     'Dashboard';
+
+  // Show loading spinner while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  // If no user is authenticated, redirect to login
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
 
   return (
     <ThemeProvider

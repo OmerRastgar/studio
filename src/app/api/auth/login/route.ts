@@ -71,11 +71,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate JWT token
+    // Generate JWT token compatible with Kong
     const token = generateToken({
       userId: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
     });
 
     // Update last active timestamp
@@ -121,14 +122,11 @@ export async function POST(request: NextRequest) {
     // Set JWT token in cookie for Kong to read
     response.cookies.set('auth_token', token, {
       httpOnly: false, // Allow JavaScript access for client-side usage
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: false, // Set to false for development/HTTP
+      sameSite: 'lax', // More permissive for development
       maxAge: 24 * 60 * 60, // 24 hours
       path: '/',
     });
-
-    // Also set Authorization header for immediate use
-    response.headers.set('Authorization', `Bearer ${token}`);
 
     return response;
 

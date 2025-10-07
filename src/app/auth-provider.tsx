@@ -44,28 +44,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const token = localStorage.getItem('auth_token');
-      
-      if (!token) {
-        setLoading(false);
-        if (pathname !== '/login') {
-          router.push('/login');
-        }
-        return;
-      }
-
+      // Kong handles JWT validation, so we just need to check if user info is available
       try {
         const response = await fetch('/api/auth/me', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          credentials: 'include', // Include cookies for Kong JWT validation
         });
 
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
         } else {
-          // Token is invalid, remove it and redirect to login
+          // Kong rejected the JWT or user not found, redirect to login
           localStorage.removeItem('auth_token');
           document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
           if (pathname !== '/login') {

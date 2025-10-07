@@ -307,10 +307,26 @@ node test-login.js
 
 - **Frontend:** Next.js 15 with TypeScript
 - **Database:** PostgreSQL with Prisma ORM
-- **API Gateway:** Kong (routes all traffic)
-- **Authentication:** JWT with bcryptjs
+- **API Gateway:** Kong with JWT Plugin (handles authentication)
+- **Authentication:** Kong JWT validation + Next.js token generation
 - **Monitoring:** Grafana + Loki
 - **Logging:** Fluent Bit → Loki → Grafana
+
+### Authentication Flow
+```
+Browser → Kong Gateway (JWT validation) → Next.js App
+```
+
+Kong handles:
+- JWT validation and expiration
+- Route protection (public vs protected)
+- Rate limiting and security headers
+- Request logging and monitoring
+
+Next.js handles:
+- JWT token generation on login
+- User session management
+- Business logic and data access
 
 ## Available Scripts
 

@@ -1,32 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyToken, extractTokenFromHeader } from '@/lib/jwt';
 
 export async function GET(request: NextRequest) {
   try {
-    // Extract token from Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-
-    if (!token) {
+    // Kong JWT plugin adds JWT claims to headers after validation
+    // If we reach this endpoint, JWT is already validated by Kong
+    const userId = request.headers.get('X-JWT-Claim-userId');
+    
+    if (!userId) {
       return NextResponse.json(
-        { error: 'No token provided' },
+        { error: 'No user ID in JWT claims' },
         { status: 401 }
       );
     }
 
-    // Verify token
-    const payload = verifyToken(token);
-    if (!payload) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Get user from database
+    // Get user from database to ensure they still exist and are active
     const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
+      where: { id: userId },
       select: {
         id: true,
         name: true,
