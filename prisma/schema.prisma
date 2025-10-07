@@ -146,6 +146,8 @@ enum UserRole {
   admin
   auditor
   customer
+  manager
+  reviewer
 }
 
 enum UserStatus {

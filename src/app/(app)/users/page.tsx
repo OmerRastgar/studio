@@ -32,7 +32,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { mockUsers as initialMockUsers } from '@/lib/data';
 import type { UserProfile, User } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -61,14 +60,47 @@ const TimeAgo = ({ date }: { date: string | undefined }) => {
 };
 
 export default function UsersPage() {
-  const [users, setUsers] = React.useState<UserProfile[]>(initialMockUsers);
+  const [users, setUsers] = React.useState<UserProfile[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [roleFilter, setRoleFilter] = React.useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<UserProfile | null>(null);
   const [newUser, setNewUser] = React.useState({ name: '', email: '', role: 'customer' as User['role'] });
+  const [isCreating, setIsCreating] = React.useState(false);
+  const [isUpdating, setIsUpdating] = React.useState(false);
   const { toast } = useToast();
+
+  // Fetch users from API
+  const fetchUsers = React.useCallback(async () => {
+    try {
+      const response = await fetch('/api/users');
+      const data = await response.json();
+      
+      if (data.success) {
+        setUsers(data.users);
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to fetch users',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to fetch users',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  React.useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const filteredUsers = React.useMemo(() => {
     return users.filter(user => {
@@ -85,7 +117,7 @@ export default function UsersPage() {
       .map((n) => n[0])
       .join('');
 
-  const handleCreateUser = () => {
+  const handleCreateUser = async () => {
     if (!newUser.name || !newUser.email) {
       toast({
         variant: 'destructive',
@@ -95,20 +127,42 @@ export default function UsersPage() {
       return;
     }
 
-    const createdUser: UserProfile = {
-      ...newUser,
-      avatarUrl: `https://picsum.photos/seed/${newUser.name}/100/100`,
-      status: 'Active',
-      lastActive: new Date().toISOString(),
-    };
+    setIsCreating(true);
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUser),
+      });
 
-    setUsers(prev => [createdUser, ...prev]);
-    setIsCreateDialogOpen(false);
-    setNewUser({ name: '', email: '', role: 'customer' });
-    toast({
-      title: 'User Created',
-      description: `${createdUser.name} has been added to the system.`,
-    });
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(prev => [data.user, ...prev]);
+        setIsCreateDialogOpen(false);
+        setNewUser({ name: '', email: '', role: 'customer' });
+        toast({
+          title: 'User Created',
+          description: `${data.user.name} has been added to the system.`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: data.error || 'Failed to create user',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to create user',
+      });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleEditClick = (user: UserProfile) => {
@@ -116,30 +170,96 @@ export default function UsersPage() {
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateUser = () => {
+  const handleUpdateUser = async () => {
     if (!editingUser) return;
 
-    if (!editingUser.name || !editingUser.email) {
+    if (!editingUser.name) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
-        description: 'User name and email cannot be empty.',
+        description: 'User name cannot be empty.',
       });
       return;
     }
 
-    setUsers(prevUsers =>
-      prevUsers.map(user =>
-        user.email === editingUser.email ? editingUser : user
-      )
-    );
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editingUser.name,
+          role: editingUser.role,
+          status: editingUser.status,
+        }),
+      });
 
-    setIsEditDialogOpen(false);
-    setEditingUser(null);
-    toast({
-      title: 'User Updated',
-      description: `${editingUser.name}'s information has been updated.`,
-    });
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(prevUsers =>
+          prevUsers.map(user =>
+            user.id === editingUser.id ? data.user : user
+          )
+        );
+        setIsEditDialogOpen(false);
+        setEditingUser(null);
+        toast({
+          title: 'User Updated',
+          description: `${data.user.name}'s information has been updated.`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: data.error || 'Failed to update user',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update user',
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteUser = async (user: UserProfile) => {
+    if (!confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(prevUsers => prevUsers.filter(u => u.id !== user.id));
+        toast({
+          title: 'User Deleted',
+          description: `${user.name} has been removed from the system.`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: data.error || 'Failed to delete user',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to delete user',
+      });
+    }
   };
 
   const userRoles: User['role'][] = ['admin', 'auditor', 'customer', 'manager', 'reviewer'];
@@ -207,7 +327,16 @@ export default function UsersPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleCreateUser}>Create User</Button>
+                        <Button onClick={handleCreateUser} disabled={isCreating}>
+                            {isCreating ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
+                                    Creating...
+                                </>
+                            ) : (
+                                'Create User'
+                            )}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -249,7 +378,16 @@ export default function UsersPage() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {filteredUsers.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                        <span className="ml-2">Loading users...</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredUsers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
                       No users found.
@@ -295,7 +433,10 @@ export default function UsersPage() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem><KeyRound className="mr-2 h-4 w-4" />Reset Password</DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-destructive">
+                                    <DropdownMenuItem 
+                                        className="text-destructive"
+                                        onClick={() => handleDeleteUser(user)}
+                                    >
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete
                                     </DropdownMenuItem>
@@ -358,7 +499,16 @@ export default function UsersPage() {
                 )}
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleUpdateUser}>Save Changes</Button>
+                    <Button onClick={handleUpdateUser} disabled={isUpdating}>
+                        {isUpdating ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
+                                Saving...
+                            </>
+                        ) : (
+                            'Save Changes'
+                        )}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

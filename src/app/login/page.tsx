@@ -144,8 +144,16 @@ export default function LoginPage() {
                   <div>admin@auditace.com / admin123</div>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
+                  <div className="font-medium text-card-foreground mb-1">Manager</div>
+                  <div>manager@auditace.com / manager123</div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
                   <div className="font-medium text-card-foreground mb-1">Auditor</div>
                   <div>jane.doe@example.com / jane123</div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <div className="font-medium text-card-foreground mb-1">Reviewer</div>
+                  <div>reviewer@auditace.com / reviewer123</div>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
                   <div className="font-medium text-card-foreground mb-1">Customer</div>

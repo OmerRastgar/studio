@@ -43,6 +43,14 @@ services:
           - GET
         strip_path: false
       
+      # Root path redirect to login (public access)
+      - name: public-root-redirect
+        paths:
+          - /
+        methods:
+          - GET
+        strip_path: false
+      
       # Routes accessible to all authenticated users (customer, auditor, admin)
       - name: customer-accessible-routes
         paths:
@@ -105,6 +113,14 @@ consumers:
       - key: audit-app-key
         secret: your-256-bit-secret-key-here-change-this-in-production
         algorithm: HS256
+    acls:
+      - group: web-users
+
+  # Anonymous consumer for public routes
+  - username: anonymous
+    custom_id: anonymous-user
+    acls:
+      - group: web-users
 
 # Security and rate limiting plugins
 plugins:
@@ -196,18 +212,19 @@ plugins:
       hour: 1000
       policy: local
       
-  # Request size limiting
-  - name: request-size-limiting
-    service: nextjs-app-service
-    config:
-      allowed_payload_size: 10
+
       
-  # CORS for web applications
+  # Strict CORS - only allow access through Kong gateway
   - name: cors
     service: nextjs-app-service
     config:
       origins:
-        - "*"
+        - "http://localhost"
+        - "http://localhost:80"
+        - "http://localhost:8000"
+        - "http://96.30.194.117"
+        - "http://96.30.194.117:80"
+        - "http://96.30.194.117:8000"
       methods:
         - GET
         - POST
@@ -223,22 +240,14 @@ plugins:
         - Content-Type
         - Date
         - Authorization
+        - X-Requested-With
       exposed_headers:
         - X-Auth-Token
         - Authorization
       credentials: true
       max_age: 3600
       
-  # Security headers
-  - name: response-transformer
-    service: nextjs-app-service
-    config:
-      add:
-        headers:
-          - "X-Frame-Options: DENY"
-          - "X-Content-Type-Options: nosniff"
-          - "X-XSS-Protection: 1; mode=block"
-          - "Strict-Transport-Security: max-age=31536000; includeSubDomains"
+
           
   # HTTP Log plugin to send logs to Fluent Bit
   - name: http-log
@@ -260,3 +269,84 @@ plugins:
     service: nextjs-app-service
     config:
       per_consumer: true
+
+  # Request Size Limiting for security
+  - name: request-size-limiting
+    service: nextjs-app-service
+    config:
+      allowed_payload_size: 10
+      size_unit: megabytes
+
+  # Bot Detection plugin to block unwanted bots
+  - name: bot-detection
+    service: nextjs-app-service
+    config:
+      allow: []
+      deny: 
+        - "googlebot"
+        - "bingbot"
+        - "slurp"
+        - "crawler"
+        - "spider"
+
+  # Request Transformer to add security headers
+  - name: request-transformer
+    service: nextjs-app-service
+    config:
+      add:
+        headers:
+          - "X-Kong-Gateway: true"
+          - "X-Forwarded-By: kong"
+
+  # Response Transformer for additional security headers
+  - name: response-transformer
+    service: nextjs-app-service
+    config:
+      add:
+        headers:
+          - "X-Frame-Options: DENY"
+          - "X-Content-Type-Options: nosniff"
+          - "X-XSS-Protection: 1; mode=block"
+          - "Strict-Transport-Security: max-age=31536000; includeSubDomains"
+          - "Referrer-Policy: strict-origin-when-cross-origin"
+          - "Permissions-Policy: camera=(), microphone=(), geolocation=()"
+          - "X-Kong-Proxy: enabled"
+
+  # ACL (Access Control List) plugin for additional security
+  - name: acl
+    service: nextjs-app-service
+    config:
+      allow:
+        - "web-users"
+      hide_groups_header: true
+
+  # Pre-function plugin to block direct port 3000 access
+  - name: pre-function
+    service: nextjs-app-service
+    config:
+      access: |
+        -- Block requests that try to access port 3000 directly
+        local host = kong.request.get_header("host")
+        if host and string.find(host, ":3000") then
+          kong.response.exit(403, {message = "Direct access to port 3000 is not allowed. Please use the main application URL."})
+        end
+        
+        -- Ensure request came through Kong by checking for Kong headers
+        local kong_request_id = kong.request.get_header("x-kong-request-id")
+        local forwarded_host = kong.request.get_header("x-forwarded-host")
+        
+        -- Allow health checks and requests with proper Kong headers
+        local path = kong.request.get_path()
+        if not (kong_request_id or forwarded_host) and not string.find(path, "/api/health") then
+          kong.response.exit(403, {message = "Access denied. Requests must go through the API gateway."})
+        end
+
+  # Request Termination plugin for root path redirect (applied to public-root-redirect route)
+  - name: request-termination
+    route: public-root-redirect
+    config:
+      status_code: 302
+      message: ""
+      content_type: "text/html"
+      body: ""
+    enabled: false  # Let Next.js handle the redirect instead

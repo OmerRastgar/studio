@@ -8,6 +8,7 @@ export type User = {
 };
 
 export type UserProfile = User & {
+    id: string;
     status: 'Active' | 'Inactive';
     lastActive?: string;
 }

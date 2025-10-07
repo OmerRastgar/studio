@@ -32,6 +32,8 @@ async function main() {
   const janePassword = await hashPassword('jane123')
   const johnPassword = await hashPassword('john123')
   const clientPassword = await hashPassword('client123')
+  const managerPassword = await hashPassword('manager123')
+  const reviewerPassword = await hashPassword('reviewer123')
 
   console.log('Creating admin user...')
   await prisma.user.upsert({
@@ -106,6 +108,44 @@ async function main() {
       role: 'customer',
       status: 'Active',
       lastActive: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+    }
+  })
+
+  console.log('Creating manager user...')
+  await prisma.user.upsert({
+    where: { email: 'manager@auditace.com' },
+    update: {
+      password: managerPassword,
+      status: 'Active',
+    },
+    create: {
+      id: 'user-manager',
+      name: 'Project Manager',
+      email: 'manager@auditace.com',
+      password: managerPassword,
+      avatarUrl: 'https://picsum.photos/seed/manager/100/100',
+      role: 'manager',
+      status: 'Active',
+      lastActive: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
+    }
+  })
+
+  console.log('Creating reviewer user...')
+  await prisma.user.upsert({
+    where: { email: 'reviewer@auditace.com' },
+    update: {
+      password: reviewerPassword,
+      status: 'Active',
+    },
+    create: {
+      id: 'user-reviewer',
+      name: 'Quality Reviewer',
+      email: 'reviewer@auditace.com',
+      password: reviewerPassword,
+      avatarUrl: 'https://picsum.photos/seed/reviewer/100/100',
+      role: 'reviewer',
+      status: 'Active',
+      lastActive: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
     }
   })
 
