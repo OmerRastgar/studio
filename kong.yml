@@ -176,33 +176,35 @@ plugins:
   - name: pre-function
     route: auditor-admin-routes
     config:
-      access: |
-        local jwt = kong.ctx.shared.jwt_keyset_key
-        if jwt then
-          local claims = jwt.claims or {}
-          local role = claims.role
-          if role ~= "admin" and role ~= "auditor" then
-            kong.response.exit(403, {message = "Access denied. Insufficient permissions."})
+      access:
+        - |
+          local jwt = kong.ctx.shared.jwt_keyset_key
+          if jwt then
+            local claims = jwt.claims or {}
+            local role = claims.role
+            if role ~= "admin" and role ~= "auditor" then
+              kong.response.exit(403, {message = "Access denied. Insufficient permissions."})
+            end
+          else
+            kong.response.exit(401, {message = "Authentication required."})
           end
-        else
-          kong.response.exit(401, {message = "Authentication required."})
-        end
 
   # Role-based access control using pre-function plugin for admin-only routes  
   - name: pre-function
     route: admin-only-routes
     config:
-      access: |
-        local jwt = kong.ctx.shared.jwt_keyset_key
-        if jwt then
-          local claims = jwt.claims or {}
-          local role = claims.role
-          if role ~= "admin" then
-            kong.response.exit(403, {message = "Access denied. Admin access required."})
+      access:
+        - |
+          local jwt = kong.ctx.shared.jwt_keyset_key
+          if jwt then
+            local claims = jwt.claims or {}
+            local role = claims.role
+            if role ~= "admin" then
+              kong.response.exit(403, {message = "Access denied. Admin access required."})
+            end
+          else
+            kong.response.exit(401, {message = "Authentication required."})
           end
-        else
-          kong.response.exit(401, {message = "Authentication required."})
-        end
       
   # Rate limiting to prevent abuse
   - name: rate-limiting
@@ -324,29 +326,20 @@ plugins:
   - name: pre-function
     service: nextjs-app-service
     config:
-      access: |
-        -- Block requests that try to access port 3000 directly
-        local host = kong.request.get_header("host")
-        if host and string.find(host, ":3000") then
-          kong.response.exit(403, {message = "Direct access to port 3000 is not allowed. Please use the main application URL."})
-        end
-        
-        -- Ensure request came through Kong by checking for Kong headers
-        local kong_request_id = kong.request.get_header("x-kong-request-id")
-        local forwarded_host = kong.request.get_header("x-forwarded-host")
-        
-        -- Allow health checks and requests with proper Kong headers
-        local path = kong.request.get_path()
-        if not (kong_request_id or forwarded_host) and not string.find(path, "/api/health") then
-          kong.response.exit(403, {message = "Access denied. Requests must go through the API gateway."})
-        end
-
-  # Request Termination plugin for root path redirect (applied to public-root-redirect route)
-  - name: request-termination
-    route: public-root-redirect
-    config:
-      status_code: 302
-      message: ""
-      content_type: "text/html"
-      body: ""
-    enabled: false  # Let Next.js handle the redirect instead
+      access:
+        - |
+          -- Block requests that try to access port 3000 directly
+          local host = kong.request.get_header("host")
+          if host and string.find(host, ":3000") then
+            kong.response.exit(403, {message = "Direct access to port 3000 is not allowed. Please use the main application URL."})
+          end
+          
+          -- Ensure request came through Kong by checking for Kong headers
+          local kong_request_id = kong.request.get_header("x-kong-request-id")
+          local forwarded_host = kong.request.get_header("x-forwarded-host")
+          
+          -- Allow health checks and requests with proper Kong headers
+          local path = kong.request.get_path()
+          if not (kong_request_id or forwarded_host) and not string.find(path, "/api/health") then
+            kong.response.exit(403, {message = "Access denied. Requests must go through the API gateway."})
+          end
