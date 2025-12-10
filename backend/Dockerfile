@@ -1,3 +1,4 @@
+
 FROM node:20-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache openssl
@@ -10,16 +11,20 @@ RUN npm ci
 FROM base AS builder
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
-COPY . .
+COPY prisma ./prisma
+COPY package.json ./
+# Generate client before copying full source for better caching
 RUN npx prisma generate
+COPY . .
 RUN npm run build
 
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 expressjs
+# Combine group/user creation to save a layer
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 expressjs
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
@@ -30,4 +35,4 @@ USER expressjs
 
 EXPOSE 4000
 
-CMD ["npm", "start"]
+CMD ["node", "dist/index.js"]

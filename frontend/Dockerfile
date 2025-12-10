@@ -13,10 +13,8 @@ WORKDIR /app
 USER node
 COPY --chown=node:node package.json ./
 # Copy package-lock.json if it exists, otherwise npm install will create it
-# Copy package-lock.json if it exists, otherwise npm install will create it
 COPY --chown=node:node package-lock.json* ./
 # Install dependencies using npm ci for deterministic builds
-# Install dependencies - use npm install since package-lock.json might not exist
 RUN npm ci --legacy-peer-deps
 
 # ---- Builder ----
@@ -46,9 +44,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Create a non-root user and group
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Create a non-root user and group (Optimized: Combined)
+RUN addgroup --system --gid 1001 nodejs && \
+  adduser --system --uid 1001 nextjs
 
 # Set the user to the non-root user
 USER nextjs
