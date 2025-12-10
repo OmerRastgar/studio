@@ -1,0 +1,77 @@
+_format_version: "3.0"
+
+services:
+  - name: nextjs-app
+    url: http://studio-frontend:3000
+  
+  - name: backend-api
+    url: http://studio-backend:4000
+
+routes:
+  # Public: Auth routes (no JWT required)
+  - name: auth-routes
+    service: backend-api
+    paths:
+      - /api/auth
+    strip_path: false
+  
+  # Public: Health check
+  - name: health-route
+    service: backend-api
+    paths:
+      - /api/health
+    strip_path: false
+  
+  # Protected: All other API routes
+  - name: api-protected
+    service: backend-api
+    paths:
+      - /api
+    strip_path: false
+  
+  # Frontend (public)
+  - name: app-route
+    service: nextjs-app
+    paths:
+      - /
+    strip_path: false
+
+# Global plugins
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "http://localhost:3000"
+        - "http://localhost:8000"
+        - "http://localhost"
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - PATCH
+      headers:
+        - Accept
+        - Authorization
+        - Content-Type
+      credentials: true
+      max_age: 3600
+
+  - name: prometheus
+    config:
+      per_consumer: false
+      status_code_metrics: true
+      latency_metrics: true
+      bandwidth_metrics: true
+      upstream_health_metrics: true
+
+  # OPA Authorization for protected API routes
+  - name: opa
+    route: api-protected
+    config:
+      opa_url: "http://studio-opa:8181"
+      policy: "studio.authz.allow"
+      timeout: 5000
+      allow_on_error: false

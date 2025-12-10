@@ -1,0 +1,57 @@
+Starting M:N Verification...
+Using user: e81141f3-347c-4df2-bbd4-272d8671d527
+Using project: 6af53c6f-b592-485f-8ac8-364108ccae17
+Using controls: 0026b9d0-5aa3-4929-b425-3b3f7b6d7b28, 02caf596-aac8-4969-99d5-87ebb7ef5230
+Creating evidence linked to both controls...
+PrismaClientValidationError: 
+Invalid `prisma.evidence.create()` invocation in
+/app/verify_m2m.ts:62:44
+
+  59 
+  60 // 4. Create Evidence linked to BOTH controls
+  61 console.log('Creating evidence linked to both controls...');
+→ 62 const evidence = await prisma.evidence.create({
+       data: {
+         projectId: "6af53c6f-b592-485f-8ac8-364108ccae17",
+         fileName: "m2m_test_file.txt",
+         type: "document",
+         uploadedBy: {
+           connect: {
+             id: "e81141f3-347c-4df2-bbd4-272d8671d527"
+           }
+         },
+         controls: {
+           connect: [
+             {
+               id: "0026b9d0-5aa3-4929-b425-3b3f7b6d7b28"
+             },
+             {
+               id: "02caf596-aac8-4969-99d5-87ebb7ef5230"
+             }
+           ]
+         },
+         uploadedAt: new Date("2025-12-10T09:39:00.644Z"),
+         tags: [
+           "test",
+           "m2m"
+         ],
+     +   project: {
+     +     create: ProjectCreateWithoutEvidenceInput | ProjectUncheckedCreateWithoutEvidenceInput,
+     +     connectOrCreate: ProjectCreateOrConnectWithoutEvidenceInput,
+     +     connect: ProjectWhereUniqueInput
+     +   }
+       },
+       include: {
+         controls: true
+       }
+     })
+
+Argument `project` is missing.
+    at wn (/app/node_modules/@prisma/client/runtime/library.js:29:1363)
+    at $n.handleRequestError (/app/node_modules/@prisma/client/runtime/library.js:121:6958)
+    at $n.handleAndLogRequestError (/app/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/app/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/app/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async main (/app/verify_m2m.ts:62:22) {
+  clientVersion: '5.22.0'
+}

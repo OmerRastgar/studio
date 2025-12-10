@@ -1,0 +1,420 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Compliance Frameworks (master - added by Admin)
+model Framework {
+  id          String @id @default(uuid())
+  name        String @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  controls Control[]
+  projects Project[]
+  
+  @@map("frameworks")
+}
+
+// Controls (master template - never modified by customers)
+model Control {
+  id          String @id @default(uuid())
+  frameworkId String @map("framework_id")
+  code        String
+  title       String
+  description String?
+  category    String?
+  tags        String[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  framework Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  projectControls ProjectControl[]
+  
+  @@unique([frameworkId, code])
+  @@map("controls")
+}
+
+// Project Control (customer's copy per project)
+model ProjectControl {
+  id            String @id @default(uuid())
+  projectId     String @map("project_id")
+  controlId     String @map("control_id")
+  progress      Int @default(0)
+  evidenceCount Int @default(0) @map("evidence_count")
+  notes         String?
+  reviewerNotes String? @map("reviewer_notes")
+  isFlagged     Boolean @default(false) @map("is_flagged")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  control Control @relation(fields: [controlId], references: [id], onDelete: Cascade)
+  auditRequests AuditRequest[]
+  evidenceItems EvidenceItem[]
+  projectEvidence Evidence[]
+  
+  @@unique([projectId, controlId])
+  @@map("project_controls")
+}
+
+// Evidence Items linked to project controls
+model EvidenceItem {
+  id               String @id @default(uuid())
+  projectControlId String @map("project_control_id")
+  fileUrl          String? @map("file_url")
+  fileName         String @map("file_name")
+  tags             String[]
+  tagSource        TagSource @default(manual) @map("tag_source")
+  uploadedById     String @map("uploaded_by_id")
+  uploadedAt       DateTime @default(now()) @map("uploaded_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  
+  projectControl ProjectControl @relation(fields: [projectControlId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation("UploadedEvidence", fields: [uploadedById], references: [id])
+  
+  @@map("evidence_items")
+}
+
+// Project status for approval workflow
+enum ProjectStatus {
+  pending
+  approved
+  rejected
+  completed
+}
+
+model Project {
+  id                String        @id @default(uuid())
+  name              String
+  customerName      String        @map("customer_name")
+  customerId        String?       @map("customer_id")
+  auditorId         String?       @map("auditor_id")
+  frameworkId       String?       @map("framework_id")
+  status            ProjectStatus @default(pending)
+  rejectionReason   String?       @map("rejection_reason")
+  reviewerAuditorId String?       @map("reviewer_auditor_id")
+  description       String?
+  scope             String?
+  startDate         DateTime?     @map("start_date")
+  dueDate           DateTime?     @map("due_date")
+  endDate           DateTime?     @map("end_date")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  
+  evidence        Evidence[] // Implicit Many-to-Many
+  projectControls ProjectControl[]
+  projectShares   ProjectShare[]
+  auditRequests   AuditRequest[]
+  auditEvents     AuditEvent[]
+  customer        User?      @relation("CustomerProjects", fields: [customerId], references: [id])
+  auditor         User?      @relation("AuditorProjects", fields: [auditorId], references: [id])
+  reviewerAuditor User?      @relation("ReviewerProjects", fields: [reviewerAuditorId], references: [id])
+  framework       Framework? @relation(fields: [frameworkId], references: [id])
+  
+  @@map("projects")
+}
+
+// Project sharing for compliance users
+model ProjectShare {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  projectId String   @map("project_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation("SharedProjects", fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@map("project_shares")
+}
+
+model User {
+  id          String     @id @default(uuid())
+  name        String
+  email       String     @unique
+  password    String
+  avatarUrl   String?    @map("avatar_url")
+  role        UserRole
+  status      UserStatus @default(Active)
+  lastActive  DateTime?  @map("last_active")
+  createdById String?    @map("created_by_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  createdBy                    User?                       @relation("CreatedUsers", fields: [createdById], references: [id])
+  createdUsers                 User[]                      @relation("CreatedUsers")
+  auditor                      Auditor?
+  userCourses                  UserCourse[]
+  customerProjects             Project[]                   @relation("CustomerProjects")
+  auditorProjects              Project[]                   @relation("AuditorProjects")
+  reviewerProjects             Project[]                   @relation("ReviewerProjects")
+  sharedProjects               ProjectShare[]              @relation("SharedProjects")
+  uploadedEvidence             EvidenceItem[]              @relation("UploadedEvidence")
+  uploadedProjectEvidence      Evidence[]                  @relation("UploadedProjectEvidence")
+  conversationParticipants     ConversationParticipant[]
+  sentMessages                 Message[]
+  auditorRequests              AuditRequest[]              @relation("AuditorRequests")
+  customerRequests             AuditRequest[]              @relation("CustomerRequests")
+  auditorEvents                AuditEvent[]                @relation("AuditorEvents")
+  customerEvents               AuditEvent[]                @relation("CustomerEvents")
+  
+  @@map("users")
+}
+
+model Auditor {
+  id             String   @id
+  userId         String   @unique @map("user_id")
+  experience     String?
+  certifications String[]
+  progress       Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("auditors")
+}
+
+model Agent {
+  id        String        @id
+  name      String
+  platform  AgentPlatform
+  status    AgentStatus   @default(Pending)
+  lastSync  DateTime?     @map("last_sync")
+  version   String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  
+  evidence Evidence[]
+  
+  @@map("agents")
+}
+
+model Evidence {
+  id           String       @id @default(uuid())
+  projectId    String       @map("project_id")
+
+  agentId      String?      @map("agent_id")
+  fileName     String       @map("file_name")
+  fileUrl      String?      @map("file_url")
+  type         EvidenceType @default(document)
+  tags         String[]
+  uploadedAt   DateTime     @default(now()) @map("uploaded_at")
+  uploadedById String       @map("uploaded_by_id")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  
+  project    Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  controls   ProjectControl[] // Implicit Many-to-Many
+  agent      Agent?          @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  uploadedBy User            @relation("UploadedProjectEvidence", fields: [uploadedById], references: [id])
+  
+  @@map("evidence")
+}
+
+model AuditLog {
+  id            String        @id
+  userName      String        @map("user_name")
+  userAvatarUrl String?       @map("user_avatar_url")
+  action        String
+  details       String?
+  timestamp     DateTime      @default(now())
+  severity      AuditSeverity @default(Low)
+  
+  @@map("audit_logs")
+}
+
+model Course {
+  id           String   @id
+  title        String
+  description  String?
+  duration     String?
+  thumbnailUrl String?  @map("thumbnail_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  userCourses UserCourse[]
+  
+  @@map("courses")
+}
+
+model UserCourse {
+  id             String       @id @default(uuid())
+  userId         String       @map("user_id")
+  courseId       String       @map("course_id")
+  status         CourseStatus @default(NotStarted)
+  progress       Int          @default(0)
+  completionDate DateTime?    @map("completion_date")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, courseId])
+  @@map("user_courses")
+}
+
+model ComplianceActivity {
+  id           String         @id
+  evidenceName String         @map("evidence_name")
+  status       ActivityStatus
+  timestamp    DateTime       @default(now())
+  
+  @@map("compliance_activities")
+}
+
+// Audit requests from auditor to customer
+model AuditRequest {
+  id          String    @id @default(uuid())
+  auditorId   String    @map("auditor_id")
+  customerId  String    @map("customer_id")
+  projectId   String?   @map("project_id")
+  title       String
+  description String?
+  dueDate     DateTime? @map("due_date")
+  status      String    @default("Pending")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  auditor  User     @relation("AuditorRequests", fields: [auditorId], references: [id])
+  customer User     @relation("CustomerRequests", fields: [customerId], references: [id])
+  project  Project? @relation(fields: [projectId], references: [id])
+  controlId String? @map("control_id")
+  control  ProjectControl? @relation(fields: [controlId], references: [id])
+
+  @@map("audit_requests")
+}
+
+// Audit events/calendar for auditors
+model AuditEvent {
+  id          String    @id @default(uuid())
+  auditorId   String    @map("auditor_id")
+  customerId  String?   @map("customer_id")
+  projectId   String?   @map("project_id")
+  title       String
+  description String?
+  startTime   DateTime  @map("start_time")
+  endTime     DateTime  @map("end_time")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  auditor  User     @relation("AuditorEvents", fields: [auditorId], references: [id])
+  customer User?    @relation("CustomerEvents", fields: [customerId], references: [id])
+  project  Project? @relation(fields: [projectId], references: [id])
+
+  @@map("audit_events")
+}
+
+// Chat System
+model Conversation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  participants ConversationParticipant[]
+  messages     Message[]
+  
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String    @id @default(uuid())
+  conversationId String    @map("conversation_id")
+  userId         String    @map("user_id")
+  lastReadAt     DateTime? @map("last_read_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  content        String
+  createdAt      DateTime @default(now()) @map("created_at")
+  
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+  
+  @@map("messages")
+}
+
+// Enums
+enum UserRole {
+  admin
+  auditor
+  customer
+  manager
+  reviewer
+  compliance
+}
+
+enum UserStatus {
+  Active
+  Inactive
+}
+
+enum AgentPlatform {
+  windows
+  macos
+  linux
+}
+
+enum AgentStatus {
+  Active
+  Inactive
+  Pending
+}
+
+enum EvidenceType {
+  document
+  screenshot
+  log
+  network
+  config
+  image
+  audio
+  video
+  spreadsheet
+  pdf
+  other
+}
+
+enum AuditSeverity {
+  Low
+  Medium
+  High
+}
+
+enum CourseStatus {
+  NotStarted @map("Not Started")
+  InProgress @map("In Progress")
+  Completed
+}
+
+enum ActivityStatus {
+  Accepted
+  Rejected
+  Pending
+}
+
+enum TagSource {
+  manual
+  tagging_engine
+}

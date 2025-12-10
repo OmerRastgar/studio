@@ -1,60 +1,121 @@
-# docker-compose.yml
-# This file is for local development and demonstrates how to connect
-# the Next.js app with PostgreSQL and Kong API Gateway.
-
 services:
-  # PostgreSQL Database
+  # PostgreSQL database
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15
     container_name: audit-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: auditdb
-      POSTGRES_USER: audituser
-      POSTGRES_PASSWORD: auditpass
+      POSTGRES_USER: ${POSTGRES_USER:-audituser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-auditpass}
+      POSTGRES_DB: ${POSTGRES_DB:-auditdb}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - default
+
+  # Backend Service (Node.js API)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: studio-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: sh ./scripts/init-dev.sh
+    user: root
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-audituser}:${POSTGRES_PASSWORD:-auditpass}@postgres:5432/${POSTGRES_DB:-auditdb}}
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-this-in-production}
+      # MinIO Configuration
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-auditace}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-auditace123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-evidence}
+      MINIO_USE_SSL: "false"
+      # Observability
+      FLUENT_BIT_URL: ${FLUENT_BIT_URL:-http://fluent-bit:9880/app-logs}
+      LOKI_URL: ${LOKI_URL:-http://loki:3100}
+      TEMPO_URL: ${TEMPO_URL:-http://tempo:4318/v1/traces}
+    networks:
+      - default
+
+  # MinIO Object Storage (S3-compatible)
+  minio:
+    image: minio/minio:latest
+    container_name: studio-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # Console
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-auditace}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-auditace123}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - default
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U audituser -d auditdb"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 30s
-      timeout: 10s
+      timeout: 20s
       retries: 3
 
-  # The Next.js Application
-  app:
-    # Option 1: Build from source (comment out 'image' line below)
+  # Frontend Service (Next.js UI)
+  frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.simple
-      args:
-        - NODE_OPTIONS=--max-old-space-size=4096
-        - SKIP_ENV_VALIDATION=1
-        - NEXT_TELEMETRY_DISABLED=1
-    # Option 2: Use pre-built image (uncomment line below and comment out 'build' section)
-    # image: nextjs-app
-    container_name: nextjs-app
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dependencies
+    container_name: studio-frontend
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "npm install --legacy-peer-deps && npm run dev"
     environment:
-      - PORT=3000
-      - DATABASE_URL=postgresql://audituser:auditpass@postgres:5432/auditdb
-      - NODE_ENV=production
-      - JWT_SECRET=your-256-bit-secret-key-here-change-this-in-production
-      - JWT_EXPIRES_IN=24h
-      - FLUENT_BIT_URL=http://fluent-bit:24225
-      - LOKI_URL=http://loki:3100
-      - LOG_LEVEL=info
-      - NODE_OPTIONS=--max-old-space-size=2048
-    # Only expose internally to Kong - no direct external access
-    expose:
-      - "3000"
-    # Increase memory limits for the container
-    mem_limit: 2g
-    memswap_limit: 4g
+      NODE_ENV: development
+      PORT: 3000
+      # Backend URL for server-side API proxy (internal Docker network)
+      BACKEND_URL: http://studio-backend:4000
+      # Observability
+      FLUENT_BIT_URL: ${FLUENT_BIT_URL:-http://fluent-bit:9880/app-logs}
+      LOKI_URL: ${LOKI_URL:-http://loki:3100}
+      TEMPO_URL: ${TEMPO_URL:-http://tempo:4318/v1/traces}
+      # API URL (Client-side calls go to Kong)
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api
+    networks:
+      - default
+
+  # OPA Policy Server
+  opa:
+    build:
+      context: ./gateway/opa
+      dockerfile: Dockerfile
+    container_name: studio-opa
+    restart: unless-stopped
+    ports:
+      - "8181:8181"
+    networks:
+      - default
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8181/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   # Kong API Gateway
   kong:
@@ -62,71 +123,33 @@ services:
     container_name: kong-gateway
     restart: unless-stopped
     depends_on:
-      - app
+      - backend
+      - frontend
+      - opa
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: "/etc/kong/kong.yml"
       KONG_PROXY_LISTEN: "0.0.0.0:8000"
       KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      # Enable custom OPA plugin
+      KONG_PLUGINS: "bundled,opa"
+      KONG_LUA_PACKAGE_PATH: "/usr/local/custom/?.lua;;"
     ports:
-      # Main application access through Kong on port 80
-      - "80:8000"
-      # Kong proxy port (for development/debugging)
-      - "8000:8000"
-      # Admin API port to configure Kong
-      - "8001:8001"
+      - "80:8000" # Proxy
+      - "8000:8000" # Proxy (Direct)
+      - "8001:8001" # Admin
     volumes:
-      - ./kong.yml:/etc/kong/kong.yml:ro
-
-  # Fluent Bit for log collection
-  fluent-bit:
-    image: fluent/fluent-bit:latest
-    container_name: fluent-bit
-    restart: unless-stopped
-    ports:
-      - "24224:24224"
-    volumes:
-      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
-      - ./parsers.conf:/fluent-bit/etc/parsers.conf:ro
-      - /var/log:/var/log:ro
-    depends_on:
-      - postgres
-    environment:
-      - DATABASE_URL=postgresql://audituser:auditpass@postgres:5432/auditdb
-
-  # Grafana for monitoring and visualization
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    restart: unless-stopped
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
-      - GF_INSTALL_PLUGINS=grafana-postgresql-datasource
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    depends_on:
-      - postgres
-
-  # Loki for log aggregation
-  loki:
-    image: grafana/loki:latest
-    container_name: loki
-    restart: unless-stopped
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
-      - loki_data:/loki
-    command: -config.file=/etc/loki/local-config.yaml
+      - ./gateway/kong.yml:/etc/kong/kong.yml:ro
+      - ./gateway/plugins/opa:/usr/local/custom/kong/plugins/opa:ro
+    networks:
+      - default
 
 volumes:
   postgres_data:
-  grafana_data:
-  loki_data:
+  minio_data:
+
 
 networks:
   default:
-    name: kong-net
+    name: core_network
+    external: true
