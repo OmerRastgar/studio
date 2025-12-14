@@ -127,16 +127,16 @@ function AuditorProjectsContent() {
             {/* Projects Grid */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredProjects.map((project) => (
-                    <Link key={project.id} href={`/reports?project=${project.id}`}>
-                        <Card className="hover:shadow-lg transition-shadow h-full cursor-pointer relative overflow-hidden">
-                            <div className={`absolute top-0 right-0 p-1 px-3 text-xs font-bold text-white rounded-bl-lg ${project.role === 'reviewer' ? 'bg-purple-600' : 'bg-blue-600'}`}>
-                                {project.role === 'reviewer' ? 'Reviewer' : 'Auditor'}
-                            </div>
+                    <Card key={project.id} className="hover:shadow-lg transition-shadow h-full relative overflow-hidden flex flex-col">
+                        <div className={`absolute top-0 right-0 p-1 px-3 text-xs font-bold text-white rounded-bl-lg ${project.role === 'reviewer' ? 'bg-purple-600' : 'bg-blue-600'} z-10`}>
+                            {project.role === 'reviewer' ? 'Reviewer' : 'Auditor'}
+                        </div>
+                        <Link href={`/dashboard/project/${project.id}`} className="flex-1 cursor-pointer">
                             <CardHeader className="pb-3 pt-6">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-2">
                                         <FolderOpen className="w-5 h-5 text-primary" />
-                                        <CardTitle className="text-lg">{project.name}</CardTitle>
+                                        <CardTitle className="text-lg hover:underline">{project.name}</CardTitle>
                                     </div>
                                     <div className="flex flex-col items-end gap-1">
                                         <Badge variant="outline">{project.frameworkName}</Badge>
@@ -150,7 +150,7 @@ function AuditorProjectsContent() {
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className="space-y-4 pb-2">
                                 {/* Customer */}
                                 <div className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
                                     <Avatar className="h-8 w-8">
@@ -186,24 +186,28 @@ function AuditorProjectsContent() {
                                         {project.metrics.completedControls} of {project.metrics.totalControls} controls audited
                                     </p>
                                 </div>
-
-                                {/* View Details Button */}
-                                <Button variant="outline" className="w-full mt-2">
+                            </CardContent>
+                        </Link>
+                        <div className="p-6 pt-0 mt-auto">
+                            <Link href={`/reports?projectId=${project.id}`}>
+                                <Button variant="outline" className="w-full">
                                     Open Audit
                                     <ChevronRight className="w-4 h-4 ml-2" />
                                 </Button>
-                            </CardContent>
-                        </Card>
-                    </Link>
+                            </Link>
+                        </div>
+                    </Card>
                 ))}
             </div>
 
-            {filteredProjects.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                    <FolderOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No projects found</p>
-                </div>
-            )}
-        </div>
+            {
+                filteredProjects.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                        <FolderOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No projects found</p>
+                    </div>
+                )
+            }
+        </div >
     );
 }

@@ -31,17 +31,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Bot, User, Edit, Users, Link as LinkIcon, Loader2, ChevronsUpDown, Check } from 'lucide-react';
+import { Send, Bot, User, Edit, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import type { ReportRow } from '@/app/(app)/reports/page';
-import { mockEvidence } from '@/lib/data-build';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-
+// import { mockEvidence } from '@/lib/data-build';
+const mockEvidence: any[] = [];
 
 interface ReportChatPanelProps {
   isOpen: boolean;
@@ -49,16 +48,16 @@ interface ReportChatPanelProps {
   reportRows: ReportRow[];
   onApplySuggestion: (rowId: string, field: keyof ReportRow, value: any) => void;
   onReferenceClick: (rowId: string) => void;
+  standardName: string;
+  onTrackActivity: (type: 'chat') => void;
 }
 
 type Message = {
   id: string;
   text: string;
-  sender: 'user' | 'ai' | string; // sender can be a user name in team chat
+  sender: 'user' | 'ai';
   isSuggestion?: boolean;
 };
-
-type ChatMode = 'ai' | 'team';
 
 const initialAiMessages: Message[] = [
   {
@@ -74,45 +73,21 @@ const initialAiMessages: Message[] = [
   },
 ];
 
-const initialTeamMessages: Message[] = [
-  {
-    id: 'team-1',
-    text: 'Can you double-check the evidence for the [Ref: Access Control Policy]?',
-    sender: 'Jane Doe',
-  },
-  {
-    id: 'team-2',
-    text: 'On it. Looks correct on my end.',
-    sender: 'user',
-  }
-];
-
-const mockTeamMembers = [
-  { id: 'user-jane', name: 'Jane Doe' },
-  { id: 'user-john', name: 'John Smith' },
-];
-
-
 export function ReportChatPanel({
   isOpen,
   onOpenChange,
   reportRows,
   onApplySuggestion,
-  onReferenceClick
+  onReferenceClick,
+  standardName,
+  onTrackActivity
 }: ReportChatPanelProps) {
-  const [aiMessages, setAiMessages] = useState<Message[]>(initialAiMessages);
-  const [teamMessages, setTeamMessages] = useState<Message[]>(initialTeamMessages);
+  const [messages, setMessages] = useState<Message[]>(initialAiMessages);
   const [inputValue, setInputValue] = useState('');
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
-  const [chatMode, setChatMode] = useState<ChatMode>('ai');
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
-  const [isTeamMemberPopoverOpen, setIsTeamMemberPopoverOpen] = useState(false);
-
-  const currentMessages = chatMode === 'ai' ? aiMessages : teamMessages;
-  const setCurrentMessages = chatMode === 'ai' ? setAiMessages : setTeamMessages;
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,41 +99,47 @@ export function ReportChatPanel({
       sender: 'user',
     };
 
-    setCurrentMessages(prev => [...prev, userMessage]);
+    onTrackActivity('chat');
+
+    setMessages(prev => [...prev, userMessage]);
     setInputValue('');
+    setIsAiThinking(true);
 
-    if (chatMode === 'ai') {
-      setIsAiThinking(true);
-      // Simulate AI response
-      setTimeout(() => {
-        const controlRefMatch = userMessage.text.match(/\[Ref: (.*?)\]/);
-        let aiText = "That's a great question. Let me look into that for you...";
+    // Simulate AI response
+    setTimeout(() => {
+      const controlRefMatch = userMessage.text.match(/\[Ref: (.*?)\]/);
+      let aiText = "That's a great question. Let me look into that for you...";
 
-        if (controlRefMatch) {
-          const controlName = controlRefMatch[1];
-          const referencedRow = reportRows.find(r => r.control === controlName);
+      if (controlRefMatch) {
+        const controlName = controlRefMatch[1];
+        const referencedRow = reportRows.find(r => r.control === controlName);
 
-          if (referencedRow) {
-            const evidenceNames = referencedRow.evidence.map(id => mockEvidence.find(e => e.id === id)?.name).filter(Boolean);
-            if (referencedRow.evidence.length === 0) {
-              aiText = `For the control "${controlName}", the observation is: "${referencedRow.observation}". However, I've noticed that there is currently no evidence linked to this observation. To strengthen this finding, you should link relevant evidence files.`
-            } else {
-              aiText = `I've reviewed the control "${controlName}". The observation is "${referencedRow.observation}". It is supported by the following evidence: ${evidenceNames.join(', ')}. Does this information help, or would you like me to analyze it further?`;
-            }
-          } else {
-            aiText = `I couldn't find a control named "${controlName}" in your report. Please make sure the name is correct.`;
-          }
+        if (referencedRow) {
+          // Context Extraction
+          const evidenceNames = referencedRow.evidence.map(e => e.fileName).join(', ') || 'None';
+          const reviewerNotes = referencedRow.reviewerNotes || 'None';
+          const observation = referencedRow.observation || 'No observation recorded yet.';
+
+          aiText = `I see you are referring to **${controlName}** from the **${standardName}** standard.\n\n` +
+            `Here is the context I have:\n` +
+            `- **Observation**: "${observation}"\n` +
+            `- **Evidence**: ${evidenceNames}\n` +
+            `- **Reviewer Notes**: "${reviewerNotes}"\n\n` +
+            `Based on this, how would you like me to assist?`;
+
+        } else {
+          aiText = `I couldn't find a control named "${controlName}" in your report. Please make sure the name is correct.`;
         }
+      }
 
-        const aiResponse: Message = {
-          id: `msg-${Date.now() + 1}`,
-          text: aiText,
-          sender: 'ai',
-        };
-        setAiMessages(prev => [...prev, aiResponse]);
-        setIsAiThinking(false);
-      }, 1500);
-    }
+      const aiResponse: Message = {
+        id: `msg-${Date.now() + 1}`,
+        text: aiText,
+        sender: 'ai',
+      };
+      setMessages(prev => [...prev, aiResponse]);
+      setIsAiThinking(false);
+    }, 1500);
   };
 
   const openApplyModal = (suggestion: string) => {
@@ -182,14 +163,19 @@ export function ReportChatPanel({
     setInputValue(prev => `${prev} [Ref: ${controlName}] `.trimStart());
   }
 
-  const getSenderInitials = (sender: string) => {
-    if (sender === 'user') return 'You';
-    if (sender === 'ai') return 'AI';
-    return sender.split(' ').map(n => n[0]).join('');
-  }
-
   const renderMessageText = (text: string) => {
     const parts = text.split(/(\[Ref: .*?\])/g);
+    // Basic Markdown bold support for the context message
+    const parseBold = (str: string) => {
+      const boldParts = str.split(/(\*\*.*?\*\*)/g);
+      return boldParts.map((bp, bIdx) => {
+        if (bp.startsWith('**') && bp.endsWith('**')) {
+          return <strong key={bIdx}>{bp.slice(2, -2)}</strong>;
+        }
+        return bp;
+      });
+    };
+
     return parts.map((part, index) => {
       const match = part.match(/\[Ref: (.*?)\]/);
       if (match) {
@@ -200,7 +186,7 @@ export function ReportChatPanel({
             <Button
               key={index}
               variant="link"
-              className="p-0 h-auto text-base text-primary dark:text-blue-400"
+              className="p-0 h-auto text-base text-primary dark:text-blue-400 align-baseline"
               onClick={() => onReferenceClick(row.id)}
             >
               {controlName}
@@ -208,136 +194,69 @@ export function ReportChatPanel({
           );
         }
       }
-      return <span key={index}>{part}</span>;
+      return <span key={index} className="whitespace-pre-wrap">{parseBold(part)}</span>;
     });
-  };
-
-  const handleTeamMemberSelect = (memberId: string) => {
-    setSelectedTeamMembers(prev =>
-      prev.includes(memberId)
-        ? prev.filter(id => id !== memberId)
-        : [...prev, memberId]
-    );
   };
 
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:w-[480px] flex flex-col p-0">
-          <SheetHeader className="p-6 pb-2">
+        <SheetContent className="w-full sm:w-[500px] flex flex-col p-0">
+          <SheetHeader className="p-6 border-b bg-muted/10">
             <SheetTitle className="font-headline flex items-center gap-2">
-              <Bot /> AI Report Assistant
+              <Bot className="h-5 w-5 text-primary" />
+              AI Report Copilot
             </SheetTitle>
             <SheetDescription>
-              Ask questions, get explanations, or collaborate with your team.
+              I can help you draft observations, analyze evidence, and review controls.
             </SheetDescription>
           </SheetHeader>
 
-          <div className='px-6 py-2 border-b'>
-            <div className="flex space-x-1 rounded-md bg-muted p-1">
-              <Button variant={chatMode === 'ai' ? 'secondary' : 'ghost'} className="w-full" onClick={() => setChatMode('ai')}>
-                <Bot className="mr-2 h-4 w-4" />
-                AI Assistant
-              </Button>
-              <Button variant={chatMode === 'team' ? 'secondary' : 'ghost'} className="w-full" onClick={() => setChatMode('team')}>
-                <Users className="mr-2 h-4 w-4" />
-                Team Chat
-              </Button>
-            </div>
-          </div>
-
-          {chatMode === 'team' && (
-            <div className="px-6 py-4 border-b">
-              <Popover open={isTeamMemberPopoverOpen} onOpenChange={setIsTeamMemberPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={isTeamMemberPopoverOpen}
-                    className="w-full justify-between"
-                  >
-                    {selectedTeamMembers.length > 0
-                      ? `${selectedTeamMembers.length} member(s) selected`
-                      : "Select team members..."
-                    }
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search team members..." />
-                    <CommandList>
-                      <CommandEmpty>No members found.</CommandEmpty>
-                      <CommandGroup>
-                        {mockTeamMembers.map(member => (
-                          <CommandItem
-                            key={member.id}
-                            value={member.name}
-                            onSelect={() => handleTeamMemberSelect(member.id)}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedTeamMembers.includes(member.id) ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {member.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-
-          <ScrollArea className="flex-1 px-6">
-            <div className="space-y-4 py-4">
-              {currentMessages.map(message => (
-                <div key={message.id}>
+          <ScrollArea className="flex-1 px-6 bg-muted/5">
+            <div className="space-y-6 py-6">
+              {messages.map(message => (
+                <div key={message.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div
                     className={cn(
                       'flex items-start gap-3',
                       message.sender === 'user' ? 'justify-end' : 'justify-start'
                     )}
                   >
-                    {message.sender !== 'user' && (
-                      <Avatar className={cn(
-                        "h-8 w-8 flex-shrink-0",
-                        message.sender === 'ai' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
-                      )}>
-                        <AvatarFallback>
-                          {getSenderInitials(message.sender)}
-                        </AvatarFallback>
+                    {message.sender === 'ai' && (
+                      <Avatar className="h-8 w-8 flex-shrink-0 bg-primary/10 text-primary border border-primary/20">
+                        <AvatarFallback><Bot size={18} /></AvatarFallback>
                       </Avatar>
                     )}
+
                     <div
                       className={cn(
-                        'max-w-[75%] rounded-lg p-3 text-sm',
+                        'max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm',
                         message.sender === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
+                          ? 'bg-blue-600 text-white rounded-br-none'
+                          : 'bg-background border rounded-bl-none'
                       )}
                     >
-                      {message.sender !== 'user' && message.sender !== 'ai' && <p className="font-bold mb-1">{message.sender}</p>}
-                      <p>{renderMessageText(message.text)}</p>
+                      <div className="leading-relaxed">
+                        {renderMessageText(message.text)}
+                      </div>
                     </div>
+
                     {message.sender === 'user' && (
                       <Avatar className="h-8 w-8 bg-secondary text-secondary-foreground flex-shrink-0">
                         <AvatarFallback>
-                          <User size={20} />
+                          <User size={18} />
                         </AvatarFallback>
                       </Avatar>
                     )}
                   </div>
-                  {message.isSuggestion && chatMode === 'ai' && (
+
+                  {message.isSuggestion && (
                     <div className="flex justify-start ml-11 mt-2">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button size="sm" onClick={() => openApplyModal(message.text)}>
-                              <Edit className="mr-2 h-4 w-4" />
+                            <Button size="sm" variant="outline" className="gap-2 bg-background" onClick={() => openApplyModal(message.text)}>
+                              <Edit className="h-3.5 w-3.5" />
                               Apply to Report
                             </Button>
                           </TooltipTrigger>
@@ -350,56 +269,71 @@ export function ReportChatPanel({
                   )}
                 </div>
               ))}
+
               {isAiThinking && (
-                <div className="flex items-start gap-3 justify-start">
-                  <Avatar className="h-8 w-8 flex-shrink-0 bg-primary text-primary-foreground">
-                    <AvatarFallback>AI</AvatarFallback>
+                <div className="flex items-start gap-3 justify-start animate-pulse">
+                  <Avatar className="h-8 w-8 flex-shrink-0 bg-primary/10 text-primary">
+                    <AvatarFallback><Bot size={18} /></AvatarFallback>
                   </Avatar>
-                  <div className="max-w-[75%] rounded-lg p-3 text-sm bg-muted flex items-center">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                  <div className="rounded-2xl px-4 py-3 bg-muted flex items-center gap-2 rounded-bl-none">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Thinking...</span>
                   </div>
                 </div>
               )}
             </div>
           </ScrollArea>
-          <SheetFooter className="p-6 bg-background border-t">
-            <form onSubmit={handleSendMessage} className="flex w-full space-x-2">
+
+          <SheetFooter className="p-4 bg-background border-t">
+            <form onSubmit={handleSendMessage} className="flex w-full gap-2 items-center">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon">
+                  <Button variant="outline" size="icon" className="shrink-0" title="Reference a Control">
                     <LinkIcon className="h-4 w-4" />
                     <span className="sr-only">Reference Control</span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="grid gap-4">
-                    <h4 className="font-medium leading-none">Reference a Control</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Select a control to reference in your message.
-                    </p>
-                    <div className="grid gap-2">
-                      {reportRows.length > 0 ? reportRows.map(row => (
-                        <Button
-                          key={row.id}
-                          variant="ghost"
-                          className="justify-start"
-                          onClick={() => handleReferenceControl(row.control)}
-                        >
-                          {row.control || `Row ID: ${row.id.substring(0, 6)}`}
-                        </Button>
-                      )) : <p className="text-sm text-muted-foreground">No controls in the report yet.</p>}
+                <PopoverContent className="w-80 p-0" align="start">
+                  <div className="flex flex-col max-h-[300px]">
+                    <div className="p-3 border-b bg-muted/20">
+                      <h4 className="font-medium text-sm">Reference a Control</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Select a control to add context to your query.
+                      </p>
                     </div>
+                    <ScrollArea className="h-72">
+                      <div className="p-2 grid gap-1">
+                        {reportRows.length > 0 ? reportRows.map(row => (
+                          <Button
+                            key={row.id}
+                            variant="ghost"
+                            className="justify-start h-auto py-2 px-3 text-left font-normal"
+                            onClick={() => handleReferenceControl(row.control)}
+                          >
+                            <div className="flex flex-col gap-0.5 w-full overflow-hidden">
+                              <span className="truncate text-xs font-semibold">{row.control.split(':')[0]}</span>
+                              <span className="truncate text-xs text-muted-foreground">{row.control.split(':').slice(1).join(':') || 'No title'}</span>
+                            </div>
+                          </Button>
+                        )) : <div className="p-4 text-center text-sm text-muted-foreground">No controls available.</div>}
+                      </div>
+                    </ScrollArea>
                   </div>
                 </PopoverContent>
               </Popover>
-              <Input
-                type="text"
-                placeholder={chatMode === 'ai' ? "Ask the AI..." : "Message your team..."}
-                value={inputValue}
-                onChange={e => setInputValue(e.target.value)}
-                disabled={isAiThinking}
-              />
-              <Button type="submit" size="icon" disabled={isAiThinking}>
+
+              <div className="relative flex-1">
+                <Input
+                  type="text"
+                  placeholder="Ask about this report..."
+                  value={inputValue}
+                  onChange={e => setInputValue(e.target.value)}
+                  disabled={isAiThinking}
+                  className="pr-10"
+                />
+              </div>
+
+              <Button type="submit" size="icon" disabled={isAiThinking || !inputValue.trim()}>
                 <Send className="h-4 w-4" />
                 <span className="sr-only">Send</span>
               </Button>
@@ -411,33 +345,38 @@ export function ReportChatPanel({
       <Dialog open={isApplyModalOpen} onOpenChange={setIsApplyModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Apply Suggestion to Report</DialogTitle>
+            <DialogTitle>Apply Suggestion</DialogTitle>
             <DialogDescription>
-              Select a row to apply this AI suggestion to the 'Auditor Observation' column.
+              Choose where to apply this suggestion.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="p-2 bg-muted rounded-md text-sm text-muted-foreground">
-              <p><strong>Suggestion:</strong> "{selectedSuggestion}"</p>
+            <div className="p-3 bg-muted/50 rounded-md text-sm border">
+              <p className="font-medium mb-1 text-xs uppercase text-muted-foreground">From AI:</p>
+              <p>"{selectedSuggestion}"</p>
             </div>
-            <Select onValueChange={setSelectedRowId} value={selectedRowId || ''}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a report row..." />
-              </SelectTrigger>
-              <SelectContent>
-                {reportRows.map(row => (
-                  <SelectItem key={row.id} value={row.id}>
-                    {row.control || `Row ID: ${row.id.substring(0, 6)}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Target Control</label>
+              <Select onValueChange={setSelectedRowId} value={selectedRowId || ''}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a control row..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {reportRows.map(row => (
+                    <SelectItem key={row.id} value={row.id}>
+                      <span className="font-mono text-xs mr-2">{row.control.split(':')[0]}</span>
+                      <span className="truncate block max-w-[250px]">{row.control.split(':').slice(1).join(':')}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="ghost">Cancel</Button>
             </DialogClose>
-            <Button onClick={handleApplySuggestion} disabled={!selectedRowId}>Apply</Button>
+            <Button onClick={handleApplySuggestion} disabled={!selectedRowId}>Apply Suggestion</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

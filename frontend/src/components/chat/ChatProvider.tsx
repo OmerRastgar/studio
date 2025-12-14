@@ -95,7 +95,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
     // Normalize API_URL to remove trailing /api if present
     const rawApiUrl = typeof window !== 'undefined'
-        ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+        ? (process.env.NEXT_PUBLIC_API_URL || '')
         : '';
     const API_URL = rawApiUrl.endsWith('/api') ? rawApiUrl.slice(0, -4) : rawApiUrl;
 

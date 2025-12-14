@@ -46,7 +46,7 @@ export default function AdminProjectsPage() {
 
         setLoading(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/admin/projects`, {
                 headers: { Authorization: `Bearer ${token}` },
             });

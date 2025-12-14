@@ -43,7 +43,7 @@ export function AuditCalendar() {
         const fetchData = async () => {
             if (!token) return;
             try {
-                const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : '';
+                const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
                 const apiUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
 
                 // Fetch events
@@ -90,7 +90,7 @@ export function AuditCalendar() {
         if (!token || !newEvent.title || !newEvent.startTime) return;
 
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const apiUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
 
             await fetch(`${apiUrl}/api/auditor/events`, {

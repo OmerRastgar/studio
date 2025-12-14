@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, requireRole } from '../middleware/auth';
+import { webhookService } from '../services/webhookService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -16,7 +17,22 @@ router.use(requireRole(['admin', 'manager']) as any);
 // GET /api/manager/projects - List all projects
 router.get('/projects', async (req: Request, res: Response) => {
     try {
+        const user = (req as any).user;
+        const whereClause: any = {};
+
+        // Manager Isolation: Only see projects belonging to Managed Customers or Managed Auditors
+        if (user.role === 'manager') {
+            whereClause.OR = [
+                { customer: { managerId: user.userId } },
+                { auditor: { managerId: user.userId } },
+                { reviewerAuditor: { managerId: user.userId } },
+                // Also include projects where this manager is explicitly the customer's linked manager
+                // (Redundant if customer.managerId is covered, but safe)
+            ];
+        }
+
         const projects = await prisma.project.findMany({
+            where: whereClause,
             include: {
                 framework: true,
                 customer: { select: { id: true, name: true, email: true } },
@@ -197,6 +213,22 @@ router.get('/projects/:id', async (req: Request, res: Response) => {
 router.get('/dashboard', async (req: Request, res: Response) => {
     try {
         // Get counts and stats
+        const user = (req as any).user;
+        const projectWhere: any = {};
+        const customerWhere: any = { role: 'customer' };
+        const auditorWhere: any = { role: 'auditor' };
+
+        if (user.role === 'manager') {
+            customerWhere.managerId = user.userId;
+            auditorWhere.managerId = user.userId;
+
+            projectWhere.OR = [
+                { customer: { managerId: user.userId } },
+                { auditor: { managerId: user.userId } },
+                { reviewerAuditor: { managerId: user.userId } }
+            ];
+        }
+
         const [
             totalProjects,
             pendingProjects,
@@ -204,19 +236,20 @@ router.get('/dashboard', async (req: Request, res: Response) => {
             totalAuditors,
             projectsByStatus
         ] = await Promise.all([
-            prisma.project.count(),
-            prisma.project.count({ where: { status: 'pending' } }),
-            prisma.user.count({ where: { role: 'customer' } }),
-            prisma.user.count({ where: { role: 'auditor' } }),
+            prisma.project.count({ where: projectWhere }),
+            prisma.project.count({ where: { ...projectWhere, status: 'pending' } }),
+            prisma.user.count({ where: customerWhere }),
+            prisma.user.count({ where: auditorWhere }),
             prisma.project.groupBy({
                 by: ['status'],
+                where: projectWhere,
                 _count: { id: true }
             })
         ]);
 
         // Get overall compliance
         const projects = await prisma.project.findMany({
-            where: { status: 'approved' },
+            where: { ...projectWhere, status: 'approved' },
             include: { projectControls: true }
         });
 
@@ -260,8 +293,15 @@ router.get('/dashboard', async (req: Request, res: Response) => {
 // GET /api/manager/team-performance - Auditor workload and completion rates
 router.get('/team-performance', async (req: Request, res: Response) => {
     try {
+        const user = (req as any).user;
+        const whereClause: any = { role: 'auditor' };
+
+        if (user.role === 'manager') {
+            whereClause.managerId = user.userId;
+        }
+
         const auditors = await prisma.user.findMany({
-            where: { role: 'auditor' },
+            where: whereClause,
             select: {
                 id: true,
                 name: true,
@@ -314,8 +354,15 @@ router.get('/team-performance', async (req: Request, res: Response) => {
 // GET /api/manager/customers - Customer list with project summaries
 router.get('/customers', async (req: Request, res: Response) => {
     try {
+        const user = (req as any).user;
+        const whereClause: any = { role: 'customer' };
+
+        if (user.role === 'manager') {
+            whereClause.managerId = user.userId;
+        }
+
         const customers = await prisma.user.findMany({
-            where: { role: 'customer' },
+            where: whereClause,
             select: {
                 id: true,
                 name: true,
@@ -368,9 +415,15 @@ router.get('/customers', async (req: Request, res: Response) => {
 router.get('/customers/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        const user = (req as any).user;
+        const whereClause: any = { id, role: 'customer' };
+
+        if (user.role === 'manager') {
+            whereClause.managerId = user.userId;
+        }
 
         const customer = await prisma.user.findFirst({
-            where: { id, role: 'customer' },
+            where: whereClause,
             select: {
                 id: true,
                 name: true,
@@ -439,9 +492,23 @@ router.get('/customers/:id', async (req: Request, res: Response) => {
 // GET /api/manager/alerts - Pending approvals, overdue projects, bottlenecks
 router.get('/alerts', async (req: Request, res: Response) => {
     try {
+        const user = (req as any).user;
+        const projectWhere: any = {};
+
+        if (user.role === 'manager') {
+            projectWhere.customer = { managerId: user.userId };
+            // Alternatively, could include auditor check, but alerts are primarily about customer projects
+            // Using OR for comprehensive coverage if auditor is managed but customer isn't (rare)
+            projectWhere.OR = [
+                { customer: { managerId: user.userId } },
+                { auditor: { managerId: user.userId } },
+                { reviewerAuditor: { managerId: user.userId } }
+            ];
+        }
+
         // Pending project approvals
         const pendingProjects = await prisma.project.findMany({
-            where: { status: 'pending' },
+            where: { ...projectWhere, status: 'pending' },
             include: {
                 customer: { select: { id: true, name: true, email: true } },
                 framework: { select: { name: true } }
@@ -453,6 +520,7 @@ router.get('/alerts', async (req: Request, res: Response) => {
         const now = new Date();
         const overdueProjects = await prisma.project.findMany({
             where: {
+                ...projectWhere,
                 status: 'approved',
                 dueDate: { lt: now }
             },
@@ -464,7 +532,7 @@ router.get('/alerts', async (req: Request, res: Response) => {
 
         // Stalled projects (approved but less than 20% progress)
         const stalledProjects = await prisma.project.findMany({
-            where: { status: 'approved' },
+            where: { ...projectWhere, status: 'approved' },
             include: {
                 customer: { select: { id: true, name: true } },
                 auditor: { select: { id: true, name: true } },
@@ -538,10 +606,20 @@ router.put('/projects/:id/approve', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Project is not pending approval' });
         }
 
-        // Update project status and optionally assign auditor
-        const updateData: any = { status: 'approved' };
-        if (auditorId) updateData.auditorId = auditorId;
-        if (reviewerAuditorId) updateData.reviewerAuditorId = reviewerAuditorId;
+        // Update project status and REQUIRE auditor/reviewer
+        if (!auditorId || !reviewerAuditorId) {
+            return res.status(400).json({ error: 'Both Auditor and Reviewer must be assigned.' });
+        }
+
+        if (auditorId === reviewerAuditorId) {
+            return res.status(400).json({ error: 'Auditor and Reviewer cannot be the same person.' });
+        }
+
+        const updateData: any = {
+            status: 'in_progress',
+            auditorId,
+            reviewerAuditorId
+        };
         if (dueDate) updateData.dueDate = new Date(dueDate);
 
         await prisma.project.update({
@@ -549,7 +627,6 @@ router.put('/projects/:id/approve', async (req: Request, res: Response) => {
             data: updateData
         });
 
-        // Create project controls from framework controls
         if (project.framework?.controls?.length) {
             const controlsData = project.framework.controls.map((control: any) => ({
                 projectId: id,
@@ -560,6 +637,27 @@ router.put('/projects/:id/approve', async (req: Request, res: Response) => {
 
             await prisma.projectControl.createMany({
                 data: controlsData
+            });
+        }
+
+        // Fetch user details for webhook
+        const [auditor, reviewer] = await Promise.all([
+            prisma.user.findUnique({ where: { id: auditorId } }),
+            prisma.user.findUnique({ where: { id: reviewerAuditorId } })
+        ]);
+
+        // Send n8n webhook
+        if (auditor && reviewer) {
+            await webhookService.sendProjectApproved({
+                projectId: id,
+                projectName: project.name,
+                customerName: project.customerName,
+                framework: project.framework?.name || 'Unknown',
+                auditorName: auditor.name,
+                auditorEmail: auditor.email,
+                reviewerName: reviewer.name,
+                reviewerEmail: reviewer.email,
+                dueDate: project.dueDate ? project.dueDate.toISOString() : undefined
             });
         }
 
@@ -654,8 +752,15 @@ router.put('/projects/:id/assign', async (req: Request, res: Response) => {
 // GET /api/manager/auditors - List available auditors for assignment
 router.get('/auditors', async (req: Request, res: Response) => {
     try {
+        const user = (req as any).user;
+        const whereClause: any = { role: 'auditor', status: 'Active' };
+
+        if (user.role === 'manager') {
+            whereClause.managerId = user.userId;
+        }
+
         const auditors = await prisma.user.findMany({
-            where: { role: 'auditor', status: 'Active' },
+            where: whereClause,
             select: {
                 id: true,
                 name: true,
@@ -673,12 +778,19 @@ router.get('/auditors', async (req: Request, res: Response) => {
 });
 
 // GET /api/manager/auditors/:id - Detailed auditor stats
+// GET /api/manager/auditors/:id - Detailed auditor stats
 router.get('/auditors/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        const user = (req as any).user;
+        const whereClause: any = { id, role: 'auditor' };
+
+        if (user.role === 'manager') {
+            whereClause.managerId = user.userId;
+        }
 
         const auditor = await prisma.user.findFirst({
-            where: { id, role: 'auditor' },
+            where: whereClause,
             select: {
                 id: true,
                 name: true,
@@ -689,13 +801,30 @@ router.get('/auditors/:id', async (req: Request, res: Response) => {
                 auditorProjects: {
                     include: {
                         framework: { select: { name: true } },
-                        projectControls: true,
-                        customer: { select: { name: true } }
+                        projectControls: {
+                            select: {
+                                progress: true,
+                                isFlagged: true // Count mistakes
+                            }
+                        },
+                        customer: { select: { name: true } },
+                        timeLogs: true // Include logs for hours
                     },
                     orderBy: { createdAt: 'desc' }
                 },
                 reviewerProjects: {
-                    select: { id: true, name: true }
+                    include: {
+                        framework: { select: { name: true } },
+                        projectControls: {
+                            select: {
+                                progress: true,
+                                isFlagged: true
+                            }
+                        },
+                        customer: { select: { name: true } },
+                        timeLogs: true
+                    },
+                    orderBy: { createdAt: 'desc' }
                 }
             }
         });
@@ -704,27 +833,22 @@ router.get('/auditors/:id', async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Auditor not found' });
         }
 
-        // Calculate stats
-        const totalProjects = auditor.auditorProjects.length;
-        const completedProjects = auditor.auditorProjects.filter((p: any) => p.status === 'completed').length;
-        const activeProjects = auditor.auditorProjects.filter((p: any) => p.status === 'approved').length;
-
-        let totalProgress = 0;
-        let controlsCount = 0;
-        auditor.auditorProjects.forEach((project: any) => {
-            if (project.projectControls) {
-                project.projectControls.forEach((pc: any) => {
-                    totalProgress += pc.progress;
-                    controlsCount++;
-                });
-            }
-        });
-        const avgCompletion = controlsCount > 0 ? Math.round(totalProgress / controlsCount) : 0;
-
-        const projects = auditor.auditorProjects.map((project: any) => {
+        // Helper to format project data
+        const formatProject = (project: any) => {
             const projectProgress = project.projectControls?.length > 0
                 ? Math.round(project.projectControls.reduce((sum: number, pc: any) => sum + pc.progress, 0) / project.projectControls.length)
                 : 0;
+
+            // Calculate hours from timeLogs
+            const durationSeconds = project.timeLogs.reduce((sum: number, log: any) => sum + log.durationSeconds, 0);
+            const reviewSeconds = project.timeLogs.reduce((sum: number, log: any) => sum + log.reviewSeconds, 0);
+            const hours = Math.round((durationSeconds / 3600) * 10) / 10;
+            const reviewHours = Math.round((reviewSeconds / 3600) * 10) / 10;
+            const auditHours = Math.round(((durationSeconds - reviewSeconds) / 3600) * 10) / 10;
+
+            // Count mistakes (Flagged items)
+            const mistakes = project.projectControls.filter((pc: any) => pc.isFlagged).length;
+
             return {
                 id: project.id,
                 name: project.name,
@@ -734,9 +858,40 @@ router.get('/auditors/:id', async (req: Request, res: Response) => {
                 progress: projectProgress,
                 controlsCount: project.projectControls?.length || 0,
                 dueDate: project.dueDate,
-                createdAt: project.createdAt
+                createdAt: project.createdAt,
+                auditHours,
+                reviewHours,
+                totalHours: hours,
+                mistakes
             };
+        };
+
+        const auditProjects = auditor.auditorProjects.map(formatProject);
+        const reviewerProjects = auditor.reviewerProjects.map(formatProject);
+
+        // Calculate Global Stats
+        const completedProjects = [...auditor.auditorProjects, ...auditor.reviewerProjects]
+            .filter((p: any) => p.status === 'completed' || p.status === 'approved').length;
+
+        // Active = "in review" or working
+        const activeProjects = [...auditor.auditorProjects, ...auditor.reviewerProjects]
+            .filter((p: any) => p.status !== 'completed' && p.status !== 'rejected').length;
+
+        const totalAuditHours = auditProjects.reduce((sum, p) => sum + p.auditHours, 0);
+        const totalReviewHours = reviewerProjects.reduce((sum, p) => sum + p.reviewHours, 0);
+        const totalMistakes = auditProjects.reduce((sum, p) => sum + p.mistakes, 0) + reviewerProjects.reduce((sum, p) => sum + p.mistakes, 0);
+
+        let totalProgressSum = 0;
+        let totalControlsCount = 0;
+        [...auditor.auditorProjects, ...auditor.reviewerProjects].forEach((project: any) => {
+            if (project.projectControls) {
+                project.projectControls.forEach((pc: any) => {
+                    totalProgressSum += pc.progress;
+                    totalControlsCount++;
+                });
+            }
         });
+        const avgCompletion = totalControlsCount > 0 ? Math.round(totalProgressSum / totalControlsCount) : 0;
 
         res.json({
             success: true,
@@ -748,14 +903,16 @@ router.get('/auditors/:id', async (req: Request, res: Response) => {
                 createdAt: auditor.createdAt,
                 lastActive: auditor.lastActive,
                 stats: {
-                    totalProjects,
-                    completedProjects,
                     activeProjects,
-                    reviewingProjects: auditor.reviewerProjects?.length || 0,
+                    completedProjects,
                     avgCompletion,
-                    workload: totalProjects > 5 ? 'high' : totalProjects > 2 ? 'medium' : 'low'
+                    totalAuditHours: Math.round(totalAuditHours * 10) / 10,
+                    totalReviewHours: Math.round(totalReviewHours * 10) / 10,
+                    totalMistakes,
+                    workload: activeProjects > 5 ? 'high' : activeProjects > 2 ? 'medium' : 'low'
                 },
-                projects
+                auditProjects,
+                reviewerProjects
             }
         });
     } catch (error) {

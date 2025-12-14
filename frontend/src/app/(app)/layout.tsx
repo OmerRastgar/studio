@@ -23,11 +23,10 @@ import {
   Users
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ThemeProvider } from '@/components/providers';
 import { GuideProvider } from '@/components/guide';
 import { useAuth } from '../auth-provider';
-import { useRouter } from 'next/navigation';
 import { ChatProvider } from '@/components/chat/ChatProvider';
 import { GlobalChatPanel, ChatButton } from '@/components/chat/GlobalChatPanel';
 
@@ -35,7 +34,6 @@ function Nav() {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  // Define all navigation items with role permissions
   const allNavItems = [
     {
       href: '/dashboard',
@@ -136,6 +134,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     pathname.split('/').pop()?.replace('-', ' ')?.replace(/\b\w/g, (l) => l.toUpperCase()) ||
     'Dashboard';
 
+
+
   // Show loading spinner while checking authentication
   if (loading) {
     return (
@@ -145,9 +145,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If no user is authenticated, redirect to login
+  // If no user is authenticated (and not loading), return null (or loading state) while redirecting
   if (!user) {
-    router.push('/login');
     return null;
   }
 

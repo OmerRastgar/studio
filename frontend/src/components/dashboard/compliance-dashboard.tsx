@@ -34,7 +34,7 @@ export function ComplianceDashboardView() {
 
         setLoading(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/compliance/dashboard`, {
                 headers: {
                     Authorization: `Bearer ${token}`,

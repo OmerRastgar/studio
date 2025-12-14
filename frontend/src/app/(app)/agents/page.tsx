@@ -42,7 +42,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { mockAgents } from '@/lib/data-build';
+// import { mockAgents } from '@/lib/data-build';
+const mockAgents: any[] = [];
 import type { Agent } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { MoreHorizontal, PlusCircle, Search, Settings, Download, Trash2, Bot, Copy, Database } from 'lucide-react';

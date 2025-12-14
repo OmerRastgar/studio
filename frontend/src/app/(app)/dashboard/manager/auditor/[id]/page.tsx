@@ -19,7 +19,9 @@ import {
     Mail,
     Calendar,
     Target,
-    Eye
+    Eye,
+    AlertCircle,
+    Timer
 } from "lucide-react";
 
 interface AuditorProject {
@@ -32,14 +34,19 @@ interface AuditorProject {
     controlsCount: number;
     dueDate: string | null;
     createdAt: string;
+    auditHours: number;
+    reviewHours: number;
+    totalHours: number;
+    mistakes: number;
 }
 
 interface AuditorStats {
-    totalProjects: number;
-    completedProjects: number;
     activeProjects: number;
-    reviewingProjects: number;
+    completedProjects: number;
     avgCompletion: number;
+    totalAuditHours: number;
+    totalReviewHours: number;
+    totalMistakes: number;
     workload: string;
 }
 
@@ -51,7 +58,8 @@ interface AuditorDetail {
     createdAt: string;
     lastActive: string | null;
     stats: AuditorStats;
-    projects: AuditorProject[];
+    auditProjects: AuditorProject[];
+    reviewerProjects: AuditorProject[];
 }
 
 export default function AuditorDetailPage() {
@@ -65,7 +73,7 @@ export default function AuditorDetailPage() {
         if (!token || !params.id) return;
         setLoading(true);
         try {
-            const apiBase = 'http://localhost:8000';
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
             const res = await fetch(`${apiBase}/api/manager/auditors/${params.id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -152,21 +160,12 @@ export default function AuditorDetailPage() {
             <div className="grid gap-4 md:grid-cols-5">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-                        <FolderCheck className="w-4 h-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{auditor.stats.totalProjects}</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Active</CardTitle>
+                        <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
                         <Clock className="w-4 h-4 text-blue-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-blue-600">{auditor.stats.activeProjects}</div>
+                        <p className="text-xs text-muted-foreground">In progress</p>
                     </CardContent>
                 </Card>
 
@@ -177,16 +176,29 @@ export default function AuditorDetailPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-green-600">{auditor.stats.completedProjects}</div>
+                        <p className="text-xs text-muted-foreground">Finished audits</p>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Reviewing</CardTitle>
-                        <Eye className="w-4 h-4 text-purple-500" />
+                        <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
+                        <Timer className="w-4 h-4 text-orange-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-purple-600">{auditor.stats.reviewingProjects}</div>
+                        <div className="text-2xl font-bold">{auditor.stats.totalAuditHours.toFixed(1)}</div>
+                        <p className="text-xs text-muted-foreground">Review: {auditor.stats.totalReviewHours.toFixed(1)}h</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Mistakes</CardTitle>
+                        <AlertCircle className="w-4 h-4 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-red-600">{auditor.stats.totalMistakes}</div>
+                        <p className="text-xs text-muted-foreground">Flagged items</p>
                     </CardContent>
                 </Card>
 
@@ -202,43 +214,18 @@ export default function AuditorDetailPage() {
                 </Card>
             </div>
 
-            {/* Activity Info */}
+            {/* Audit Projects */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Activity</CardTitle>
-                </CardHeader>
-                <CardContent className="flex gap-8">
-                    <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Joined:</span>
-                        <span className="text-sm font-medium">
-                            {new Date(auditor.createdAt).toLocaleDateString()}
-                        </span>
-                    </div>
-                    {auditor.lastActive && (
-                        <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">Last Active:</span>
-                            <span className="text-sm font-medium">
-                                {new Date(auditor.lastActive).toLocaleDateString()}
-                            </span>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Projects Table */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Assigned Projects ({auditor.projects.length})</CardTitle>
-                    <CardDescription>All projects assigned to this auditor</CardDescription>
+                    <CardTitle>Audit Projects ({auditor.auditProjects.length})</CardTitle>
+                    <CardDescription>Projects where this user is the Primary Auditor</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {auditor.projects.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-8">No projects assigned</p>
+                    {auditor.auditProjects.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8">No audit projects assigned</p>
                     ) : (
                         <div className="space-y-3">
-                            {auditor.projects.map((project: AuditorProject) => (
+                            {auditor.auditProjects.map((project: AuditorProject) => (
                                 <div key={project.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-accent/50 transition-colors">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3">
@@ -254,20 +241,77 @@ export default function AuditorDetailPage() {
                                             <span>•</span>
                                             <span>{project.framework}</span>
                                             <span>•</span>
-                                            <span>{project.controlsCount} controls</span>
+                                            <span className="flex items-center gap-1">
+                                                <AlertCircle className="w-3 h-3 text-red-500" />
+                                                {project.mistakes} mistakes
+                                            </span>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-right">
+                                            <div className="text-sm font-medium">{project.auditHours}h</div>
+                                            <div className="text-xs text-muted-foreground">Audit Time</div>
+                                        </div>
                                         <div className="text-right">
                                             <div className="text-sm font-medium">{project.progress}%</div>
                                             <Progress value={project.progress} className="w-24 h-2" />
                                         </div>
-                                        {project.dueDate && (
-                                            <div className="text-right text-sm">
-                                                <div className="text-muted-foreground">Due</div>
-                                                <div>{new Date(project.dueDate).toLocaleDateString()}</div>
-                                            </div>
-                                        )}
+                                        <Link href={`/reports?projectId=${project.id}`}>
+                                            <Button variant="outline" size="sm">
+                                                <Target className="w-4 h-4 mr-1" />
+                                                View Report
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Review Projects */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Reviewer Projects ({auditor.reviewerProjects.length})</CardTitle>
+                    <CardDescription>Projects where this user is the Reviewer</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {auditor.reviewerProjects.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8">No reviewer projects assigned</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {auditor.reviewerProjects.map((project: AuditorProject) => (
+                                <div key={project.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-accent/50 transition-colors">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3">
+                                            <Link href={`/reports?projectId=${project.id}`} className="font-medium hover:text-primary hover:underline">
+                                                {project.name}
+                                            </Link>
+                                            <Badge className={getStatusColor(project.status)}>
+                                                {project.status}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                                            <span>{project.customer}</span>
+                                            <span>•</span>
+                                            <span>{project.framework}</span>
+                                            <span>•</span>
+                                            <span className="flex items-center gap-1">
+                                                <AlertCircle className="w-3 h-3 text-red-500" />
+                                                {project.mistakes} flagged
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-right">
+                                            <div className="text-sm font-medium">{project.reviewHours}h</div>
+                                            <div className="text-xs text-muted-foreground">Review Time</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-sm font-medium">{project.progress}%</div>
+                                            <Progress value={project.progress} className="w-24 h-2" />
+                                        </div>
                                         <Link href={`/reports?projectId=${project.id}`}>
                                             <Button variant="outline" size="sm">
                                                 <Target className="w-4 h-4 mr-1" />

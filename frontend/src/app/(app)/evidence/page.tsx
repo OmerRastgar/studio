@@ -50,15 +50,16 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
-import { MoreHorizontal, PlusCircle, Trash2, Edit, FolderArchive, X, UploadCloud, Tag, Loader2 } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash2, Edit, FolderArchive, X, UploadCloud, Tag, Loader2, ExternalLink } from 'lucide-react';
 import { useState, useMemo, Suspense, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { EvidenceUploadDialog } from '@/components/ui/evidence-upload-dialog';
 
 import { useAuth } from '@/app/auth-provider';
+import { useActivityTracker } from '@/hooks/use-activity-tracker';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 function getToken(): string | null {
     if (typeof window === 'undefined') return null;
@@ -139,6 +140,9 @@ function EvidencePageComponent() {
     const [currentEditTag, setCurrentEditTag] = useState('');
     const [updating, setUpdating] = useState(false);
 
+    // Time Tracking
+    const { trackActivity } = useActivityTracker({ projectId: selectedProject || null });
+
     // Fetch projects based on user role
     const fetchProjects = useCallback(async () => {
         const token = getToken();
@@ -152,10 +156,10 @@ function EvidencePageComponent() {
             // Try endpoints in order based on common roles
             // Note: API_URL may be '/api' in Docker, so don't include /api prefix in endpoints
             const endpoints = [
-                '/auditor/projects',
-                '/customer/projects',
-                '/manager/projects',
-                '/admin/projects'
+                '/api/auditor/projects',
+                '/api/customer/projects',
+                '/api/manager/projects',
+                '/api/admin/projects'
             ];
 
             let response: Response | null = null;
@@ -220,7 +224,7 @@ function EvidencePageComponent() {
 
         try {
             const response = await fetch(
-                `${API_URL}/evidence?projectId=${selectedProject}`,
+                `${API_URL}/api/evidence?projectId=${selectedProject}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
@@ -246,7 +250,7 @@ function EvidencePageComponent() {
 
         try {
             const response = await fetch(
-                `${API_URL}/auditor/projects/${selectedProject}/assessment`,
+                `${API_URL}/api/auditor/projects/${selectedProject}/assessment`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
@@ -309,7 +313,7 @@ function EvidencePageComponent() {
         if (!token) return;
 
         try {
-            const response = await fetch(`${API_URL}/evidence/${id}`, {
+            const response = await fetch(`${API_URL}/api/evidence/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -363,7 +367,7 @@ function EvidencePageComponent() {
 
         setUpdating(true);
         try {
-            const response = await fetch(`${API_URL}/evidence/${editingEvidence.id}`, {
+            const response = await fetch(`${API_URL}/api/evidence/${editingEvidence.id}`, {
                 method: 'PUT',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -419,6 +423,37 @@ function EvidencePageComponent() {
         );
     }
 
+    const getDownloadUrl = (url: string | null) => {
+        if (!url) return '#';
+
+        // If it's already a relative proxy URL, prepend API_URL (which is empty string usually, so relative to domain)
+        if (url.startsWith('/api/uploads/download')) {
+            return url;
+        }
+
+        // If it's a legacy MinIO URL (internal docker DNS), convert to proxy URL
+        // Format: http://minio:9000/evidence/PROJECTID/FILEID.ext
+        if (url.includes('minio:9000')) {
+            try {
+                // Extract project ID and filename from URL
+                // url parts: http:, , minio:9000, evidence, projectId, filename
+                const parts = url.split('/');
+                const filenameIndex = parts.length - 1;
+                const projectIdIndex = parts.length - 2;
+
+                if (filenameIndex > 0 && projectIdIndex > 0) {
+                    const filename = parts[filenameIndex];
+                    const projectId = parts[projectIdIndex];
+                    return `/api/uploads/download/${projectId}/${filename}`;
+                }
+            } catch (e) {
+                console.error('Failed to parse legacy URL', e);
+            }
+        }
+
+        return url;
+    };
+
     return (
         <>
             <Card>
@@ -461,6 +496,7 @@ function EvidencePageComponent() {
                             onSuccess={() => {
                                 setIsUploadDialogOpen(false);
                                 fetchEvidence();
+                                trackActivity('attaching');
                             }}
                         />
                     </div>
@@ -483,7 +519,17 @@ function EvidencePageComponent() {
                             <TableBody>
                                 {filteredEvidence.map((evidence) => (
                                     <TableRow key={evidence.id}>
-                                        <TableCell className="font-medium">{evidence.fileName}</TableCell>
+                                        <TableCell className="font-medium">
+                                            <a
+                                                href={getDownloadUrl(evidence.fileUrl)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="hover:underline text-primary flex items-center gap-2"
+                                            >
+                                                {evidence.fileName}
+                                                <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                        </TableCell>
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1">
                                                 {evidence.controls && evidence.controls.length > 0 ? (

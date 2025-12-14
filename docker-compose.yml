@@ -29,12 +29,14 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
+      - ./README.md:/app/README.md
     command: sh ./scripts/init-dev.sh
     user: root
     environment:
       NODE_ENV: development
       PORT: 4000
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-audituser}:${POSTGRES_PASSWORD:-auditpass}@postgres:5432/${POSTGRES_DB:-auditdb}}
+      WATCHPACK_POLLING: "true"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-audituser}:${POSTGRES_PASSWORD:-auditpass}@postgres:5432/${POSTGRES_DB:-auditdb}
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-this-in-production}
       # MinIO Configuration
       MINIO_ENDPOINT: minio
@@ -96,7 +98,9 @@ services:
       LOKI_URL: ${LOKI_URL:-http://loki:3100}
       TEMPO_URL: ${TEMPO_URL:-http://tempo:4318/v1/traces}
       # API URL (Client-side calls go to Kong)
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api
+      NEXT_PUBLIC_API_URL: ""
+      # Force Webpack to poll for changes (Fixes Windows/Docker sync issues)
+      WATCHPACK_POLLING: "true"
     networks:
       - default
 
@@ -144,9 +148,29 @@ services:
     networks:
       - default
 
+  # n8n Workflow Automation
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: studio-n8n
+    restart: unless-stopped
+    ports:
+      - "5800:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:5800/
+      - GENERIC_TIMEZONE=UTC
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - default
+
 volumes:
   postgres_data:
   minio_data:
+  n8n_data:
 
 
 networks:

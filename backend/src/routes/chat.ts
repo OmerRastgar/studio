@@ -11,36 +11,37 @@ router.use(authenticate as any);
 // Helper: Get contacts a user can chat with based on their role
 async function getAvailableContacts(userId: string, rawRole: string) {
     const userRole = rawRole?.toLowerCase();
-    console.log(`[Chat] getAvailableContacts called for userId=${userId} role=${userRole} (raw=${rawRole})`);
 
-    // Debug: Log all users to see what's available
-    const allUsersCount = await prisma.user.count();
-    console.log(`[Chat] Total users in DB: ${allUsersCount}`);
+    // Fetch full user details to know managerId and other links
+    const currentUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, role: true, managerId: true }
+    });
+
+    if (!currentUser) return [];
+
+    console.log(`[Chat] getAvailableContacts called for userId=${userId} role=${userRole}`);
 
     switch (userRole) {
         case 'customer':
             // Customers can chat with:
-            // 1. Assigned auditors (via projects)
-            // 2. Reviewer auditors (via projects)
-            // 3. All Managers (assuming they oversee projects)
-            // 4. Users in existing conversations
+            // 1. Their Manager
+            // 2. Assigned auditors (via projects)
+            // 3. Admin (optional, but good for support)
             const customerContacts = await prisma.user.findMany({
                 where: {
                     OR: [
-                        // Assigned auditors
+                        { id: currentUser.managerId || '' }, // Their Manager
+                        { role: 'admin' }, // Support
+                        // Assigned auditors/reviewers
                         { auditorProjects: { some: { customerId: userId } } },
-                        // Reviewer auditors
                         { reviewerProjects: { some: { customerId: userId } } },
-                        // All Managers
-                        { role: 'manager' },
-                        // Users in existing conversations
+                        // Existing conversations
                         {
                             conversationParticipants: {
                                 some: {
                                     conversation: {
-                                        participants: {
-                                            some: { userId: userId }
-                                        }
+                                        participants: { some: { userId: userId } }
                                     }
                                 }
                             }
@@ -49,62 +50,64 @@ async function getAvailableContacts(userId: string, rawRole: string) {
                     id: { not: userId }
                 },
                 select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    avatarUrl: true,
-                    role: true,
-                    lastActive: true
+                    id: true, name: true, email: true, avatarUrl: true, role: true, lastActive: true
                 }
             });
-            console.log(`[Chat] Found ${customerContacts.length} contacts for customer`);
             return customerContacts;
 
         case 'auditor':
             // Auditors can chat with:
-            // 1. Assigned customers
-            // 2. All other auditors, managers, and admins
+            // 1. Their Manager
+            // 2. Assigned customers
+            // 3. Admin
             const auditorContacts = await prisma.user.findMany({
                 where: {
                     OR: [
+                        { id: currentUser.managerId || '' }, // Their Manager
+                        { role: 'admin' },
+                        // Assigned customers
                         { customerProjects: { some: { auditorId: userId } } },
-                        { customerProjects: { some: { reviewerAuditorId: userId } } },
-                        { role: { in: ['auditor', 'manager', 'admin'] } }
+                        { customerProjects: { some: { reviewerAuditorId: userId } } }
                     ],
                     id: { not: userId }
                 },
                 select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    avatarUrl: true,
-                    role: true,
-                    lastActive: true
+                    id: true, name: true, email: true, avatarUrl: true, role: true, lastActive: true
                 }
             });
-            console.log(`[Chat] Found ${auditorContacts.length} contacts for auditor`);
             return auditorContacts;
 
         case 'manager':
+            // Managers can chat with:
+            // 1. Admin
+            // 2. Their created Users (Auditors, Customers, Compliance)
+            // 3. Anyone reporting to them (managerId check)
+            const managerContacts = await prisma.user.findMany({
+                where: {
+                    OR: [
+                        { role: 'admin' },
+                        { managerId: userId }, // Direct reports
+                        { linkedCustomer: { managerId: userId } } // Linked compliance users
+                    ],
+                    id: { not: userId }
+                },
+                select: {
+                    id: true, name: true, email: true, avatarUrl: true, role: true, lastActive: true
+                }
+            });
+            return managerContacts;
+
         case 'admin':
-            // Managers and admins can chat with everyone
-            console.log(`[Chat] Fetching all contacts for ${userRole}`);
+            // Admins can chat with everyone
             const allContacts = await prisma.user.findMany({
                 where: { id: { not: userId } },
                 select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    avatarUrl: true,
-                    role: true,
-                    lastActive: true
+                    id: true, name: true, email: true, avatarUrl: true, role: true, lastActive: true
                 }
             });
-            console.log(`[Chat] Found ${allContacts.length} contacts for ${userRole}`);
             return allContacts;
 
         default:
-            console.log(`[Chat] Unknown role ${userRole}, returning empty contacts`);
             return [];
     }
 }

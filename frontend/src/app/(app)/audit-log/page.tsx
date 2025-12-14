@@ -12,7 +12,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { mockAuditLogs } from '@/lib/data-build';
+// import { mockAuditLogs } from '@/lib/data-build';
+const mockAuditLogs: any[] = [];
 import type { AuditLog } from '@/lib/types';
 import { format } from 'date-fns';
 import { useState, useMemo, useEffect } from 'react';

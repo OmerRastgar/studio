@@ -78,7 +78,7 @@ function ManagerProjectsContent() {
     const fetchAuditors = async () => {
         if (!token) return;
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/manager/auditors`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -96,7 +96,7 @@ function ManagerProjectsContent() {
 
         setLoading(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/manager/projects`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -152,7 +152,7 @@ function ManagerProjectsContent() {
 
         setApproving(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/manager/projects/${selectedProject.id}/approve`, {
                 method: 'PUT',
                 headers: {
@@ -190,7 +190,7 @@ function ManagerProjectsContent() {
 
         setApproving(true); // Reusing 'approving' state for assignment
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/manager/projects/${selectedProject.id}/assign`, {
                 method: 'PUT',
                 headers: {
@@ -219,7 +219,7 @@ function ManagerProjectsContent() {
 
         setApproving(true); // Reusing 'approving' state for editing
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/manager/projects/${selectedProject.id}`, {
                 method: 'PUT',
                 headers: {
@@ -246,12 +246,35 @@ function ManagerProjectsContent() {
     };
 
     const filteredProjects = projects.filter(project =>
-        (project.name && project.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (project.framework && project.framework.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (project.customer && project.customer.name && project.customer.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (project.auditor && project.auditor.name && project.auditor.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (project.reviewer && project.reviewer.name && project.reviewer.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        project.status !== 'rejected' && // Hide rejected projects (Initial rejection)
+        ((project.name && project.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (project.framework && project.framework.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (project.customer && project.customer.name && project.customer.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (project.auditor && project.auditor.name && project.auditor.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (project.reviewer && project.reviewer.name && project.reviewer.name.toLowerCase().includes(searchQuery.toLowerCase())))
     );
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'approved': return 'default'; // Blue/Primary
+            case 'completed': return 'success'; // Green (if supported) or 'secondary'
+            case 'in_progress': return 'secondary'; // Blue-ish
+            case 'review_pending': return 'secondary'; // Purple-ish
+            case 'returned': return 'destructive'; // Orange/Red (Attention needed)
+            default: return 'outline';
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'approved': return 'bg-blue-600';
+            case 'completed': return 'bg-green-600';
+            case 'in_progress': return 'bg-blue-500';
+            case 'review_pending': return 'bg-purple-500';
+            case 'returned': return 'bg-orange-500';
+            default: return 'bg-gray-500';
+        }
+    };
 
     if (loading) {
         return (
@@ -307,12 +330,8 @@ function ManagerProjectsContent() {
                                     {project.framework && (
                                         <Badge variant="outline">{project.framework}</Badge>
                                     )}
-                                    <Badge variant={
-                                        project.status === 'approved' ? 'default' :
-                                            project.status === 'completed' ? 'secondary' :
-                                                project.status === 'rejected' ? 'destructive' : 'outline'
-                                    } className="capitalize text-xs">
-                                        {project.status}
+                                    <Badge className={`${getStatusColor(project.status)} text-white capitalize text-xs hover:${getStatusColor(project.status)}`}>
+                                        {project.status.replace('_', ' ')}
                                     </Badge>
                                 </div>
                             </div>
@@ -394,7 +413,7 @@ function ManagerProjectsContent() {
                                             Review & Approve
                                         </Button>
                                     )}
-                                    {project.status === 'approved' && (
+                                    {['approved', 'in_progress', 'review_pending', 'returned'].includes(project.status) && (
                                         <Button
                                             size="sm"
                                             variant="outline"

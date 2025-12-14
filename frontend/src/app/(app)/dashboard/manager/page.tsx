@@ -93,6 +93,7 @@ function ManagerDashboardContent() {
     const [showApproveDialog, setShowApproveDialog] = useState(false);
     const [selectedProject, setSelectedProject] = useState<Alert | null>(null);
     const [selectedAuditor, setSelectedAuditor] = useState<string>("");
+    const [selectedReviewer, setSelectedReviewer] = useState<string>("");
     const [approving, setApproving] = useState(false);
 
     // Reject dialog
@@ -105,7 +106,7 @@ function ManagerDashboardContent() {
         if (!token) return;
         setLoading(true);
         try {
-            const apiBase = 'http://localhost:8000';
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
             const [metricsRes, alertsRes, auditorsRes] = await Promise.all([
                 fetch(`${apiBase}/api/manager/dashboard`, { headers: { Authorization: `Bearer ${token}` } }),
                 fetch(`${apiBase}/api/manager/alerts`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -136,20 +137,21 @@ function ManagerDashboardContent() {
         if (!selectedProject) return;
         setApproving(true);
         try {
-            const apiBase = 'http://localhost:8000';
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
             const res = await fetch(`${apiBase}/api/manager/projects/${selectedProject.entityId}/approve`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ auditorId: selectedAuditor || undefined })
+                body: JSON.stringify({ auditorId: selectedAuditor, reviewerAuditorId: selectedReviewer })
             });
             const data = await res.json();
             if (data.success) {
                 setShowApproveDialog(false);
                 setSelectedProject(null);
                 setSelectedAuditor("");
+                setSelectedReviewer("");
                 fetchData();
             }
         } catch (err) {
@@ -163,7 +165,7 @@ function ManagerDashboardContent() {
         if (!rejectProject || !rejectReason.trim()) return;
         setRejecting(true);
         try {
-            const apiBase = 'http://localhost:8000';
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
             const res = await fetch(`${apiBase}/api/manager/projects/${rejectProject.entityId}/reject`, {
                 method: 'PUT',
                 headers: {
@@ -189,6 +191,7 @@ function ManagerDashboardContent() {
     const openApproveDialog = (alert: Alert) => {
         setSelectedProject(alert);
         setSelectedAuditor("");
+        setSelectedReviewer("");
         setShowApproveDialog(true);
     };
 
@@ -218,8 +221,8 @@ function ManagerDashboardContent() {
         );
     }
 
-    const pendingAlerts = alerts.filter((a: Alert) => a.type === 'pending_approval');
-    const otherAlerts = alerts.filter((a: Alert) => a.type !== 'pending_approval');
+    const pendingAlerts = alerts.filter(a => a.type === 'pending_approval');
+    const otherAlerts = alerts.filter(a => a.type !== 'pending_approval');
 
     return (
         <div className="space-y-6">
@@ -420,15 +423,30 @@ function ManagerDashboardContent() {
                     <DialogHeader>
                         <DialogTitle>Approve Project</DialogTitle>
                         <DialogDescription>
-                            Optionally assign an auditor to this project.
+                            You must assign both an Auditor and a Reviewer to proceed.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div>
-                            <Label>Assign Auditor (Optional)</Label>
+                            <Label>Assign Auditor (Required)</Label>
                             <Select value={selectedAuditor} onValueChange={setSelectedAuditor}>
                                 <SelectTrigger className="mt-2">
                                     <SelectValue placeholder="Select an auditor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {auditors.map((auditor: Auditor) => (
+                                        <SelectItem key={auditor.id} value={auditor.id}>
+                                            {auditor.name} ({auditor.projectCount} projects)
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>Assign Reviewer (Required)</Label>
+                            <Select value={selectedReviewer} onValueChange={setSelectedReviewer}>
+                                <SelectTrigger className="mt-2">
+                                    <SelectValue placeholder="Select a reviewer" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {auditors.map((auditor: Auditor) => (
@@ -444,7 +462,11 @@ function ManagerDashboardContent() {
                         <Button variant="outline" onClick={() => setShowApproveDialog(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleApprove} disabled={approving} className="bg-green-600 hover:bg-green-700">
+                        <Button
+                            onClick={handleApprove}
+                            disabled={approving || !selectedAuditor || !selectedReviewer}
+                            className="bg-green-600 hover:bg-green-700"
+                        >
                             {approving ? "Approving..." : "Approve Project"}
                         </Button>
                     </DialogFooter>

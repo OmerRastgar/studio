@@ -37,7 +37,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         const hasAccess =
             userRole === 'admin' ||
             userRole === 'manager' ||
-            (userRole === 'auditor' && project.auditorId === userId) ||
+            (userRole === 'auditor' && (project.auditorId === userId || project.reviewerAuditorId === userId)) ||
+            (userRole === 'reviewer' && (project.auditorId === userId || project.reviewerAuditorId === userId)) ||
             (userRole === 'customer' && project.customerId === userId) ||
             project.projectShares.some(share => share.userId === userId);
 

@@ -39,6 +39,37 @@ export function EvidenceList({ evidence }: EvidenceListProps) {
         });
     };
 
+    const getDownloadUrl = (url: string) => {
+        if (!url) return '#';
+
+        // If it's already a relative proxy URL, prepend API_URL (which is empty string usually, so relative to domain)
+        if (url.startsWith('/api/uploads/download')) {
+            return url;
+        }
+
+        // If it's a legacy MinIO URL (internal docker DNS), convert to proxy URL
+        // Format: http://minio:9000/evidence/PROJECTID/FILEID.ext
+        if (url.includes('minio:9000')) {
+            try {
+                // Extract project ID and filename from URL
+                // url parts: http:, , minio:9000, evidence, projectId, filename
+                const parts = url.split('/');
+                const filenameIndex = parts.length - 1;
+                const projectIdIndex = parts.length - 2;
+
+                if (filenameIndex > 0 && projectIdIndex > 0) {
+                    const filename = parts[filenameIndex];
+                    const projectId = parts[projectIdIndex];
+                    return `/api/uploads/download/${projectId}/${filename}`;
+                }
+            } catch (e) {
+                console.error('Failed to parse legacy URL', e);
+            }
+        }
+
+        return url;
+    };
+
     return (
         <div className="space-y-2">
             {evidence.map((item) => (
@@ -100,7 +131,7 @@ export function EvidenceList({ evidence }: EvidenceListProps) {
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(item.fileUrl, "_blank")}
+                            onClick={() => window.open(getDownloadUrl(item.fileUrl), "_blank")}
                         >
                             <ExternalLink className="w-4 h-4" />
                         </Button>

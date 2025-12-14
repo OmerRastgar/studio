@@ -56,7 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Fetch user info via Kong
       try {
-        const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+        // Use relative path so it works with ngrok/proxies
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
         const response = await fetch(`${apiBase}/api/auth/me`, {
           headers: {
             Authorization: `Bearer ${storedToken}`,

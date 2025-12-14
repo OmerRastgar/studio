@@ -76,7 +76,7 @@ export default function UserManagementPage() {
 
         setLoading(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/admin/users`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -106,7 +106,7 @@ export default function UserManagementPage() {
         setFormError(null);
 
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/admin/users`, {
                 method: "POST",
                 headers: {
@@ -138,7 +138,7 @@ export default function UserManagementPage() {
         setFormError(null);
 
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const updateData: any = {
                 name: formData.name,
                 email: formData.email,
@@ -176,7 +176,7 @@ export default function UserManagementPage() {
         if (!confirm("Are you sure you want to delete this user?")) return;
 
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/admin/users/${userId}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },

@@ -88,8 +88,11 @@ model EvidenceItem {
 // Project status for approval workflow
 enum ProjectStatus {
   pending
+  in_progress
+  review_pending
   approved
   rejected
+  returned
   completed
 }
 
@@ -120,6 +123,8 @@ model Project {
   auditor         User?      @relation("AuditorProjects", fields: [auditorId], references: [id])
   reviewerAuditor User?      @relation("ReviewerProjects", fields: [reviewerAuditorId], references: [id])
   framework       Framework? @relation(fields: [frameworkId], references: [id])
+  timeLogs        ProjectTimeLog[]
+  projectIssues   ProjectIssue[]
   
   @@map("projects")
 }
@@ -148,11 +153,20 @@ model User {
   status      UserStatus @default(Active)
   lastActive  DateTime?  @map("last_active")
   createdById String?    @map("created_by_id")
+  managerId   String?    @map("manager_id") // Link to Manager
+  linkedCustomerId String? @map("linked_customer_id") // Link Compliance to Customer
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
   
   createdBy                    User?                       @relation("CreatedUsers", fields: [createdById], references: [id])
   createdUsers                 User[]                      @relation("CreatedUsers")
+  
+  manager                      User?                       @relation("ManagerUsers", fields: [managerId], references: [id])
+  managedUsers                 User[]                      @relation("ManagerUsers")
+
+  linkedCustomer               User?                       @relation("CustomerCompliance", fields: [linkedCustomerId], references: [id])
+  complianceUsers              User[]                      @relation("CustomerCompliance")
+
   auditor                      Auditor?
   userCourses                  UserCourse[]
   customerProjects             Project[]                   @relation("CustomerProjects")
@@ -167,6 +181,8 @@ model User {
   customerRequests             AuditRequest[]              @relation("CustomerRequests")
   auditorEvents                AuditEvent[]                @relation("AuditorEvents")
   customerEvents               AuditEvent[]                @relation("CustomerEvents")
+  timeLogs                     ProjectTimeLog[]
+  reportedIssues               ProjectIssue[]              @relation("CustomerIssues")
   
   @@map("users")
 }
@@ -312,6 +328,7 @@ model AuditEvent {
   auditor  User     @relation("AuditorEvents", fields: [auditorId], references: [id])
   customer User?    @relation("CustomerEvents", fields: [customerId], references: [id])
   project  Project? @relation(fields: [projectId], references: [id])
+  syncedToJira Boolean @default(false) @map("synced_to_jira") // Track if meeting sent to Jira
 
   @@map("audit_events")
 }
@@ -417,4 +434,47 @@ enum ActivityStatus {
 enum TagSource {
   manual
   tagging_engine
+}
+
+model ProjectTimeLog {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
+  userId    String   @map("user_id")
+  date      DateTime @db.Date // Store purely as date (midnight UTC)
+  
+  // Duration in seconds
+  durationSeconds      Int @default(0) @map("duration_seconds")
+  writingSeconds       Int @default(0) @map("writing_seconds")
+  attachingSeconds     Int @default(0) @map("attaching_seconds")
+  chatSeconds          Int @default(0) @map("chat_seconds")
+  reviewSeconds        Int @default(0) @map("review_seconds")
+  syncedSeconds        Int @default(0) @map("synced_seconds") // Hours already sent to Jira
+  meetingSyncedSeconds Int @default(0) @map("meeting_synced_seconds") // Meeting hours sent to Jira
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId, date])
+  @@map("project_time_logs")
+}
+
+// Customer Reported Issues
+model ProjectIssue {
+  id          String   @id @default(uuid())
+  projectId   String   @map("project_id")
+  customerId  String   @map("customer_id")
+  title       String
+  description String
+  status      String   @default("open") // open, resolved, in_progress
+  resolution  String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project     Project  @relation(fields: [projectId], references: [id])
+  customer    User     @relation("CustomerIssues", fields: [customerId], references: [id])
+
+  @@map("project_issues")
 }

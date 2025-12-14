@@ -61,7 +61,7 @@ export default function ProjectDetailPage() {
 
         setLoading(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             let endpoint = '';
 
             switch (user.role) {
@@ -170,10 +170,10 @@ export default function ProjectDetailPage() {
                 {isAuditor && (
                     <Button
                         variant="default"
-                        onClick={() => router.push(`/dashboard/auditor/projects/${projectId}/report`)}
+                        onClick={() => router.push(`/reports?projectId=${projectId}`)}
                     >
                         <FileText className="w-4 h-4 mr-2" />
-                        Generate Report
+                        View Report
                     </Button>
                 )}
             </div>

@@ -125,8 +125,11 @@ router.post('/', upload.array('files', 20), async (req: AuthRequest, res: Respon
                 { 'Content-Type': file.mimetype }
             );
 
-            // Generate URL (MinIO internal URL for now)
-            const fileUrl = `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${BUCKET_NAME}/${objectName}`;
+            // Generate URL (Use proxy route for external access)
+            const fileUrl = `/api/uploads/download/${projectId}/${uniqueId}${ext}`;
+
+            // Log for debugging
+            console.log(`Generated file URL for ${file.originalname}: ${fileUrl}`);
 
             uploadResults.push({
                 fileName: file.originalname,
@@ -147,6 +150,23 @@ router.post('/', upload.array('files', 20), async (req: AuthRequest, res: Respon
     } catch (error) {
         console.error('Error uploading files:', error);
         return res.status(500).json({ error: 'Failed to upload files' });
+    }
+});
+
+/**
+ * GET /api/uploads/download/:projectId/:fileId
+ * Proxy file download from MinIO
+ */
+router.get('/download/:projectId/:fileId', async (req: AuthRequest, res: Response) => {
+    try {
+        const { projectId, fileId } = req.params;
+        const objectName = `${projectId}/${fileId}`;
+
+        const dataStream = await minioClient.getObject(BUCKET_NAME, objectName);
+        dataStream.pipe(res);
+    } catch (error) {
+        console.error('Error downloading file:', error);
+        return res.status(500).json({ error: 'Failed to download file' });
     }
 });
 

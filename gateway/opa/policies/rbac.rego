@@ -30,16 +30,28 @@ allow if {
     lower(input.user.role) in ["admin", "manager"]
 }
 
-# Auditor routes (admin + auditor + manager for view-only reports access)
+# Auditor routes (admin + auditor + manager [read-only])
 allow if {
     startswith(input.path, "/api/auditor")
-    lower(input.user.role) in ["admin", "auditor", "manager"]
+    lower(input.user.role) in ["admin", "auditor"]
 }
 
-# Customer routes (admin + customer)
+allow if {
+    startswith(input.path, "/api/auditor")
+    lower(input.user.role) == "manager"
+    input.method == "GET"
+}
+
+# Customer routes (admin + customer + manager [read-only])
 allow if {
     startswith(input.path, "/api/customer")
     lower(input.user.role) in ["admin", "customer"]
+}
+
+allow if {
+    startswith(input.path, "/api/customer")
+    lower(input.user.role) == "manager"
+    input.method == "GET"
 }
 
 # =============================================
@@ -73,10 +85,17 @@ allow if {
 # USER MANAGEMENT ROUTES
 # =============================================
 
-# User list/management - admin and manager only
+# User list/management - admin and manager
+# Managers cannot DELETE users, only Admin
 allow if {
     startswith(input.path, "/api/users")
-    lower(input.user.role) in ["admin", "manager"]
+    lower(input.user.role) == "admin"
+}
+
+allow if {
+    startswith(input.path, "/api/users")
+    lower(input.user.role) == "manager"
+    input.method != "DELETE"
 }
 
 # =============================================
@@ -127,4 +146,9 @@ allow if {
 # CORS preflight requests
 allow if {
     input.method == "OPTIONS"
+}
+
+# System routes (public for readme)
+allow if {
+    startswith(input.path, "/api/system")
 }

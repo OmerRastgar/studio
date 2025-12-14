@@ -103,7 +103,7 @@ export function EvidenceUploadDialog({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+    const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
 
     // File handling
     const handleFiles = useCallback((files: FileList | null) => {

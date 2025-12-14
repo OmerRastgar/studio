@@ -67,8 +67,14 @@ router.get('/dashboard', async (req, res) => {
             ? Math.round(projectStats.reduce((sum, p) => sum + p.progress, 0) / projectStats.length)
             : 0;
 
-        // Get primary auditor (from first project)
-        const primaryAuditor = projectStats[0]?.auditor || null;
+        // Get assigned auditors (deduplicated)
+        const auditorsMap = new Map();
+        projects.forEach((p: any) => {
+            if (p.auditor) {
+                auditorsMap.set(p.auditor.id, p.auditor);
+            }
+        });
+        const assignedAuditors = Array.from(auditorsMap.values());
 
         res.json({
             success: true,
@@ -79,7 +85,7 @@ router.get('/dashboard', async (req, res) => {
                     overallCompliance,
                 },
                 projects: projectStats,
-                auditor: primaryAuditor,
+                assignedAuditors
             }
         });
     } catch (error) {
@@ -405,6 +411,46 @@ router.put('/requests/:id', async (req, res) => {
     } catch (error) {
         console.error('Update request error:', error);
         res.status(500).json({ error: 'Failed to update request' });
+    }
+});
+
+// POST /api/customer/issues - Report an issue
+router.post('/issues', async (req, res) => {
+    try {
+        const userId = (req as any).user?.userId;
+        const { projectId, title, description } = req.body;
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        if (!projectId || !title || !description) {
+            return res.status(400).json({ error: 'Project, title, and description are required' });
+        }
+
+        // Verify project ownership
+        const project = await prisma.project.findFirst({
+            where: { id: projectId, customerId: userId }
+        });
+
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        const issue = await prisma.projectIssue.create({
+            data: {
+                projectId,
+                customerId: userId,
+                title,
+                description,
+                status: 'open'
+            }
+        });
+
+        res.status(201).json({ success: true, data: issue });
+    } catch (error) {
+        console.error('Report issue error:', error);
+        res.status(500).json({ error: 'Failed to report issue' });
     }
 });
 

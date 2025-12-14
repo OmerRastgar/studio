@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ExternalLink } from "lucide-react";
+import { Search, ExternalLink, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 
@@ -44,7 +44,7 @@ export function CustomerAssignmentList() {
         const fetchCustomers = async () => {
             if (!token) return;
             try {
-                const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : '';
+                const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
                 const apiUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
 
                 const res = await fetch(`${apiUrl}/api/auditor/customers`, {
@@ -125,12 +125,26 @@ export function CustomerAssignmentList() {
                                     <TableCell>
                                         <div className="flex flex-col gap-1">
                                             {customer.projects.map(p => (
-                                                <Link key={p.id} href={`/dashboard/project/${p.id}`} className="block">
-                                                    <div className="flex items-center gap-2 text-sm hover:underline cursor-pointer">
-                                                        <span className="truncate max-w-[150px]">{p.name}</span>
-                                                        <Badge variant="outline" className="text-xs">{p.status}</Badge>
+                                                <div key={p.id} className="flex items-center justify-between mb-2 last:mb-0">
+                                                    <Link href={`/dashboard/project/${p.id}`} className="block flex-1 mr-2">
+                                                        <div className="flex items-center gap-2 text-sm hover:underline cursor-pointer group">
+                                                            <span className="truncate max-w-[150px] font-medium group-hover:text-primary transition-colors">{p.name}</span>
+                                                            <Badge variant={p.status === 'approved' ? 'default' : p.status === 'returned' ? 'destructive' : 'outline'} className="text-[10px] px-1 py-0 h-5 capitalize">{p.status?.replace('_', ' ') || 'In Progress'}</Badge>
+                                                        </div>
+                                                    </Link>
+                                                    <div className="flex gap-1">
+                                                        <Link href={`/dashboard/project/${p.id}`}>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6" title="View Details">
+                                                                <ExternalLink className="h-3 w-3" />
+                                                            </Button>
+                                                        </Link>
+                                                        <Link href={`/reports?projectId=${p.id}`}>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6" title="Open Audit Report">
+                                                                <FileText className="h-3 w-3" />
+                                                            </Button>
+                                                        </Link>
                                                     </div>
-                                                </Link>
+                                                </div>
                                             ))}
                                             {customer.projects.length === 0 && (
                                                 <span className="text-muted-foreground text-sm">No active projects</span>
@@ -138,9 +152,7 @@ export function CustomerAssignmentList() {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Button variant="ghost" size="sm">
-                                            View Details <ExternalLink className="ml-2 h-3 w-3" />
-                                        </Button>
+                                        <span className="text-muted-foreground text-xs">--</span>
                                     </TableCell>
                                 </TableRow>
                             ))
@@ -148,6 +160,6 @@ export function CustomerAssignmentList() {
                     </TableBody>
                 </Table>
             </CardContent>
-        </Card>
+        </Card >
     );
 }

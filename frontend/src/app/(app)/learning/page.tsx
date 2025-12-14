@@ -27,7 +27,14 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { mockLearningData, mockCustomerCourses } from '@/lib/data-build';
+// import { mockLearningData, mockCustomerCourses } from '@/lib/data-build';
+const mockLearningData = {
+  performanceStats: {} as any,
+  commonErrors: [] as any[],
+  learningInsights: [] as any[],
+  recommendedCourses: [] as any[]
+};
+const mockCustomerCourses: any[] = [];
 import type { ChartConfig } from '@/components/ui/chart';
 import { Flag, CheckCircle, Clock, BarChart3, Target, Lightbulb, BookCopy, BookMarked, Trophy, BookCheck, Clock3, Search, Download, FileDown } from 'lucide-react';
 import type { Course, CustomerCourse, User } from '@/lib/types';

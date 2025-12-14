@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -26,7 +27,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Folder, FileCheck, BarChart3, Mail, Calendar, Bell, RefreshCw, Plus, Clock, XCircle, Users, Share2, Shield } from "lucide-react";
+import { Folder, FileCheck, BarChart3, Mail, Calendar, Bell, RefreshCw, Plus, Clock, XCircle, Users, Share2, Shield, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useChatContextOptional } from "@/components/chat/ChatProvider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -57,12 +58,12 @@ interface DashboardData {
             avatarUrl: string | null;
         } | null;
     }>;
-    auditor: {
+    assignedAuditors: Array<{
         id: string;
         name: string;
         email: string;
         avatarUrl: string | null;
-    } | null;
+    }>;
 }
 
 type Project = DashboardData['projects'][0];
@@ -102,6 +103,41 @@ export function CustomerDashboardView() {
     const [createError, setCreateError] = useState<string | null>(null);
     const [createSuccess, setCreateSuccess] = useState<string | null>(null);
 
+    // Issue Reporting State
+    const [showIssueDialog, setShowIssueDialog] = useState(false);
+    const [issueProject, setIssueProject] = useState("");
+    const [issueTitle, setIssueTitle] = useState("");
+    const [issueDescription, setIssueDescription] = useState("");
+    const [issueLoading, setIssueLoading] = useState(false);
+    const [issueSuccess, setIssueSuccess] = useState<string | null>(null);
+
+    const handleReportIssue = async () => {
+        if (!issueProject || !issueTitle || !issueDescription) return;
+        setIssueLoading(true);
+        try {
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+            const res = await fetch(`${apiBase}/api/customer/issues`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ projectId: issueProject, title: issueTitle, description: issueDescription })
+            });
+            if (res.ok) {
+                setIssueSuccess("Issue reported successfully");
+                setTimeout(() => {
+                    setShowIssueDialog(false);
+                    setIssueSuccess(null);
+                    setIssueTitle("");
+                    setIssueDescription("");
+                    setIssueProject("");
+                }, 1500);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIssueLoading(false);
+        }
+    };
+
     // Compliance User states
     const [complianceUsers, setComplianceUsers] = useState<ComplianceUser[]>([]);
 
@@ -119,7 +155,7 @@ export function CustomerDashboardView() {
     const fetchRequests = async () => {
         if (!token) return;
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/customer/requests`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -149,7 +185,7 @@ export function CustomerDashboardView() {
 
         setLoading(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/customer/dashboard`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -176,7 +212,7 @@ export function CustomerDashboardView() {
     const fetchComplianceUsers = async () => {
         if (!token) return;
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/compliance/users`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -190,7 +226,7 @@ export function CustomerDashboardView() {
     const fetchFrameworks = async () => {
         if (!token) return;
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/customer/frameworks`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -214,7 +250,7 @@ export function CustomerDashboardView() {
         setCreateSuccess(null);
 
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/customer/projects`, {
                 method: 'POST',
                 headers: {
@@ -367,7 +403,7 @@ export function CustomerDashboardView() {
         return null;
     }
 
-    const { stats, projects, auditor } = dashboardData;
+    const { stats, projects, assignedAuditors } = dashboardData;
 
     return (
         <div className="grid gap-6">
@@ -377,6 +413,10 @@ export function CustomerDashboardView() {
                     <p className="text-muted-foreground">Manage your compliance projects and sharing</p>
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowIssueDialog(true)}>
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        Report Issue
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => { fetchDashboard(); fetchComplianceUsers(); }}>
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Refresh
@@ -487,43 +527,37 @@ export function CustomerDashboardView() {
                         </Card>
                     )}
 
-                    {/* Auditor Contact */}
-                    {auditor && (
+                    {/* Assigned Auditors */}
+                    {assignedAuditors && assignedAuditors.length > 0 && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Assigned Auditor</CardTitle>
-                                <CardDescription>Contact your auditor for questions or updates</CardDescription>
+                                <CardTitle>Assigned Auditors</CardTitle>
+                                <CardDescription>Your auditing team</CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <Avatar className="h-12 w-12">
-                                            <AvatarImage src={auditor.avatarUrl || undefined} alt={auditor.name} />
-                                            <AvatarFallback>
-                                                {auditor.name.split(" ").map((n) => n[0]).join("")}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="font-medium">{auditor.name}</p>
-                                            <p className="text-sm text-muted-foreground">{auditor.email}</p>
+                            <CardContent className="space-y-4">
+                                {assignedAuditors.map((auditor) => (
+                                    <div key={auditor.id} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <Avatar className="h-10 w-10">
+                                                <AvatarImage src={auditor.avatarUrl || undefined} alt={auditor.name} />
+                                                <AvatarFallback>{auditor.name.split(" ").map((n: string) => n[0]).join("")}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="font-medium">{auditor.name}</p>
+                                                <p className="text-sm text-muted-foreground">{auditor.email}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="flex gap-2">
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => {
-                                                if (auditor?.id) {
-                                                    chatContext?.openChat(auditor.id);
-                                                }
-                                            }}
+                                            onClick={() => chatContext?.openChat(auditor.id)}
                                             disabled={!chatContext}
                                         >
                                             <Mail className="w-4 h-4 mr-2" />
                                             Message
                                         </Button>
                                     </div>
-                                </div>
+                                ))}
                             </CardContent>
                         </Card>
                     )}
@@ -602,25 +636,32 @@ export function CustomerDashboardView() {
                     <Card>
                         <CardContent className="p-6">
                             <div className="grid gap-4 max-h-[500px] overflow-y-auto pr-2">
-                                {projects.filter((p: Project) => p.status === 'approved' || p.status === 'completed' || !p.status).length === 0 ? (
+                                {projects.filter((p: Project) => ['approved', 'completed', 'review_pending'].includes(p.status || 'approved') || !p.status).length === 0 ? (
                                     <div className="text-center py-8 text-muted-foreground">
                                         <Folder className="w-12 h-12 mx-auto mb-4 opacity-50" />
                                         <p>No active projects assigned yet</p>
                                     </div>
                                 ) : (
-                                    projects.filter((p: Project) => p.status === 'approved' || p.status === 'completed' || !p.status).map((project: Project) => (
-                                        <ProjectCard
-                                            key={project.id}
-                                            id={project.id}
-                                            name={project.name}
-                                            framework={project.framework}
-                                            progress={project.progress}
-                                            dueDate={project.dueDate}
-                                            auditor={project.auditor}
-                                            controlsComplete={project.controlsComplete}
-                                            controlsTotal={project.controlsTotal}
-                                            onClick={() => router.push(`/dashboard/project/${project.id}`)}
-                                        />
+                                    projects.filter((p: Project) => ['approved', 'completed', 'review_pending'].includes(p.status || 'approved') || !p.status).map((project: Project) => (
+                                        <div key={project.id} className="relative">
+                                            {project.status === 'review_pending' && (
+                                                <Badge className="absolute top-2 right-2 z-10 bg-orange-500">Gone for Review</Badge>
+                                            )}
+                                            {project.status === 'completed' && (
+                                                <Badge className="absolute top-2 right-2 z-10 bg-green-500">Completed</Badge>
+                                            )}
+                                            <ProjectCard
+                                                id={project.id}
+                                                name={project.name}
+                                                framework={project.framework}
+                                                progress={project.status === 'completed' ? 100 : project.progress}
+                                                dueDate={project.dueDate}
+                                                auditor={project.auditor}
+                                                controlsComplete={project.controlsComplete}
+                                                controlsTotal={project.controlsTotal}
+                                                onClick={() => router.push(`/dashboard/project/${project.id}`)}
+                                            />
+                                        </div>
                                     ))
                                 )}
                             </div>
@@ -842,6 +883,54 @@ export function CustomerDashboardView() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Report Issue Dialog */}
+            <Dialog open={showIssueDialog} onOpenChange={setShowIssueDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Report an Issue</DialogTitle>
+                        <DialogDescription>
+                            Describe the issue you are facing with a specific project. A manager will review it.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label>Project</Label>
+                            <Select value={issueProject} onValueChange={setIssueProject}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select Project" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {projects.filter(p => !p.status || p.status !== 'rejected').map(p => (
+                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Title</Label>
+                            <Input placeholder="Issue Title" value={issueTitle} onChange={(e) => setIssueTitle(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Detailed Description</Label>
+                            <Textarea
+                                placeholder="Describe the issue... (e.g. Evidence rejection, clarification needed)"
+                                value={issueDescription}
+                                onChange={(e) => setIssueDescription(e.target.value)}
+                                className="min-h-[100px]"
+                            />
+                        </div>
+                        {issueSuccess && <p className="text-green-600 text-sm mt-2 flex items-center gap-2">Issue reported successfully!</p>}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowIssueDialog(false)}>Cancel</Button>
+                        <Button onClick={handleReportIssue} disabled={issueLoading}>
+                            {issueLoading ? 'Sending...' : 'Report Issue'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }

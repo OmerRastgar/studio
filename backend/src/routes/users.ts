@@ -13,7 +13,19 @@ router.use(requireRole(['admin', 'manager']));
 // GET /api/users - Get all users
 router.get('/', async (req, res) => {
     try {
+        const currentUser = (req as any).user;
+        const whereClause: any = {};
+
+        // Manager Isolation: Only see users they manage or are linked to their customers
+        if (currentUser.role === 'manager') {
+            whereClause.OR = [
+                { managerId: currentUser.userId },
+                { linkedCustomer: { managerId: currentUser.userId } }
+            ];
+        }
+
         const users = await prisma.user.findMany({
+            where: whereClause,
             select: {
                 id: true,
                 name: true,
@@ -23,6 +35,11 @@ router.get('/', async (req, res) => {
                 avatarUrl: true,
                 lastActive: true,
                 createdAt: true,
+                managerId: true,
+                linkedCustomerId: true,
+                linkedCustomer: {
+                    select: { name: true }
+                }
             },
             orderBy: {
                 createdAt: 'desc',
@@ -46,10 +63,26 @@ router.get('/', async (req, res) => {
 // POST /api/users - Create new user
 router.post('/', async (req, res) => {
     try {
-        const { name, email, role } = req.body;
+        const { name, email, role, linkedCustomerId } = req.body;
+        const currentUser = (req as any).user;
 
         if (!name || !email || !role) {
             return res.status(400).json({ error: 'Name, email, and role are required' });
+        }
+
+        // Manager Restrictions
+        let managerId = null;
+        if (currentUser.role === 'manager') {
+            const allowedRoles = ['auditor', 'customer', 'compliance'];
+            if (!allowedRoles.includes(role)) {
+                return res.status(403).json({ error: 'Managers can only create Auditor, Customer, or Compliance users' });
+            }
+            managerId = currentUser.userId;
+
+            // Compliance Constraint
+            if (role === 'compliance' && !linkedCustomerId) {
+                return res.status(400).json({ error: 'Compliance users must be linked to a Customer' });
+            }
         }
 
         const existingUser = await prisma.user.findUnique({
@@ -70,6 +103,8 @@ router.post('/', async (req, res) => {
                 password: defaultPassword,
                 avatarUrl: `https://picsum.photos/seed/${name.replace(/\s+/g, '')}/100/100`,
                 status: 'Active',
+                managerId,              // Set for Managers
+                linkedCustomerId: role === 'compliance' ? linkedCustomerId : null // Set for Compliance
             },
             select: {
                 id: true,
@@ -80,6 +115,8 @@ router.post('/', async (req, res) => {
                 avatarUrl: true,
                 lastActive: true,
                 createdAt: true,
+                managerId: true,
+                linkedCustomerId: true
             },
         });
 

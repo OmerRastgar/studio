@@ -44,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useAuth } from '@/app/auth-provider';
 
 const TimeAgo = ({ date }: { date: string | undefined }) => {
   const [timeAgo, setTimeAgo] = React.useState('');
@@ -60,6 +61,7 @@ const TimeAgo = ({ date }: { date: string | undefined }) => {
 };
 
 export default function UsersPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = React.useState<UserProfile[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -67,10 +69,31 @@ export default function UsersPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<UserProfile | null>(null);
-  const [newUser, setNewUser] = React.useState({ name: '', email: '', role: 'customer' as User['role'] });
+  const [newUser, setNewUser] = React.useState<{
+    name: string;
+    email: string;
+    role: User['role'];
+    linkedCustomerId?: string; // Optional for compliance
+  }>({ name: '', email: '', role: 'customer', linkedCustomerId: '' });
   const [isCreating, setIsCreating] = React.useState(false);
   const [isUpdating, setIsUpdating] = React.useState(false);
+
   const { toast } = useToast();
+
+  const userRoles: User['role'][] = React.useMemo(() => {
+    const allRoles: User['role'][] = ['admin', 'auditor', 'customer', 'manager', 'compliance'];
+    if (currentUser?.role === 'manager') {
+      return ['auditor', 'customer', 'compliance'];
+    }
+    return allRoles;
+  }, [currentUser]);
+
+  // Ensure default role is valid when dialog opens or roles change
+  React.useEffect(() => {
+    if (currentUser?.role === 'manager' && ['admin', 'manager'].includes(newUser.role)) {
+      setNewUser(prev => ({ ...prev, role: 'customer' }));
+    }
+  }, [currentUser?.role, newUser.role]);
 
   // Helper to get token
   const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
@@ -274,8 +297,6 @@ export default function UsersPage() {
     }
   };
 
-  const userRoles: User['role'][] = ['admin', 'auditor', 'customer', 'manager', 'compliance'];
-
   return (
     <Card>
       <CardHeader>
@@ -336,6 +357,26 @@ export default function UsersPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Linked Customer for Compliance Role */}
+                {newUser.role === 'compliance' && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="new-user-customer" className="text-right">Link Customer</Label>
+                    <Select
+                      value={newUser.linkedCustomerId || ''}
+                      onValueChange={(value) => setNewUser({ ...newUser, linkedCustomerId: value })}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select a Customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.filter(u => u.role === 'customer').map(customer => (
+                          <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>

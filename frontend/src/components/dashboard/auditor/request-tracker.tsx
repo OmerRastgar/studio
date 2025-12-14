@@ -94,7 +94,7 @@ export function RequestTracker() {
             return;
         }
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const apiUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
 
             const res = await fetch(`${apiUrl}/api/auditor/projects/${projectId}/assessment`, {
@@ -126,7 +126,7 @@ export function RequestTracker() {
     const fetchRequests = async () => {
         if (!token) return;
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const apiUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
 
             const res = await fetch(`${apiUrl}/api/auditor/requests`, {
@@ -146,7 +146,7 @@ export function RequestTracker() {
     const fetchCustomers = async () => {
         if (!token) return;
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const apiUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
 
             const res = await fetch(`${apiUrl}/api/auditor/customers`, {
@@ -170,7 +170,7 @@ export function RequestTracker() {
         if (!token || !newRequest.customerId || !newRequest.title) return;
 
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const apiUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
 
             // Remove empty strings for optional fields
@@ -204,7 +204,7 @@ export function RequestTracker() {
         if (!token) return;
 
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const apiUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
 
             const res = await fetch(`${apiUrl}/api/auditor/requests/${id}`, {

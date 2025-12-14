@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from '@/app/auth-provider';
 import { RouteGuard } from '@/components/route-guard';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, Sparkles, Trash2, Loader2, Flag, FileDown, MessageSquare, CheckCircle, Briefcase, PlusCircle } from 'lucide-react';
+import { Bot, Sparkles, Trash2, Loader2, Flag, FileDown, MessageSquare, CheckCircle, Briefcase, PlusCircle, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,10 +21,29 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 
+import { useActivityTracker } from '@/hooks/use-activity-tracker';
 import { reviewReport } from '@/ai/flows/review-report';
 import { CircularSlider } from '@/components/ui/circular-slider';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EvidencePicker } from '@/components/reports/evidence-picker';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { AlertTriangle, Lock } from 'lucide-react';
 
 export interface EvidenceItem {
   id: string;
@@ -66,122 +85,190 @@ export default function ReportsPage() {
 }
 
 function ReportsContent() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
-  const [reportRows, setReportRows] = useState<ReportRow[]>([]);
-  const [currentProjectDetails, setCurrentProjectDetails] = useState<any>(null);
-  const [projectEvidence, setProjectEvidence] = useState<any[]>([]);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [highlightedRow, setHighlightedRow] = useState<string | null>(null);
-  const { toast } = useToast();
-  const [isQaRunning, setIsQaRunning] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [isReviewer, setIsReviewer] = useState(false); // Added isReviewer state
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  // State for the flag/comment dialog
-  const [dialogState, setDialogState] = useState<{
-    isOpen: boolean;
-    rowId: string | null;
-    isFlagging: boolean;
-    comment: string;
-  }>({ isOpen: false, rowId: null, isFlagging: true, comment: '' });
 
-  // State for detailed control view (replacing inline editing for a single control)
-  const [selectedControl, setSelectedControl] = useState<ReportRow | null>(null);
+  const { toast } = useToast();
+
+  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [currentProjectDetails, setCurrentProjectDetails] = useState<any | null>(null);
+  const [reportRows, setReportRows] = useState<ReportRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedControl, setSelectedControl] = useState<any | null>(null);
+
+  const { trackActivity, sessionSeconds } = useActivityTracker({
+    projectId: selectedProject,
+    isDisabled: user?.role === 'manager',
+    defaultActivityType: isReviewer ? 'review' : undefined
+  });
+
+  // UI States
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isQaRunning, setIsQaRunning] = useState(false);
+  const [highlightedRow, setHighlightedRow] = useState<string | null>(null);
+  const [isGeneratingMsg, setIsGeneratingMsg] = useState(false);
+
+  // Data States
+  const [projectEvidence, setProjectEvidence] = useState<EvidenceItem[]>([]);
   const [observation, setObservation] = useState('');
   const [aiAnalysis, setAiAnalysis] = useState('');
-  const [reviewerNotes, setReviewerNotes] = useState(''); // Added reviewerNotes state
-  const [isFlagged, setIsFlagged] = useState(false); // Added isFlagged state for detailed view
-  const [isGeneratingMsg, setIsGeneratingMsg] = useState(false); // For AI analysis generation in detailed view
+  const [reviewerNotes, setReviewerNotes] = useState('');
+  const [isFlagged, setIsFlagged] = useState(false);
 
-  // Use relative path for API calls to leverage Next.js rewrites/proxy
-  const apiBase = '';
+  // Dialog State
+  const [dialogState, setDialogState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    actionLabel: string;
+    onAction: () => void;
+    variant: 'default' | 'destructive';
+    rowId?: string;
+    isFlagging?: boolean;
+    comment?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    actionLabel: '',
+    onAction: () => { },
+    variant: 'default'
+  });
 
-  // Fetch projects on load
+
+
+
+  // Derived
+  const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+
+  const formatDuration = (seconds: number) => {
+    if (!seconds) return '0s';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+
+    const parts = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0 || h > 0) parts.push(`${m}m`);
+    parts.push(`${s}s`);
+
+    return parts.join(' ');
+  };
+
   useEffect(() => {
-    async function fetchProjects() {
+    const fetchProjects = async () => {
+      console.log('Fetching projects... Token:', !!token);
       if (!token) return;
       try {
-        const response = await fetch(`${apiBase}/api/auditor/projects`, {
+        const res = await fetch(`${apiBase}/api/auditor/projects`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data) {
-            setProjects(data.data || []);
-            if (data.data.length > 0) {
-              setSelectedProject(data.data[0].id);
-            }
-          }
+        const data = await res.json();
+        console.log('Projects response:', data);
+
+        if (data.success && Array.isArray(data.data)) {
+          setProjects(data.data);
+          console.log('Projects set:', data.data.length);
+        } else if (Array.isArray(data.data)) {
+          setProjects(data.data); // Fallback if success not present but data is
+        } else {
+          console.error('Invalid projects data format:', data);
         }
+
       } catch (error) {
         console.error("Failed to fetch projects:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Could not fetch projects."
-        });
+      }
+    };
+
+    fetchProjects();
+
+    // Set roles based on user
+    // Manager role logic removed to prevent auto-reviewer assignment
+  }, [token, apiBase]);
+
+  // Effect to handle URL query param for project selection
+  useEffect(() => {
+    const projectIdParam = searchParams.get('projectId');
+    if (projectIdParam && projects.length > 0 && !selectedProject) {
+      // Verify project exists in list before selecting
+      if (projects.some(p => p.id === projectIdParam)) {
+        setSelectedProject(projectIdParam);
       }
     }
-    fetchProjects();
-  }, [token, toast, apiBase]);
+  }, [searchParams, projects, selectedProject]);
 
-  // Fetch assessment data when project selected
   useEffect(() => {
-    async function fetchAssessment() {
+    const fetchProjectDetails = async () => {
       if (!selectedProject || !token) return;
-
       setLoading(true);
       try {
-        const response = await fetch(`${apiBase}/api/auditor/projects/${selectedProject}/assessment`, {
+        const res = await fetch(`${apiBase}/api/auditor/projects/${selectedProject}/assessment`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        const data = await res.json();
 
-        if (response.ok) {
-          const data = await response.json();
-          // Map backend data to ReportRow
-          const rows: ReportRow[] = data.data.controls.map((pc: any) => ({
-            id: pc.id,
-            controlId: pc.controlId || pc.id,
-            control: `${pc.code}: ${pc.title}`,
-            observation: pc.observation || '',
-            evidence: pc.evidence || [],
-            analysis: pc.aiAnalysis || '',
-            isGenerating: false,
-            isFlagged: pc.isFlagged || false,
-            // Derive resolved state: Not flagged but has reviewer notes
-            isResolved: (!pc.isFlagged && pc.reviewerNotes && pc.reviewerNotes.length > 0) || false,
-            flagComment: pc.flagComment || '',
-            progress: pc.progress || 0,
-            tags: pc.tags || [],
-            reviewerNotes: pc.reviewerNotes || '',
-          }));
+        // Map backend response structure to frontend state
+        const projectData = data.data.project;
+        const details = {
+          ...projectData,
+          totalDuration: projectData.totalDuration || 0
+        };
 
-          setReportRows(rows);
-          setIsViewOnly(data.data.isViewOnly);
-          setIsReviewer(data.data.isReviewer || false); // Fetch isReviewer
-          setCurrentProjectDetails(data.data.project);
-          setProjectEvidence(data.data.projectEvidence || []);
+
+        setCurrentProjectDetails(details);
+        setProjectEvidence(data.data.projectEvidence || []);
+
+        // Prioritize backend reviewer status if available
+        if (typeof data.data.isReviewer !== 'undefined') {
+          setIsReviewer(data.data.isReviewer);
         }
+
+        setReportRows(data.data.controls.map((c: any) => ({
+          id: c.id,
+          controlId: c.controlId,
+          control: c.control?.name || "Unknown Control",
+          observation: c.observation || '',
+          evidence: c.evidence || [],
+          analysis: c.analysis || '',
+          isGenerating: false,
+          isFlagged: c.isFlagged || false,
+          isResolved: c.isResolved || false,
+          flagComment: c.reviewerNotes || '', // Mapping reviewerNotes to flagComment for UI
+          reviewerNotes: c.reviewerNotes || '',
+          progress: c.progress || 0,
+          tags: c.control?.tags || []
+        })));
+
       } catch (error) {
-        console.error("Failed to fetch assessment:", error);
+        console.error("Failed to fetch project details:", error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Could not load assessment data."
+          description: "Failed to load project details."
         });
       } finally {
         setLoading(false);
       }
-    }
+    };
 
-    fetchAssessment();
-  }, [selectedProject, token, toast, apiBase]);
+    fetchProjectDetails();
+  }, [selectedProject, token, apiBase, toast]);
+
+  const handleTrackActivity = useCallback((type: string) => {
+    // Cast type to any to satisfy ActivityType if needed, or validate
+    trackActivity(type as any);
+  }, [trackActivity]);
 
   const saveObservation = async (rowId: string, observation: string) => {
-    if (isViewOnly || isReviewer) return; // Disable for reviewers and view-only
+    trackActivity('writing');
+
+    // Allow edit if not view-only AND not a reviewer
+    if (isViewOnly || isReviewer) return;
 
     try {
       await fetch(`${apiBase}/api/auditor/projects/${selectedProject}/controls/${rowId}/observation`, {
@@ -204,6 +291,7 @@ function ReportsContent() {
   };
 
   const handleSaveObservation = async () => {
+    trackActivity('writing');
     if (!selectedProject || !selectedControl || isViewOnly || isReviewer) return;
 
     try {
@@ -266,6 +354,8 @@ function ReportsContent() {
   };
 
   const handleObservationChange = (rowId: string, newObservation: string) => {
+    if (isViewOnly || isReviewer) return;
+    trackActivity('writing');
     setReportRows(rows => rows.map(row => (row.id === rowId ? { ...row, observation: newObservation } : row)));
   };
 
@@ -322,6 +412,7 @@ function ReportsContent() {
     setAiAnalysis('');
 
     setTimeout(async () => {
+      // trackActivity('chat'); // AI generation is technically "waiting" but user initiated it.
       const generatedAnalysis = 'AI Analysis: Evidence supports compliance. Recommendation: Maintain current controls.';
 
       try {
@@ -354,27 +445,12 @@ function ReportsContent() {
     }, 1500);
   };
 
-  const handleFlagButtonClick = (row: ReportRow) => {
-    if (row.isFlagged) {
-      setDialogState({
-        isOpen: true,
-        rowId: row.id,
-        isFlagging: false,
-        comment: row.flagComment || '',
-      });
-    } else {
-      setDialogState({
-        isOpen: true,
-        rowId: row.id,
-        isFlagging: true,
-        comment: '',
-      });
-    }
-  };
-
   const submitFlagDialog = async () => {
-    const { rowId, isFlagging, comment } = dialogState;
+    const { rowId, isFlagging, comment: rawComment } = dialogState;
+    const comment = rawComment || '';
+
     if (!rowId) return;
+    trackActivity('review');
 
     if (isFlagging) {
       if (comment.trim() === '') {
@@ -410,11 +486,46 @@ function ReportsContent() {
         toast({ title: 'Error', description: 'Failed to save flag.', variant: 'destructive' });
       }
     }
-    setDialogState({ isOpen: false, rowId: null, isFlagging: true, comment: '' });
+    setDialogState(prev => ({
+      ...prev,
+      isOpen: false,
+      rowId: undefined,
+      isFlagging: true,
+      comment: ''
+    }));
+  };
+
+  const handleFlagButtonClick = (row: ReportRow) => {
+    if (row.isFlagged) {
+      setDialogState({
+        isOpen: true,
+        title: 'Review Flag',
+        description: 'Edit or resolve this flag.',
+        actionLabel: 'Update',
+        onAction: submitFlagDialog,
+        variant: 'default',
+        rowId: row.id,
+        isFlagging: false,
+        comment: row.flagComment || '',
+      });
+    } else {
+      setDialogState({
+        isOpen: true,
+        title: 'Flag Control',
+        description: 'Flag this control for review.',
+        actionLabel: 'Flag',
+        onAction: submitFlagDialog,
+        variant: 'destructive',
+        rowId: row.id,
+        isFlagging: true,
+        comment: '',
+      });
+    }
   };
 
   const resolveFlag = async (rowId: string | null) => {
     if (!rowId) return;
+    trackActivity('review');
 
     // Save resolution to backend (clear flag)
     try {
@@ -501,6 +612,7 @@ function ReportsContent() {
   };
 
   const handleSaveReview = async () => {
+    trackActivity('review');
     if (!selectedProject || !selectedControl) return;
 
     try {
@@ -537,7 +649,8 @@ function ReportsContent() {
   const [pickerState, setPickerState] = useState<{ isOpen: boolean; rowId: string | null }>({ isOpen: false, rowId: null });
 
   const handleLinkEvidence = async (evidenceIds: string[]) => {
-    if (!pickerState.rowId || isViewOnly || isReviewer) return; // Disable for reviewers and view-only
+    trackActivity('attaching');
+    if (!pickerState.rowId || !selectedProject || isViewOnly || isReviewer) return; // Disable for reviewers and view-only
 
     try {
       const res = await fetch(`${apiBase}/api/auditor/projects/${selectedProject}/controls/${pickerState.rowId}/evidence/link`, {
@@ -573,6 +686,86 @@ function ReportsContent() {
       toast({ title: "Evidence Linked", description: `Added ${evidenceIds.length} file(s).` });
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: "Failed to link evidence." });
+    } finally {
+      setPickerState({ isOpen: false, rowId: null });
+    }
+  };
+
+  const handleUnlinkEvidence = async (rowId: string, evidenceId: string) => {
+    trackActivity('review');
+    if (!selectedProject || isViewOnly || isReviewer) return;
+
+    try {
+      const res = await fetch(`${apiBase}/api/auditor/projects/${selectedProject}/controls/${rowId}/evidence/${evidenceId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) throw new Error("Failed to unlink evidence");
+
+      // Optimistic update
+      setReportRows(rows => rows.map(row => {
+        if (row.id === rowId) {
+          return {
+            ...row,
+            evidence: row.evidence.filter(e => e.id !== evidenceId)
+          };
+        }
+        return row;
+      }));
+
+      toast({ title: "Evidence Removed", description: "The evidence link has been removed." });
+    } catch (error) {
+      console.error("Failed to unlink evidence:", error);
+      toast({ title: "Error", description: "Failed to remove evidence link.", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateStatus = async (newStatus: string) => {
+    if (!selectedProject) return;
+
+    // Validation for "Send Back"
+    if (newStatus === 'returned') {
+      const hasFlags = reportRows.some(row => row.isFlagged || (row.reviewerNotes && row.reviewerNotes.length > 0));
+      if (!hasFlags) {
+        toast({
+          variant: "destructive",
+          title: "Cannot Return Report",
+          description: "You must flag at least one item or add reviewer notes before sending back for improvements."
+        });
+        return;
+      }
+    }
+
+    try {
+      const res = await fetch(`${apiBase}/api/auditor/projects/${selectedProject}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // Update local state
+        setCurrentProjectDetails((prev: any) => ({ ...prev, status: newStatus }));
+        setProjects(prev => prev.map(p => p.id === selectedProject ? { ...p, status: newStatus } : p)); // Update list if needed
+
+        let message = "Project status updated.";
+        if (newStatus === 'review_pending') message = "Report submitted for review.";
+        if (newStatus === 'approved') message = "Report approved and ready for export.";
+        if (newStatus === 'returned') message = "Report returned to auditor for improvements.";
+
+        toast({ title: "Status Updated", description: message });
+      } else {
+        throw new Error(data.error || "Failed to update status");
+      }
+    } catch (error) {
+      console.error("Status update error:", error);
+      toast({ variant: "destructive", title: "Action Failed", description: error instanceof Error ? error.message : "Could not update status." });
     }
   };
 
@@ -598,43 +791,109 @@ function ReportsContent() {
               )}
             </div>
             <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Select a project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map(project => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name} {project.customerName ? `- ${project.customerName}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                className="w-full sm:w-[200px] h-10 px-3 py-2 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+              >
+                <option value="" disabled>Select a project</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name} {project.customerName ? `- ${project.customerName}` : ''}
+                  </option>
+                ))}
+              </select>
 
               {/* Stats Cards */}
               {/* Removed create project dialog for simplicity */}
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Export
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem>Export as PDF</DropdownMenuItem>
-                  <DropdownMenuItem>Export as DOCX</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                {/* Status Badge */}
+                {currentProjectDetails?.status && (
+                  <Badge variant={
+                    currentProjectDetails.status === 'approved' ? 'default' :
+                      currentProjectDetails.status === 'returned' ? 'destructive' : 'secondary'
+                  } className="mr-2 capitalize">
+                    {currentProjectDetails.status.replace('_', ' ')}
+                  </Badge>
+                )}
 
-              <Button variant="outline" onClick={() => setIsChatOpen(true)}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Chat
-              </Button>
-              <Button onClick={handleAiQa} disabled={isQaRunning}>
-                {isQaRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                AI QA
-              </Button>
+                {/* Auditor: Finish Report Button */}
+                {!isReviewer && (currentProjectDetails?.status === 'in_progress' || currentProjectDetails?.status === 'returned') && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="default">
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Finish Report
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Submit for Review?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          You are about to send this report for review. You cannot export it until it is approved by a reviewer.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleUpdateStatus('review_pending')}>
+                          Submit
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+
+                {/* Reviewer Actions */}
+                {isReviewer && currentProjectDetails?.status === 'review_pending' && (
+                  <>
+                    <Button variant="destructive" onClick={() => handleUpdateStatus('returned')}>
+                      <Flag className="mr-2 h-4 w-4" />
+                      Send Back
+                    </Button>
+                    <Button variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => handleUpdateStatus('approved')}>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Approve Report
+                    </Button>
+                  </>
+                )}
+
+                {/* Export Button - Locked if not approved */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="inline-block"> {/* Wrapper needed for disabled button tooltip */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" disabled={currentProjectDetails?.status !== 'approved'}>
+                              {currentProjectDetails?.status !== 'approved' ? <Lock className="mr-2 h-4 w-4" /> : <FileDown className="mr-2 h-4 w-4" />}
+                              Export
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem>Export as PDF</DropdownMenuItem>
+                            <DropdownMenuItem>Export as DOCX</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TooltipTrigger>
+                    {currentProjectDetails?.status !== 'approved' && (
+                      <TooltipContent>
+                        <p>You must finish the report and get approval from a reviewer before exporting.</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+
+                <Button variant="outline" onClick={() => setIsChatOpen(true)}>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Chat
+                </Button>
+                <Button onClick={handleAiQa} disabled={isQaRunning}>
+                  {isQaRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                  AI QA
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -672,9 +931,15 @@ function ReportsContent() {
 
               <div className="bg-background/50 p-3 rounded border text-sm max-w-md w-full">
                 <div className="font-medium text-xs uppercase tracking-wider text-muted-foreground/70 mb-1">Project Scope</div>
-                <p className="text-muted-foreground leading-snug">
+                <p className="text-muted-foreground leading-snug mb-3">
                   {currentProjectDetails.scope || currentProjectDetails.description || "No scope defined for this project."}
                 </p>
+                <div className="pt-2 border-t flex justify-between items-center">
+                  <span className="font-medium text-xs uppercase tracking-wider text-muted-foreground/70">Time Logged:</span>
+                  <span className="font-bold text-red-500">
+                    {formatDuration(((currentProjectDetails as any).totalDuration || 0) + sessionSeconds)}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -733,7 +998,7 @@ function ReportsContent() {
                             value={row.observation}
                             onChange={(e) => handleObservationChange(row.id, e.target.value)}
                             onBlur={(e) => saveObservation(row.id, e.target.value)}
-                            readOnly={isViewOnly || isReviewer} // Disabled for reviewers
+                            readOnly={isViewOnly || (isReviewer && !(user?.id && currentProjectDetails?.auditor?.id === user.id))} // Disabled for reviewers unless they are the auditor
                             className="min-h-[100px]"
                           />
                           {row.reviewerNotes && row.isFlagged && (
@@ -746,12 +1011,23 @@ function ReportsContent() {
                         <TableCell>
                           <div className="flex gap-1 flex-wrap items-center">
                             {row.evidence.length > 0 ? row.evidence.map((evidence) => (
-                              <Badge key={evidence.id} variant="secondary">
+                              <Badge key={evidence.id} variant="secondary" className="flex items-center gap-1 pr-1">
                                 {evidence.fileName}
+                                {!isViewOnly && (!isReviewer || (user?.id && currentProjectDetails?.auditor?.id === user.id)) && (
+                                  <span
+                                    className="cursor-pointer hover:bg-destructive/10 hover:text-destructive rounded-full p-0.5 transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleUnlinkEvidence(row.id, evidence.id);
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </span>
+                                )}
                               </Badge>
                             )) : <span className="text-muted-foreground text-sm italic mr-2">No evidence</span>}
 
-                            {!isViewOnly && !isReviewer && ( // Disabled for reviewers
+                            {!isViewOnly && (!isReviewer || (user?.id && currentProjectDetails?.auditor?.id === user.id)) && ( // Disabled for reviewers unless auditor
                               <button
                                 onClick={() => setPickerState({ isOpen: true, rowId: row.id })}
                                 className="h-6 w-6 rounded-full border border-dashed border-primary/50 flex items-center justify-center hover:bg-primary/10 transition-colors"
@@ -774,7 +1050,7 @@ function ReportsContent() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className='flex flex-col gap-2 items-end'>
-                            {!isViewOnly && !isReviewer && ( // Disabled for reviewers
+                            {!isViewOnly && (!isReviewer || (user?.id && currentProjectDetails?.auditor?.id === user.id)) && ( // Disabled for reviewers unless auditor
                               <Button size="sm" onClick={() => handleGenerate(row.id)} disabled={row.isGenerating}>
                                 <Sparkles className="mr-2 h-4 w-4" />
                                 Generate
@@ -785,7 +1061,7 @@ function ReportsContent() {
                                 value={row.progress}
                                 size={32}
                                 strokeWidth={4}
-                                readOnly={isViewOnly || isReviewer} // Disabled for reviewers
+                                readOnly={isViewOnly || (isReviewer && !(user?.id && currentProjectDetails?.auditor?.id === user.id))} // Disabled for reviewers unless auditor
                                 onChange={(val) => setReportRows(rows => rows.map(r => r.id === row.id ? { ...r, progress: val } : r))}
                                 onCommit={(val) => saveProgress(row.id, val)}
                                 progressColor={row.progress === 100 ? "text-green-500" : "text-blue-500"}
@@ -806,12 +1082,21 @@ function ReportsContent() {
         </CardContent>
       </Card >
 
+      <EvidencePicker
+        isOpen={pickerState.isOpen}
+        onOpenChange={(isOpen) => setPickerState(prev => ({ ...prev, isOpen }))}
+        evidence={projectEvidence}
+        onSelect={handleLinkEvidence}
+      />
+
       <ReportChatPanel
         isOpen={isChatOpen}
         onOpenChange={setIsChatOpen}
         reportRows={reportRows}
         onApplySuggestion={updateReportRow}
         onReferenceClick={setHighlightedRow}
+        standardName={currentProjectDetails?.framework?.name || 'Standard'}
+        onTrackActivity={handleTrackActivity}
       />
 
       <Dialog

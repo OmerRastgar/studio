@@ -31,6 +31,9 @@ import {
   Bell,
   Users,
   TrendingUp,
+  LayoutDashboard,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   ChartContainer,
@@ -39,7 +42,28 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, Cell } from 'recharts';
-import { dashboardStats, activityChartData, mockAuditLogs, mockAuditors, complianceProgress } from '@/lib/data-build';
+// import { dashboardStats, activityChartData, mockAuditLogs, mockAuditors, complianceProgress } from '@/lib/data-build';
+
+// import { dashboardStats, activityChartData, mockAuditLogs, mockAuditors, complianceProgress } from '@/lib/data-build';
+
+const dashboardStats = {
+  reportsGenerated: { title: 'Total Projects', value: '0', change: 0, icon: LayoutDashboard },
+  evidenceUploaded: { title: 'Active Audits', value: '0', change: 0, icon: FileText },
+  activeAudits: { title: 'Issues Found', value: '0', change: 0, icon: AlertCircle },
+  findingsResolved: { title: 'Compliance Score', value: '0%', change: 0, icon: CheckCircle2 },
+};
+
+const activityChartData: any[] = [];
+const mockAuditLogs: any[] = [];
+const mockAuditors: any[] = [];
+
+const complianceProgress = {
+  overall: 0,
+  acceptedEvidence: 0,
+  totalEvidence: 0,
+  categories: [] as any[],
+  recentActivity: [] as any[]
+};
 import { formatDistanceToNow } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -431,8 +455,27 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {auditor.projects.join(', ')}
+                      <TableCell>
+                        {auditor.projects.map((project, index) => (
+                          <div key={index} className="flex items-center gap-2 mb-1 last:mb-0">
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{project.name}</p>
+                              <p className="text-xs text-muted-foreground">{project.customerName}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant={
+                                  project.status === 'approved' ? 'default' :
+                                    project.status === 'returned' ? 'destructive' : 'outline'
+                                }
+                                className="capitalize text-[10px] h-5 px-1.5"
+                              >
+                                {project.status?.replace('_', ' ') || 'In Progress'}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">{project.frameworkName}</span>
+                            </div>
+                          </div>
+                        ))}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

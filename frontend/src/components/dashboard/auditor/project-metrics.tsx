@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Chart } from "react-google-charts";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import Link from "next/link";
 
 interface ProjectMetricsData {
     id: string;
@@ -21,7 +22,16 @@ interface ProjectMetricsData {
         completedControls: number;
         totalControls: number;
         totalEvidence: number;
+        totalDuration: number;
+        reviewDuration?: number;
+        auditDuration?: number;
     };
+}
+
+function formatDuration(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${h}h ${m}m`;
 }
 
 export function ProjectMetrics() {
@@ -33,7 +43,7 @@ export function ProjectMetrics() {
         const fetchProjects = async () => {
             if (!token) return;
             try {
-                const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : '';
+                const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
                 const apiUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
 
                 const res = await fetch(`${apiUrl}/api/auditor/projects`, {
@@ -52,6 +62,13 @@ export function ProjectMetrics() {
 
         fetchProjects();
     }, [token]);
+
+    useEffect(() => {
+        if (projects.length > 0) {
+            console.log('[DEBUG] ProjectMetrics received projects:', projects);
+            projects.forEach(p => console.log(`[DEBUG] Project ${p.name} duration:`, p.metrics.totalDuration));
+        }
+    }, [projects]);
 
     if (loading) {
         return <div>Loading metrics...</div>;
@@ -92,42 +109,58 @@ export function ProjectMetrics() {
         <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
                 {projects.map(project => (
-                    <Card key={project.id}>
-                        <CardHeader className="pb-2">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <CardTitle className="text-lg">{project.name}</CardTitle>
-                                    <p className="text-sm text-muted-foreground">{project.customerName}</p>
-                                </div>
-                                <Badge variant={project.status === 'completed' ? 'default' : 'secondary'}>
-                                    {project.status}
-                                </Badge>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span>Overall Progress</span>
-                                        <span className="font-medium">{project.metrics.progress}%</span>
-                                    </div>
-                                    <Progress value={project.metrics.progress} />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <Link key={project.id} href={`/dashboard/project/${project.id}`} className="block h-full">
+                        <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+                            <CardHeader className="pb-2">
+                                <div className="flex justify-between items-start">
                                     <div>
-                                        <p className="text-muted-foreground">Controls</p>
-                                        <p className="font-medium">
-                                            {project.metrics.completedControls} / {project.metrics.totalControls}
-                                        </p>
+                                        <CardTitle className="text-lg hover:underline">{project.name}</CardTitle>
+                                        <p className="text-sm text-muted-foreground">{project.customerName}</p>
                                     </div>
-                                    <div>
-                                        <p className="text-muted-foreground">Evidence Items</p>
-                                        <p className="font-medium">{project.metrics.totalEvidence}</p>
+                                    <Badge variant={project.status === 'completed' ? 'default' : 'secondary'}>
+                                        {project.status}
+                                    </Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span>Overall Progress</span>
+                                            <span className="font-medium">{project.metrics.progress}%</span>
+                                        </div>
+                                        <Progress value={project.metrics.progress} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <p className="text-muted-foreground">Controls</p>
+                                            <p className="font-medium">
+                                                {project.metrics.completedControls} / {project.metrics.totalControls}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-muted-foreground">Evidence Items</p>
+                                            <p className="font-medium">{project.metrics.totalEvidence}</p>
+                                        </div>
+                                        <div className="col-span-2 mt-2 pt-2 border-t flex justify-between items-center text-sm">
+                                            <div>
+                                                <p className="text-muted-foreground text-xs uppercase tracking-wide">Audit Time</p>
+                                                <p className="font-bold text-lg">
+                                                    {formatDuration(project.metrics.auditDuration || (project.metrics.totalDuration - (project.metrics.reviewDuration || 0)))}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-muted-foreground text-xs uppercase tracking-wide">Review Time</p>
+                                                <p className="font-bold text-lg">
+                                                    {formatDuration(project.metrics.reviewDuration || 0)}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    </Link>
                 ))}
             </div>
 

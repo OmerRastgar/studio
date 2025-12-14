@@ -82,7 +82,7 @@ export default function FrameworksPage() {
 
         setLoading(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/admin/frameworks`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -103,7 +103,7 @@ export default function FrameworksPage() {
 
         setLoadingControls(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/admin/frameworks/${frameworkId}/controls`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -143,7 +143,7 @@ export default function FrameworksPage() {
         setFormError(null);
 
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/admin/frameworks`, {
                 method: "POST",
                 headers: {
@@ -243,7 +243,7 @@ export default function FrameworksPage() {
         setFormError(null);
 
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/admin/frameworks/${selectedFrameworkId}/controls/import`, {
                 method: "POST",
                 headers: {
@@ -284,7 +284,7 @@ export default function FrameworksPage() {
         }
 
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
             const res = await fetch(`${apiBase}/api/admin/frameworks/${frameworkId}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },

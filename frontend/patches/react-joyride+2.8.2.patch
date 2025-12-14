@@ -17,11 +17,13 @@ index 72e5057..e541485 100644
 -    ReactDOM.unmountComponentAtNode(this.tooltip);
 +    if (this.tooltipRoot) {
 +      this.tooltipRoot.unmount();
++    } else if (this.tooltip && this.tooltip._reactRoot) {
++      this.tooltip._reactRoot.unmount();
 +    }
      this.tooltip.remove();
      this.tooltip = null;
    }
-@@ -220,13 +224,14 @@
+@@ -220,13 +224,19 @@
    renderReact() {
      const {
        props: { children }
@@ -34,7 +36,12 @@ index 72e5057..e541485 100644
 -
 -    ReactDOM.unstable_renderSubtreeIntoContainer(this, children, this.tooltip);
 +    if (!this.tooltipRoot) {
-+      this.tooltipRoot = createRoot(this.tooltip);
++      if (this.tooltip._reactRoot) {
++         this.tooltipRoot = this.tooltip._reactRoot;
++      } else {
++         this.tooltipRoot = createRoot(this.tooltip);
++         this.tooltip._reactRoot = this.tooltipRoot;
++      }
 +    }
 +    this.tooltipRoot.render(children);
    }
