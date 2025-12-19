@@ -21,22 +21,26 @@ router.get('/dashboard', async (req, res) => {
             upcomingEventsCount,
             totalTimeLogs
         ] = await Promise.all([
-            // Count unique customers assigned to this auditor's projects
+            // Count unique customers assigned to this auditor's projects (In-Memory)
             prisma.project.findMany({
-                where: { auditorId: userId },
-                select: { customerId: true },
-                distinct: ['customerId']
-            }).then(projects => projects.length),
-
-            // Count active projects
-            prisma.project.count({
-                where: {
-                    auditorId: userId,
-                    status: { not: 'completed' }
-                }
+                select: { customerId: true, auditorId: true, reviewerAuditorId: true }
+            }).then(allProjects => {
+                const assigned = allProjects.filter(p => p.auditorId === userId || p.reviewerAuditorId === userId);
+                const uniqueCustomers = new Set(assigned.map(p => p.customerId).filter(Boolean));
+                return uniqueCustomers.size;
             }),
 
-            // Count pending requests
+            // Count active projects (In-Memory)
+            prisma.project.findMany({
+                select: { status: true, auditorId: true, reviewerAuditorId: true }
+            }).then(allProjects => {
+                return allProjects.filter(p =>
+                    (p.auditorId === userId || p.reviewerAuditorId === userId) &&
+                    p.status !== 'completed'
+                ).length;
+            }),
+
+            // Count pending requests (Keep as DB query for now, assuming only Project table is affected)
             prisma.auditRequest.count({
                 where: {
                     auditorId: userId,
@@ -44,7 +48,7 @@ router.get('/dashboard', async (req, res) => {
                 }
             }),
 
-            // Count upcoming events (next 7 days)
+            // Count upcoming events (Keep as DB query)
             prisma.auditEvent.count({
                 where: {
                     auditorId: userId,
@@ -55,7 +59,7 @@ router.get('/dashboard', async (req, res) => {
                 }
             }),
 
-            // Calculate total time metrics for the user
+            // Calculate total time metrics (Keep as DB query)
             prisma.projectTimeLog.aggregate({
                 where: { userId },
                 _sum: {
@@ -90,14 +94,12 @@ router.get('/customers', async (req, res) => {
     try {
         const userId = (req as any).user.userId;
 
+        // No replacement yet, I need to check admin.ts for the actual assignment logic.
+        // This endpoint `PUT /api/auditor/projects/:projectId/controls/:controlId/review` only updates control review status.
         // Find projects assigned to auditor, include customer details
-        const projects = await prisma.project.findMany({
-            where: {
-                OR: [
-                    { auditorId: userId },
-                    { reviewerAuditorId: userId }
-                ]
-            },
+        // Fetch all projects and filter in-memory to bypass database query issue
+        let projects = await prisma.project.findMany({
+            // where: { OR: [{ auditorId: userId }, { reviewerAuditorId: userId }] }, // Disabled due to query issue
             include: {
                 customer: {
                     select: {
@@ -110,6 +112,15 @@ router.get('/customers', async (req, res) => {
                 }
             }
         });
+
+        // Filter projects in-memory
+        if ((req as any).user.role !== 'manager') {
+            projects = projects.filter(p => {
+                const isAuditor = p.auditorId === userId;
+                const isReviewer = p.reviewerAuditorId === userId;
+                return isAuditor || isReviewer;
+            });
+        }
 
         // Group by customer
         const customersMap = new Map();
@@ -150,16 +161,9 @@ router.get('/projects', async (req, res) => {
         const userRole = (req as any).user.role;
         console.log('[DEBUG] GET /projects - UserID:', userId, 'Role:', userRole);
 
-        const whereClause: any = {};
-        if (userRole !== 'manager') {
-            whereClause.OR = [
-                { auditorId: userId },
-                { reviewerAuditorId: userId }
-            ];
-        }
-
-        const projects = await prisma.project.findMany({
-            where: whereClause,
+        // Fetch all projects and filter in-memory to bypass database query issue
+        let projects = await prisma.project.findMany({
+            // where: whereClause, // Disabled due to filtering issue
             include: {
                 customer: {
                     select: { name: true, avatarUrl: true }
@@ -183,8 +187,29 @@ router.get('/projects', async (req, res) => {
             orderBy: { updatedAt: 'desc' }
         });
 
-        // Calculate aggregate metrics
-        // Calculate aggregate metrics
+        if (projects.length > 0) {
+            const dbId = projects[0].auditorId || '';
+            const authId = userId || '';
+            const dbReviewerId = projects[0].reviewerAuditorId || '';
+
+
+        }
+
+        // In-memory filtering
+        if (userRole !== 'manager') {
+
+            projects = projects.filter(p => {
+                const isAuditor = p.auditorId?.trim() === userId?.trim();
+                const isReviewer = p.reviewerAuditorId?.trim() === userId?.trim();
+
+                if (p.auditorId && p.auditorId.includes(userId)) {
+                    console.log(`[DEBUG] Partial Match Check: DB='${p.auditorId}' vs AUTH='${userId}' -> Strict: ${p.auditorId === userId}, Trimmed: ${isAuditor}`);
+                }
+
+                return isAuditor || isReviewer;
+            });
+        }
+
         const projectsWithMetrics = projects.map(p => {
             const totalControls = p.projectControls.length;
             const completedControls = p.projectControls.filter(c => c.progress === 100).length;
@@ -251,13 +276,10 @@ router.get('/projects/:id', async (req, res) => {
                 customer: { select: { id: true, name: true, email: true, avatarUrl: true } },
                 projectControls: {
                     include: {
-                        control: true,
-                        evidenceItems: {
-                            include: {
-                                uploadedBy: { select: { id: true, name: true } }
-                            }
+                        control: {
+                            include: { tags: true }
                         },
-                        projectEvidence: {
+                        evidenceItems: {
                             include: {
                                 uploadedBy: { select: { id: true, name: true } }
                             }
@@ -294,10 +316,10 @@ router.get('/projects/:id', async (req, res) => {
                 code: pc.control.code,
                 title: pc.control.title,
                 description: pc.control.description,
-                tags: pc.control.tags,
+                tags: pc.control.tags ? pc.control.tags.map((t: any) => t.name) : [],
                 progress: pc.progress,
                 evidenceCount: pc.evidenceCount,
-                evidence: [...pc.evidenceItems, ...pc.projectEvidence],
+                evidence: [...pc.evidenceItems],
                 notes: pc.notes
             });
             category.totalControls++;
@@ -537,22 +559,15 @@ router.get('/projects/:id/assessment', async (req, res) => {
         const { id } = req.params;
 
         // Allow access for auditors (assigned), reviewers (assigned) and managers (view only)
-        let whereClause: any = { id };
-        if (userRole === 'auditor' || userRole === 'reviewer') {
-            whereClause.OR = [
-                { auditorId: userId },
-                { reviewerAuditorId: userId }
-            ];
-        }
-        // Managers can view all projects, admins are blocked at middleware level
-
-        const project = await prisma.project.findFirst({
-            where: whereClause,
+        // Fetch project by ID only, then check access in memory
+        const project = await prisma.project.findUnique({
+            where: { id },
             include: {
                 framework: { select: { name: true } },
                 customer: { select: { id: true, name: true, email: true } },
                 auditor: { select: { id: true, name: true } },
                 reviewerAuditor: { select: { id: true, name: true } },
+                // evidenceItems and evidence relation removed from includes
                 projectControls: {
                     include: {
                         control: {
@@ -564,32 +579,9 @@ router.get('/projects/:id/assessment', async (req, res) => {
                                 category: true,
                                 tags: true
                             }
-                        },
-                        evidenceItems: {
-                            include: {
-                                uploadedBy: { select: { id: true, name: true } }
-                            }
-                        },
-                        projectEvidence: {
-                            include: {
-                                uploadedBy: { select: { id: true, name: true } }
-                            }
                         }
                     },
                     orderBy: { control: { code: 'asc' } }
-                },
-                // Also include project-level evidence
-                evidence: {
-                    select: {
-                        id: true,
-                        fileName: true,
-                        fileUrl: true,
-                        type: true,
-                        tags: true,
-                        uploadedAt: true,
-                        uploadedBy: { select: { id: true, name: true } },
-                        controls: { select: { id: true } }
-                    }
                 },
                 timeLogs: {
                     select: { durationSeconds: true }
@@ -598,53 +590,78 @@ router.get('/projects/:id/assessment', async (req, res) => {
         });
 
         if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        // Check access permissions in-memory
+        if (userRole === 'auditor' || userRole === 'reviewer') {
+            const isAuditor = project.auditorId === userId;
+            const isReviewer = project.reviewerAuditorId === userId;
+            if (!isAuditor && !isReviewer) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+        }
+
+        if (!project) {
             return res.status(404).json({ error: 'Project not found or access denied' });
         }
+
+        // Fetch all evidence for the project (New Model)
+        const allEvidence = await prisma.evidence.findMany({
+            where: { projectId: id },
+            include: {
+                tags: true,
+                controls: true, // Explicit linking
+                uploadedBy: { select: { id: true, name: true } }
+            },
+            orderBy: { uploadedAt: 'desc' }
+        });
 
         // Format controls for assessment table
         const controls = project.projectControls.map((pc: any) => {
             // Notes field stores: "observation|||analysis" - split to get both parts
-            const notesData = pc.notes || '';
-            const [observation, aiAnalysis] = notesData.includes('|||')
-                ? notesData.split('|||')
-                : [notesData, ''];
+            const [observation, aiAnalysis] = (pc.notes || '').split('|||');
 
             return {
-                id: pc.id,
-                controlId: pc.control.id, // Should match pc.id if ProjectControl is the main entity in the list
+                id: pc.id, // ProjectControl ID (for updates)
+                controlId: pc.control.id, // Control Template ID (for reference)
                 code: pc.control.code,
                 title: pc.control.title,
                 description: pc.control.description,
                 category: pc.control.category,
-                tags: pc.control.tags,
+                tags: Array.isArray(pc.control.tags) ? pc.control.tags.map((t: any) => t.name) : [],
                 observation,
                 aiAnalysis,
                 reviewerNotes: pc.reviewerNotes,
+                status: pc.status,
                 isFlagged: pc.isFlagged,
                 progress: pc.progress,
                 evidenceCount: pc.evidenceCount,
-                evidence: [
-                    ...pc.evidenceItems.map((e: any) => ({
+                evidence: allEvidence
+                    .filter(ev => {
+                        // 1. Explicit Link
+                        const explicitMatch = (ev as any).controls?.some((c: any) => c.id === pc.id);
+
+                        // 2. Tag Match (Robust)
+                        const tagMatch = ev.tags.some(evt =>
+                            Array.isArray(pc.control.tags) &&
+                            pc.control.tags.some((pct: any) =>
+                                (pct.name || '').trim().toLowerCase() === (evt.name || '').trim().toLowerCase()
+                            )
+                        );
+
+                        return explicitMatch || tagMatch;
+                    })
+                    .map(e => ({
                         id: e.id,
                         fileName: e.fileName,
                         fileUrl: e.fileUrl,
-                        tags: e.tags,
-                        tagSource: e.tagSource || 'manual',
-                        uploadedBy: e.uploadedBy ? { id: e.uploadedBy.id, name: e.uploadedBy.name } : null,
-                        uploadedAt: e.uploadedAt,
-                        createdAt: e.createdAt
-                    })),
-                    ...pc.projectEvidence.map((e: any) => ({
-                        id: e.id,
-                        fileName: e.fileName,
-                        fileUrl: e.fileUrl,
-                        tags: e.tags,
-                        tagSource: 'manual',
+                        type: e.type,
+                        tags: e.tags.map(t => t.name),
                         uploadedBy: e.uploadedBy ? { id: e.uploadedBy.id, name: e.uploadedBy.name } : null,
                         uploadedAt: e.uploadedAt,
                         createdAt: e.createdAt
                     }))
-                ]
             };
         });
 
@@ -663,7 +680,12 @@ router.get('/projects/:id/assessment', async (req, res) => {
                     totalDuration: project.timeLogs.reduce((sum, log) => sum + log.durationSeconds, 0)
                 },
                 controls,
-                projectEvidence: project.evidence,
+                // Map project level evidence tags
+                // Map project level evidence tags
+                projectEvidence: allEvidence.map(e => ({
+                    ...e,
+                    tags: e.tags.map(t => t.name)
+                })),
                 isViewOnly: userRole === 'manager',
                 isReviewer: project.reviewerAuditorId === userId
             }
@@ -880,7 +902,8 @@ router.post('/projects/:projectId/controls/:controlId/evidence/link', async (req
         }
 
         const projectControl = await prisma.projectControl.findUnique({
-            where: { id: controlId }
+            where: { id: controlId },
+            include: { control: { include: { tags: true } } }
         });
 
         if (!projectControl) {
@@ -908,25 +931,27 @@ router.post('/projects/:projectId/controls/:controlId/evidence/link', async (req
         // REFACTOR: Use Many-to-Many connect instead of duplicating data
         // connect all evidence items in one go to avoid race conditions
         if (sourceEvidence.length > 0) {
-            console.log(`[DEBUG] Connecting ${sourceEvidence.length} evidence items to control ${controlId}`);
+            // Link evidence by adding control tags to them
+            if (projectControl.control.tags.length > 0) {
+                const tagsToConnect = projectControl.control.tags.map((t: any) => ({ name: t.name }));
 
-            await prisma.projectControl.update({
-                where: { id: controlId },
-                data: {
-                    projectEvidence: {
-                        connect: sourceEvidence.map(ev => ({ id: ev.id }))
-                    }
-                }
-            });
+                await Promise.all(sourceEvidence.map(ev =>
+                    prisma.evidence.update({
+                        where: { id: ev.id },
+                        data: { tags: { connect: tagsToConnect } }
+                    })
+                ));
+            }
         }
 
-        const createdItems = sourceEvidence; // They aren't newly created, but returning them satisfies the API interface
+        const createdItems = sourceEvidence;
 
         // Update evidence count
-        // Using projectEvidence relation which we just verified
+        const controlTagNames = projectControl.control.tags.map((t: any) => t.name);
         const count = await prisma.evidence.count({
             where: {
-                controls: { some: { id: controlId } }
+                projectId,
+                tags: { some: { name: { in: controlTagNames } } }
             }
         });
 
@@ -1279,54 +1304,7 @@ router.post('/projects/:projectId/activity', async (req, res) => {
     }
 });
 
-// POST /api/auditor/projects/:projectId/controls/:controlId/evidence/link - Link existing evidence to a control
-router.post('/projects/:projectId/controls/:controlId/evidence/link', async (req, res) => {
-    try {
-        const userId = (req as any).user.userId;
-        const { projectId, controlId } = req.params;
-        const { evidenceIds } = req.body;
 
-        if (!Array.isArray(evidenceIds)) {
-            return res.status(400).json({ error: 'evidenceIds must be an array' });
-        }
-
-        // Verify auditor/reviewer access
-        const project = await prisma.project.findFirst({
-            where: {
-                id: projectId,
-                OR: [{ auditorId: userId }, { reviewerAuditorId: userId }]
-            }
-        });
-
-        if (!project) return res.status(403).json({ error: 'Access denied' });
-
-        // Link evidence and increment count
-        // Note: Ideally check for existence before incrementing to avoid double counting, 
-        // but assuming frontend filters already linked items.
-        await Promise.all(evidenceIds.map(eId =>
-            prisma.projectControl.update({
-                where: { id: controlId },
-                data: {
-                    projectEvidence: { connect: { id: eId } },
-                    evidenceCount: { increment: 1 }
-                }
-            })
-        ));
-
-        // Return updated evidence list details
-        const updatedEvidence = await prisma.evidence.findMany({
-            where: { id: { in: evidenceIds } },
-            select: {
-                id: true, fileName: true, fileUrl: true, tags: true
-            }
-        });
-
-        res.json({ success: true, data: updatedEvidence });
-    } catch (error) {
-        console.error('Link evidence error:', error);
-        res.status(500).json({ error: 'Failed to link evidence' });
-    }
-});
 
 // DELETE /api/auditor/projects/:projectId/controls/:controlId/evidence/:evidenceId - Unlink evidence
 router.delete('/projects/:projectId/controls/:controlId/evidence/:evidenceId', async (req, res) => {
@@ -1348,12 +1326,35 @@ router.delete('/projects/:projectId/controls/:controlId/evidence/:evidenceId', a
         // We use disconnect to remove the relation.
         // We should explicitly decrement the count.
 
+        // Unlink evidence by removing control tags
+        const projectControl = await prisma.projectControl.findUnique({
+            where: { id: controlId },
+            include: { control: { include: { tags: true } } }
+        });
+
+        if (projectControl && projectControl.control.tags.length > 0) {
+            const tagsToDisconnect = projectControl.control.tags.map((t: any) => ({ name: t.name }));
+            await prisma.evidence.update({
+                where: { id: evidenceId },
+                data: { tags: { disconnect: tagsToDisconnect } }
+            });
+        }
+
+        // Recalculate count
+        let count = 0;
+        if (projectControl) {
+            const controlTagNames = projectControl.control.tags.map((t: any) => t.name);
+            count = await prisma.evidence.count({
+                where: {
+                    projectId,
+                    tags: { some: { name: { in: controlTagNames } } }
+                }
+            });
+        }
+
         await prisma.projectControl.update({
             where: { id: controlId },
-            data: {
-                projectEvidence: { disconnect: { id: evidenceId } },
-                evidenceCount: { decrement: 1 }
-            }
+            data: { evidenceCount: count }
         });
 
         res.json({ success: true, message: 'Evidence unlinked' });

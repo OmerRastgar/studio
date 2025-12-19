@@ -63,15 +63,17 @@ router.get('/', async (req, res) => {
 // POST /api/users - Create new user
 router.post('/', async (req, res) => {
     try {
-        const { name, email, role, linkedCustomerId } = req.body;
+        const { name, email, role } = req.body;
         const currentUser = (req as any).user;
 
         if (!name || !email || !role) {
             return res.status(400).json({ error: 'Name, email, and role are required' });
         }
 
-        // Manager Restrictions
+        // Manager Restrictions & Admin Enforcements
         let managerId = null;
+        let linkedCustomerId = null;
+
         if (currentUser.role === 'manager') {
             const allowedRoles = ['auditor', 'customer', 'compliance'];
             if (!allowedRoles.includes(role)) {
@@ -79,9 +81,27 @@ router.post('/', async (req, res) => {
             }
             managerId = currentUser.userId;
 
-            // Compliance Constraint
-            if (role === 'compliance' && !linkedCustomerId) {
-                return res.status(400).json({ error: 'Compliance users must be linked to a Customer' });
+            // Compliance Constraint for Manager
+            if (role === 'compliance') {
+                if (!req.body.linkedCustomerId) {
+                    return res.status(400).json({ error: 'Compliance users must be linked to a Customer' });
+                }
+                linkedCustomerId = req.body.linkedCustomerId;
+            }
+        } else if (currentUser.role === 'admin') {
+            // Admin Enforcements
+            if (role === 'auditor' || role === 'customer') {
+                if (!req.body.managerId) {
+                    return res.status(400).json({ error: `A Manager must be selected for ${role} users` });
+                }
+                managerId = req.body.managerId;
+            }
+
+            if (role === 'compliance') {
+                if (!req.body.linkedCustomerId) {
+                    return res.status(400).json({ error: 'Compliance users must be linked to a Customer' });
+                }
+                linkedCustomerId = req.body.linkedCustomerId;
             }
         }
 
@@ -103,8 +123,8 @@ router.post('/', async (req, res) => {
                 password: defaultPassword,
                 avatarUrl: `https://picsum.photos/seed/${name.replace(/\s+/g, '')}/100/100`,
                 status: 'Active',
-                managerId,              // Set for Managers
-                linkedCustomerId: role === 'compliance' ? linkedCustomerId : null // Set for Compliance
+                managerId,
+                linkedCustomerId
             },
             select: {
                 id: true,

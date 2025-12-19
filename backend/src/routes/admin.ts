@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate, requireRole } from '../middleware/auth';
+import { GraphService } from '../services/graph.service';
+import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
 
 const router = Router();
@@ -162,21 +163,24 @@ router.get('/projects/:id', async (req: Request, res: Response) => {
                 auditor: { select: { id: true, name: true, email: true, avatarUrl: true } },
                 projectControls: {
                     include: {
-                        control: true,
-                        evidenceItems: {
-                            include: {
-                                uploadedBy: { select: { id: true, name: true } }
-                            }
-                        },
-                        projectEvidence: {
-                            include: {
-                                uploadedBy: { select: { id: true, name: true } }
-                            }
+                        control: {
+                            include: { tags: true }
                         }
                     },
                     orderBy: { control: { code: 'asc' } }
                 }
             }
+        });
+
+        // Fetch all evidence for the project (New Model)
+        const allEvidence = await prisma.evidence.findMany({
+            where: { projectId: id },
+            include: {
+                tags: true,
+                controls: true,
+                uploadedBy: { select: { id: true, name: true } }
+            },
+            orderBy: { uploadedAt: 'desc' }
         });
 
         if (!project) {
@@ -205,10 +209,29 @@ router.get('/projects/:id', async (req: Request, res: Response) => {
                 code: pc.control.code,
                 title: pc.control.title,
                 description: pc.control.description,
-                tags: pc.control.tags,
+                tags: pc.control.tags ? pc.control.tags.map((t: any) => t.name) : [],
                 progress: pc.progress,
                 evidenceCount: pc.evidenceCount,
-                evidence: [...pc.evidenceItems, ...pc.projectEvidence],
+                evidence: allEvidence
+                    .filter(ev => {
+                        const explicitMatch = (ev as any).controls?.some((c: any) => c.id === pc.id);
+                        const tagMatch = ev.tags.some(evt =>
+                            Array.isArray(pc.control.tags) &&
+                            pc.control.tags.some((pct: any) =>
+                                (pct.name || '').trim().toLowerCase() === (evt.name || '').trim().toLowerCase()
+                            )
+                        );
+                        return explicitMatch || tagMatch;
+                    })
+                    .map(e => ({
+                        id: e.id,
+                        fileName: e.fileName,
+                        fileUrl: e.fileUrl,
+                        type: e.type,
+                        uploadedBy: e.uploadedBy,
+                        createdAt: e.createdAt,
+                        tags: e.tags.map(t => t.name)
+                    })),
                 notes: pc.notes
             });
             category.totalControls++;
@@ -272,7 +295,8 @@ router.get('/users', async (req: Request, res: Response) => {
                         customerProjects: true,
                         auditorProjects: true
                     }
-                }
+                },
+                managerId: true
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -287,7 +311,7 @@ router.get('/users', async (req: Request, res: Response) => {
 // POST /api/admin/users - Create new user
 router.post('/users', async (req: Request, res: Response) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, managerId } = req.body;
 
         if (!name || !email || !password || !role) {
             return res.status(400).json({ error: 'All fields are required' });
@@ -302,21 +326,28 @@ router.post('/users', async (req: Request, res: Response) => {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        const data: any = {
+            name,
+            email,
+            password: hashedPassword,
+            role,
+            avatarUrl: `https://picsum.photos/seed/${email}/100/100`
+        };
+
+        if (managerId) {
+            data.managerId = managerId;
+        }
+
         const user = await prisma.user.create({
-            data: {
-                name,
-                email,
-                password: hashedPassword,
-                role,
-                avatarUrl: `https://picsum.photos/seed/${email}/100/100`
-            },
+            data,
             select: {
                 id: true,
                 name: true,
                 email: true,
                 role: true,
                 avatarUrl: true,
-                createdAt: true
+                createdAt: true,
+                managerId: true
             }
         });
 
@@ -331,12 +362,13 @@ router.post('/users', async (req: Request, res: Response) => {
 router.put('/users/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { name, email, role, password } = req.body;
+        const { name, email, role, password, managerId } = req.body;
 
         const updateData: any = {};
         if (name) updateData.name = name;
         if (email) updateData.email = email;
         if (role) updateData.role = role;
+        if (managerId !== undefined) updateData.managerId = managerId;
         if (password) {
             updateData.password = await bcrypt.hash(password, 10);
         }
@@ -514,6 +546,27 @@ router.post('/frameworks/:id/controls/import', async (req: Request, res: Respons
                 }
 
                 try {
+                    // Process tags
+                    let tagList: string[] = [];
+                    if (Array.isArray(tags)) {
+                        tagList = tags;
+                    } else if (typeof tags === 'string') {
+                        tagList = tags.split(';').map(t => t.trim()).filter(t => t);
+                    }
+
+                    // Upsert tags and get IDs
+                    const tagConnect = [];
+                    if (tagList.length > 0) {
+                        for (const tagName of tagList) {
+                            const tagId = await prisma.tag.upsert({
+                                where: { name: tagName },
+                                update: {},
+                                create: { name: tagName }
+                            });
+                            tagConnect.push({ id: tagId.id });
+                        }
+                    }
+
                     const created = await prisma.control.upsert({
                         where: {
                             frameworkId_code: {
@@ -525,7 +578,7 @@ router.post('/frameworks/:id/controls/import', async (req: Request, res: Respons
                             title,
                             description: description || '',
                             category: category || 'General',
-                            tags: Array.isArray(tags) ? tags : (tags ? tags.split(';').map((t: string) => t.trim()) : [])
+                            tags: { set: tagConnect } as any
                         },
                         create: {
                             frameworkId: id,
@@ -533,9 +586,17 @@ router.post('/frameworks/:id/controls/import', async (req: Request, res: Respons
                             title,
                             description: description || '',
                             category: category || 'General',
-                            tags: Array.isArray(tags) ? tags : (tags ? tags.split(';').map((t: string) => t.trim()) : [])
+                            tags: { connect: tagConnect } as any
                         }
                     });
+
+                    // Emit Graph Events for Tags
+                    if (created && tagConnect.length > 0) {
+                        tagConnect.forEach(t => {
+                            GraphService.linkControlToTag(created.id, t.id).catch(e => console.error(e));
+                        });
+                    }
+
                     return { code, success: true, id: created.id };
                 } catch (err) {
                     return { code, error: 'Failed to import' };

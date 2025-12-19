@@ -28,7 +28,14 @@ router.get('/dashboard', async (req, res) => {
                     select: { id: true, name: true, email: true, avatarUrl: true }
                 },
                 projectControls: {
-                    include: { control: true }
+                    include: {
+                        control: {
+                            include: { tags: true }
+                        },
+                        _count: {
+                            select: { evidence: true }
+                        }
+                    }
                 }
             }
         });
@@ -40,7 +47,7 @@ router.get('/dashboard', async (req, res) => {
             const avgProgress = totalControls > 0
                 ? Math.round(project.projectControls.reduce((sum, pc) => sum + pc.progress, 0) / totalControls)
                 : 0;
-            const totalEvidence = project.projectControls.reduce((sum, pc) => sum + pc.evidenceCount, 0);
+            const totalEvidence = project.projectControls.reduce((sum, pc) => sum + (pc._count?.evidence || 0), 0);
 
             return {
                 id: project.id,
@@ -140,21 +147,10 @@ router.get('/projects/:id', async (req, res) => {
                 },
                 projectControls: {
                     include: {
-                        control: true,
-                        evidenceItems: {
-                            include: {
-                                uploadedBy: {
-                                    select: { id: true, name: true }
-                                }
-                            }
+                        control: {
+                            include: { tags: true }
                         },
-                        projectEvidence: {
-                            include: {
-                                uploadedBy: {
-                                    select: { id: true, name: true }
-                                }
-                            }
-                        }
+                        /* evidenceItems removed: fetching Evidence via tags */
                     }
                 }
             }
@@ -164,6 +160,22 @@ router.get('/projects/:id', async (req, res) => {
             return res.status(404).json({ error: 'Project not found' });
         }
 
+        // Fetch all evidence for the project (New Model)
+        const allEvidence = await prisma.evidence.findMany({
+            where: { projectId: id },
+            include: {
+                tags: true,
+                controls: true, // Vital for explicit linking
+                uploadedBy: { select: { id: true, name: true } }
+            },
+            orderBy: { uploadedAt: 'desc' }
+        });
+
+        console.log(`[Debug] Project ${id} - All Evidence Count: ${allEvidence.length}`);
+        if (allEvidence.length > 0) {
+            console.log(`[Debug] First Evidence Tags:`, allEvidence[0].tags.map(t => t.name));
+        }
+
         // Group controls by category
         const controlsByCategory: Record<string, any[]> = {};
         project.projectControls.forEach(pc => {
@@ -171,16 +183,42 @@ router.get('/projects/:id', async (req, res) => {
             if (!controlsByCategory[category]) {
                 controlsByCategory[category] = [];
             }
+
+            // Console log for first control to debug
+            if (pc.evidenceCount > 0) {
+                console.log(`[Debug] Control ${pc.control.code} has ${pc.evidenceCount} evidence items (count). Checking tags match...`);
+                console.log(`[Debug] Control Tags:`, Array.isArray(pc.control.tags) ? pc.control.tags.map((t: any) => t.name) : 'Not an array');
+            }
+
             controlsByCategory[category].push({
                 id: pc.id,
                 controlId: pc.controlId,
                 code: pc.control.code,
                 title: pc.control.title,
                 description: pc.control.description,
-                tags: pc.control.tags,
+                tags: Array.isArray(pc.control.tags) ? pc.control.tags.map((t: any) => t.name) : [],
                 progress: pc.progress,
                 evidenceCount: pc.evidenceCount,
-                evidence: [...pc.evidenceItems, ...pc.projectEvidence],
+                evidence: allEvidence
+                    .filter(ev => {
+                        // 1. Explicit Link (New trustworthy method)
+                        // Note: ev.controls might be undefined until Prisma Client re-generated and backend rebuilt
+                        const explicitMatch = (ev as any).controls?.some((c: any) => c.id === pc.id);
+
+                        // 2. Tag Match (Legacy/Soft method)
+                        const tagMatch = ev.tags.some(evt =>
+                            Array.isArray(pc.control.tags) &&
+                            pc.control.tags.some((pct: any) =>
+                                (pct.name || '').trim().toLowerCase() === (evt.name || '').trim().toLowerCase()
+                            )
+                        );
+
+                        return explicitMatch || tagMatch;
+                    })
+                    .map(e => ({
+                        ...e,
+                        tags: e.tags.map(t => t.name) // Fix: Map Tag objects to strings
+                    })),
                 notes: pc.notes,
             });
         });
@@ -199,6 +237,7 @@ router.get('/projects/:id', async (req, res) => {
             data: {
                 id: project.id,
                 name: project.name,
+                status: project.status,
                 framework: project.framework,
                 auditor: project.auditor,
                 startDate: project.startDate,
@@ -242,19 +281,26 @@ router.post('/projects/:projectId/controls/:controlId/evidence', async (req, res
             return res.status(404).json({ error: 'Control not found in project' });
         }
 
-        // Create evidence item
-        const evidence = await prisma.evidenceItem.create({
+        // Create evidence item (New Model: Evidence + Tags)
+        const evidence = await prisma.evidence.create({
             data: {
-                projectControlId: projectControl.id,
+                projectId,
                 fileName,
                 fileUrl,
-                tags: tags || [],
-                tagSource: 'manual',
                 uploadedById: userId,
+                tags: {
+                    connectOrCreate: (tags || []).map((tag: string) => ({
+                        where: { name: tag },
+                        create: { name: tag }
+                    }))
+                }
+            },
+            include: {
+                tags: true
             }
         });
 
-        // Update evidence count
+        // Update evidence count on control (cache)
         await prisma.projectControl.update({
             where: { id: projectControl.id },
             data: {
@@ -414,6 +460,30 @@ router.put('/requests/:id', async (req, res) => {
     }
 });
 
+// GET /api/customer/issues - List all reported issues
+router.get('/issues', async (req, res) => {
+    try {
+        const userId = (req as any).user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const issues = await prisma.projectIssue.findMany({
+            where: { customerId: userId },
+            include: {
+                project: { select: { name: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        res.json({ success: true, data: issues });
+    } catch (error) {
+        console.error('Fetch issues error:', error);
+        res.status(500).json({ error: 'Failed to fetch issues' });
+    }
+});
+
 // POST /api/customer/issues - Report an issue
 router.post('/issues', async (req, res) => {
     try {
@@ -451,6 +521,54 @@ router.post('/issues', async (req, res) => {
     } catch (error) {
         console.error('Report issue error:', error);
         res.status(500).json({ error: 'Failed to report issue' });
+    }
+});
+
+// DEBUG ENDPOINT
+router.get('/debug/:projectId', async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const project = await prisma.project.findFirst({
+            where: { id: projectId },
+            include: {
+                projectControls: {
+                    include: { control: { include: { tags: true } } }
+                }
+            }
+        });
+
+        const evidence = await prisma.evidence.findMany({
+            where: { projectId },
+            include: { tags: true }
+        });
+
+        const matches: any[] = [];
+        if (project) {
+            project.projectControls.forEach(pc => {
+                if (pc.evidenceCount > 0) {
+                    const evMatches = evidence.filter(ev =>
+                        ev.tags.some(evt =>
+                            pc.control.tags.some(pct => pct.name.toLowerCase().trim() === evt.name.toLowerCase().trim())
+                        )
+                    );
+                    matches.push({
+                        controlCode: pc.control.code,
+                        controlTags: pc.control.tags.map(t => t.name),
+                        evidenceCountDB: pc.evidenceCount,
+                        calculatedMatches: evMatches.length,
+                        firstMatchTags: evMatches.length > 0 ? evMatches[0].tags.map(t => t.name) : 'N/A'
+                    });
+                }
+            });
+        }
+
+        res.json({
+            evidenceCount: evidence.length,
+            evidenceTags: evidence.map(e => e.tags.map(t => t.name)),
+            matches
+        });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
     }
 });
 

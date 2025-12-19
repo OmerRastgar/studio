@@ -115,7 +115,7 @@ export function CustomerDashboardView() {
         if (!issueProject || !issueTitle || !issueDescription) return;
         setIssueLoading(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+            const apiBase = '';
             const res = await fetch(`${apiBase}/api/customer/issues`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -155,7 +155,7 @@ export function CustomerDashboardView() {
     const fetchRequests = async () => {
         if (!token) return;
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+            const apiBase = '';
             const res = await fetch(`${apiBase}/api/customer/requests`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -185,7 +185,7 @@ export function CustomerDashboardView() {
 
         setLoading(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+            const apiBase = '';
             const res = await fetch(`${apiBase}/api/customer/dashboard`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -212,7 +212,7 @@ export function CustomerDashboardView() {
     const fetchComplianceUsers = async () => {
         if (!token) return;
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+            const apiBase = '';
             const res = await fetch(`${apiBase}/api/compliance/users`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -226,7 +226,7 @@ export function CustomerDashboardView() {
     const fetchFrameworks = async () => {
         if (!token) return;
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+            const apiBase = '';
             const res = await fetch(`${apiBase}/api/customer/frameworks`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -250,7 +250,7 @@ export function CustomerDashboardView() {
         setCreateSuccess(null);
 
         try {
-            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+            const apiBase = '';
             const res = await fetch(`${apiBase}/api/customer/projects`, {
                 method: 'POST',
                 headers: {
@@ -306,7 +306,7 @@ export function CustomerDashboardView() {
         setUserCreateError(null);
 
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = '';
             const res = await fetch(`${apiBase}/api/compliance/users`, {
                 method: 'POST',
                 headers: {
@@ -341,7 +341,7 @@ export function CustomerDashboardView() {
 
     const handleShareProject = async (userId: string, projectId: string, isShared: boolean) => {
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
+            const apiBase = '';
             await fetch(`${apiBase}/api/compliance/share`, {
                 method: 'POST',
                 headers: {
@@ -416,6 +416,10 @@ export function CustomerDashboardView() {
                     <Button variant="outline" size="sm" onClick={() => setShowIssueDialog(true)}>
                         <AlertCircle className="w-4 h-4 mr-2" />
                         Report Issue
+                    </Button>
+                    <Button variant="default" size="sm" onClick={openNewProjectDialog}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        New Project
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => { fetchDashboard(); fetchComplianceUsers(); }}>
                         <RefreshCw className="w-4 h-4 mr-2" />
@@ -627,10 +631,6 @@ export function CustomerDashboardView() {
                 <div className="space-y-6">
                     <div className="flex items-center justify-between">
                         <h2 className="text-xl font-semibold tracking-tight">Projects</h2>
-                        <Button size="sm" onClick={openNewProjectDialog}>
-                            <Plus className="w-4 h-4 mr-2" />
-                            New Project
-                        </Button>
                     </div>
 
                     <Card>
@@ -778,7 +778,7 @@ export function CustomerDashboardView() {
                             </Select>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="startDate">Start Date</Label>
                                 <Input
@@ -797,15 +797,15 @@ export function CustomerDashboardView() {
                                     onChange={(e) => setEndDate(e.target.value)}
                                 />
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="dueDate">Due Date</Label>
-                                <Input
-                                    id="dueDate"
-                                    type="date"
-                                    value={dueDate}
-                                    onChange={(e) => setDueDate(e.target.value)}
-                                />
-                            </div>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="dueDate">Due Date</Label>
+                            <Input
+                                id="dueDate"
+                                type="date"
+                                value={dueDate}
+                                onChange={(e) => setDueDate(e.target.value)}
+                            />
                         </div>
 
                         <div className="grid gap-2">

@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, requireRole } from '../middleware/auth';
 import { webhookService } from '../services/webhookService';
+import { GraphService } from '../services/graph.service';
+import bcrypt from 'bcryptjs';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -118,21 +120,24 @@ router.get('/projects/:id', async (req: Request, res: Response) => {
                 auditor: { select: { id: true, name: true, email: true, avatarUrl: true } },
                 projectControls: {
                     include: {
-                        control: true,
-                        evidenceItems: {
-                            include: {
-                                uploadedBy: { select: { id: true, name: true } }
-                            }
-                        },
-                        projectEvidence: {
-                            include: {
-                                uploadedBy: { select: { id: true, name: true } }
-                            }
+                        control: {
+                            include: { tags: true }
                         }
                     },
                     orderBy: { control: { code: 'asc' } }
                 }
             }
+        });
+
+        // Fetch all evidence for the project (New Model)
+        const allEvidence = await prisma.evidence.findMany({
+            where: { projectId: id },
+            include: {
+                tags: true,
+                controls: true,
+                uploadedBy: { select: { id: true, name: true } }
+            },
+            orderBy: { uploadedAt: 'desc' }
         });
 
         if (!project) {
@@ -161,10 +166,29 @@ router.get('/projects/:id', async (req: Request, res: Response) => {
                 code: pc.control.code,
                 title: pc.control.title,
                 description: pc.control.description,
-                tags: pc.control.tags,
+                tags: pc.control.tags ? pc.control.tags.map((t: any) => t.name) : [],
                 progress: pc.progress,
                 evidenceCount: pc.evidenceCount,
-                evidence: [...pc.evidenceItems, ...pc.projectEvidence],
+                evidence: allEvidence
+                    .filter(ev => {
+                        const explicitMatch = (ev as any).controls?.some((c: any) => c.id === pc.id);
+                        const tagMatch = ev.tags.some(evt =>
+                            Array.isArray(pc.control.tags) &&
+                            pc.control.tags.some((pct: any) =>
+                                (pct.name || '').trim().toLowerCase() === (evt.name || '').trim().toLowerCase()
+                            )
+                        );
+                        return explicitMatch || tagMatch;
+                    })
+                    .map(e => ({
+                        id: e.id,
+                        fileName: e.fileName,
+                        fileUrl: e.fileUrl,
+                        type: e.type,
+                        uploadedBy: e.uploadedBy,
+                        createdAt: e.createdAt,
+                        tags: e.tags.map(t => t.name)
+                    })),
                 notes: pc.notes
             });
             category.totalControls++;
@@ -659,6 +683,9 @@ router.put('/projects/:id/approve', async (req: Request, res: Response) => {
                 reviewerEmail: reviewer.email,
                 dueDate: project.dueDate ? project.dueDate.toISOString() : undefined
             });
+
+            // Sync to Graph (Async)
+            await GraphService.assignAuditor(id, auditorId);
         }
 
         res.json({
@@ -741,6 +768,9 @@ router.put('/projects/:id/assign', async (req: Request, res: Response) => {
             where: { id },
             data: updateData
         });
+
+        // Sync to Graph (Async)
+        await GraphService.assignAuditor(id, auditorId);
 
         res.json({ success: true, message: `Project assigned to ${auditor.name}` });
     } catch (error) {
@@ -922,5 +952,75 @@ router.get('/auditors/:id', async (req: Request, res: Response) => {
 });
 
 
+
+// =====================================
+// USER MANAGEMENT FOR MANAGERS
+// =====================================
+
+// POST /api/manager/users - Create new user (Auditor or Customer) under this manager
+router.post('/users', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { name, email, password, role } = req.body;
+
+        if (user.role !== 'manager') {
+            return res.status(403).json({ error: 'Only managers can create users via this endpoint' });
+        }
+
+        if (!name || !email || !password || !role) {
+            return res.status(400).json({ error: 'All fields are required' });
+        }
+
+        if (role !== 'auditor' && role !== 'customer') {
+            return res.status(400).json({ error: 'Managers can only create Auditors or Customers' });
+        }
+
+        // Check if email exists
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (existing) {
+            return res.status(400).json({ error: 'Email already exists' });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = await prisma.user.create({
+            data: {
+                name,
+                email,
+                password: hashedPassword,
+                role,
+                avatarUrl: `https://picsum.photos/seed/${email}/100/100`,
+                managerId: user.userId // Enforce Hierarchy
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                avatarUrl: true,
+                createdAt: true,
+                managerId: true
+            }
+        });
+
+        // If Auditor, create profile
+        if (role === 'auditor') {
+            await prisma.auditor.create({
+                data: {
+                    id: newUser.id,
+                    userId: newUser.id,
+                    experience: '0 years', // Default
+                    certifications: []
+                }
+            });
+        }
+
+        res.status(201).json({ success: true, data: newUser });
+    } catch (error) {
+        console.error('Manager create user error:', error);
+        res.status(500).json({ error: 'Failed to create user' });
+    }
+});
 
 export default router;

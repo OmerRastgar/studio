@@ -42,7 +42,34 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'github.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
+  },
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        dns: false,
+        tls: false,
+      };
+    }
+    // Optimize for Docker builds
+    config.optimization = {
+      ...config.optimization,
+      minimize: process.env.NODE_ENV === 'production',
+    };
+    return config;
   },
 };
 

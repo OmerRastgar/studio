@@ -1,4 +1,4 @@
-local http = require "resty.http"
+local http = require "kong.plugins.opa.http"
 local cjson = require "cjson.safe"
 
 local OpaHandler = {
@@ -60,92 +60,102 @@ local function extract_token(auth_header)
 end
 
 function OpaHandler:access(conf)
-  -- Try to get JWT claims from Kong's JWT plugin first
-  local claims = kong.ctx.shared.authenticated_jwt_claims
-  
-  -- If no claims from JWT plugin, decode from Authorization header
-  if not claims or not claims.role then
-    local auth_header = kong.request.get_header("Authorization")
-    local token = extract_token(auth_header)
+  -- Wrap in pcall to prevent worker crash
+  local status, err = pcall(function()
+    kong.log.debug("OPA Handler: Starting access phase")
     
-    if token then
-      claims = decode_jwt_payload(token)
-      if claims then
-        kong.log.debug("Decoded JWT claims: role=", claims.role, " userId=", claims.userId)
+    -- Try to get JWT claims from Kong's JWT plugin first
+    local claims = kong.ctx.shared.authenticated_jwt_claims
+    
+    -- If no claims from JWT plugin, decode from Authorization header
+    if not claims or not claims.role then
+      local auth_header = kong.request.get_header("Authorization")
+      local token = extract_token(auth_header)
+      
+      if token then
+        claims = decode_jwt_payload(token)
+        if claims then
+          kong.log.debug("Decoded JWT claims: role=", claims.role, " userId=", claims.userId)
+        end
       end
     end
-  end
-  
-  -- Default to empty claims if still no claims
-  claims = claims or {}
-  
-  -- Build input for OPA
-  local input = {
-    input = {
-      path = kong.request.get_path(),
-      method = kong.request.get_method(),
-      user = {
-        id = claims.sub or claims.userId,
-        role = claims.role,
-        email = claims.email
-      }
-    }
-  }
-  
-  kong.log.info("OPA input: path=", kong.request.get_path(), " role=", claims.role or "nil")
-  
-  -- Make request to OPA
-  local httpc = http.new()
-  httpc:set_timeout(conf.timeout or 5000)
-  
-  local opa_path = "/v1/data/" .. string.gsub(conf.policy, "%.", "/")
-  local res, err = httpc:request_uri(conf.opa_url .. opa_path, {
-    method = "POST",
-    body = cjson.encode(input),
-    headers = {
-      ["Content-Type"] = "application/json",
-    }
-  })
-  
-  if not res then
-    kong.log.err("OPA request failed: ", err)
-    if conf.allow_on_error then
-      return -- Allow request if OPA is unavailable
-    end
-    return kong.response.exit(500, { 
-      message = "Authorization service unavailable",
-      error = err
-    })
-  end
-  
-  local body, decode_err = cjson.decode(res.body)
-  if not body then
-    kong.log.err("OPA response decode failed: ", decode_err)
-    return kong.response.exit(500, { message = "Invalid authorization response" })
-  end
-  
-  -- Check authorization result
-  if not body.result then
-    kong.log.info("Access denied for role: ", claims.role or "nil", " path: ", kong.request.get_path())
-    return kong.response.exit(403, { 
-      message = "Access denied",
-      details = {
-        role = claims.role,
+    
+    -- Default to empty claims if still no claims
+    claims = claims or {}
+    
+    -- Build input for OPA
+    local input = {
+      input = {
         path = kong.request.get_path(),
-        method = kong.request.get_method()
+        method = kong.request.get_method(),
+        user = {
+          id = claims.sub or claims.userId,
+          role = claims.role,
+          email = claims.email
+        }
+      }
+    }
+    
+    kong.log.info("OPA input: path=", kong.request.get_path(), " role=", claims.role or "nil")
+    
+    -- Make request to OPA
+    local httpc = http.new()
+    httpc:set_timeout(conf.timeout or 5000)
+    
+    local opa_path = "/v1/data/" .. string.gsub(conf.policy, "%.", "/")
+    local res, req_err = httpc:request_uri(conf.opa_url .. opa_path, {
+      method = "POST",
+      body = cjson.encode(input),
+      headers = {
+        ["Content-Type"] = "application/json",
       }
     })
-  end
-  
-  -- Add user info headers for backend
-  if claims.sub or claims.userId then
-    kong.service.request.set_header("X-User-Id", claims.sub or claims.userId)
-  end
-  if claims.role then
-    kong.service.request.set_header("X-User-Role", claims.role)
-  end
-  if claims.email then
-    kong.service.request.set_header("X-User-Email", claims.email)
+    
+    if not res then
+      kong.log.err("OPA request failed: ", req_err)
+      if conf.allow_on_error then
+        return -- Allow request if OPA is unavailable
+      end
+      return kong.response.exit(500, { 
+        message = "Authorization service unavailable",
+        error = req_err
+      })
+    end
+    
+    local body, decode_err = cjson.decode(res.body)
+    if not body then
+      kong.log.err("OPA response decode failed: ", decode_err)
+      return kong.response.exit(500, { message = "Invalid authorization response" })
+    end
+    
+    -- Check authorization result
+    if not body.result then
+      kong.log.info("Access denied for role: ", claims.role or "nil", " path: ", kong.request.get_path())
+      return kong.response.exit(403, { 
+        message = "Access denied",
+        details = {
+          role = claims.role,
+          path = kong.request.get_path(),
+          method = kong.request.get_method()
+        }
+      })
+    end
+    
+    -- Add user info headers for backend
+    if claims.sub or claims.userId then
+      kong.service.request.set_header("X-User-Id", claims.sub or claims.userId)
+    end
+    if claims.role then
+      kong.service.request.set_header("X-User-Role", claims.role)
+    end
+    if claims.email then
+      kong.service.request.set_header("X-User-Email", claims.email)
+    end
+  end)
+
+  if not status then
+    kong.log.err("CRITICAL ERROR IN OPA PLUGIN: ", err)
+    return kong.response.exit(500, { message = "Internal Server Error (OPA Plugin Crash)" })
   end
 end
 

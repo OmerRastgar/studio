@@ -318,14 +318,18 @@ function EvidencePageComponent() {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            if (!response.ok) throw new Error('Failed to delete evidence');
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                console.error('Delete failed debug info:', errData);
+                throw new Error(errData.error || 'Failed to delete evidence');
+            }
 
             setEvidenceList(evidenceList.filter(e => e.id !== id));
             setItemToDelete(null);
             toast({ title: "Evidence Deleted", description: "The evidence item has been removed." });
         } catch (err) {
             console.error('Error deleting evidence:', err);
-            toast({ variant: 'destructive', title: "Error", description: "Failed to delete evidence." });
+            toast({ variant: 'destructive', title: "Error", description: err instanceof Error ? err.message : "Failed to delete evidence." });
         }
     };
 
@@ -502,89 +506,94 @@ function EvidencePageComponent() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <AlertDialog>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>File Name</TableHead>
-                                    <TableHead>Control</TableHead>
-                                    <TableHead>Tags</TableHead>
-                                    <TableHead>Uploaded By</TableHead>
-                                    <TableHead className="hidden md:table-cell">Uploaded At</TableHead>
-                                    <TableHead>
-                                        <span className="sr-only">Actions</span>
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredEvidence.map((evidence) => (
-                                    <TableRow key={evidence.id}>
-                                        <TableCell className="font-medium">
-                                            <a
-                                                href={getDownloadUrl(evidence.fileUrl)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="hover:underline text-primary flex items-center gap-2"
-                                            >
-                                                {evidence.fileName}
-                                                <ExternalLink className="h-3 w-3" />
-                                            </a>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-wrap gap-1">
-                                                {evidence.controls && evidence.controls.length > 0 ? (
-                                                    evidence.controls.map(c => (
-                                                        <Badge key={c.id} variant="outline">
-                                                            {c.control.code}
-                                                        </Badge>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-muted-foreground">—</span>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-wrap gap-1">
-                                                {evidence.tags?.map((tag) => (
-                                                    <Badge key={tag} variant="secondary">
-                                                        {tag}
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>File Name</TableHead>
+                                <TableHead>Control</TableHead>
+                                <TableHead>Tags</TableHead>
+                                <TableHead>Uploaded By</TableHead>
+                                <TableHead className="hidden md:table-cell">Uploaded At</TableHead>
+                                <TableHead>
+                                    <span className="sr-only">Actions</span>
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredEvidence.map((evidence) => (
+                                <TableRow key={evidence.id}>
+                                    <TableCell className="font-medium">
+                                        <a
+                                            href={getDownloadUrl(evidence.fileUrl)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="hover:underline text-primary flex items-center gap-2"
+                                        >
+                                            {evidence.fileName}
+                                            <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {evidence.controls && evidence.controls.length > 0 ? (
+                                                evidence.controls.map(c => (
+                                                    <Badge key={c.id} variant="outline">
+                                                        {c.control.code}
                                                     </Badge>
-                                                ))}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={evidence.agent ? 'default' : 'outline'}>
-                                                {evidence.agent?.name || evidence.uploadedBy?.name || 'Unknown'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="hidden md:table-cell">
-                                            {format(new Date(evidence.uploadedAt), 'PPP')}
-                                        </TableCell>
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button aria-haspopup="true" size="icon" variant="ghost">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                        <span className="sr-only">Toggle menu</span>
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem onClick={() => handleEditClick(evidence)}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <AlertDialogTrigger asChild>
-                                                        <DropdownMenuItem className="text-destructive" onClick={() => setItemToDelete(evidence.id)}>
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </AlertDialogTrigger>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                                ))
+                                            ) : (
+                                                <span className="text-muted-foreground">—</span>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {evidence.tags?.map((tag) => (
+                                                <Badge key={tag} variant="secondary">
+                                                    {tag}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={evidence.agent ? 'default' : 'outline'}>
+                                            {evidence.agent?.name || evidence.uploadedBy?.name || 'Unknown'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="hidden md:table-cell">
+                                        {format(new Date(evidence.uploadedAt), 'PPP')}
+                                    </TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                    <span className="sr-only">Toggle menu</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem onClick={() => handleEditClick(evidence)}>
+                                                    <Edit className="mr-2 h-4 w-4" />
+                                                    Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    className="text-destructive focus:text-destructive"
+                                                    onClick={() => setItemToDelete(evidence.id)}
+                                                >
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                    {/* Delete Confirmation Dialog - Moved outside Table for stability */}
+                    <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
                         <AlertDialogContent>
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
@@ -593,8 +602,14 @@ function EvidencePageComponent() {
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => itemToDelete && handleDelete(itemToDelete)}>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        if (itemToDelete) handleDelete(itemToDelete);
+                                    }}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
                                     Delete
                                 </AlertDialogAction>
                             </AlertDialogFooter>

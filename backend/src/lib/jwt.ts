@@ -30,7 +30,7 @@ export function generateToken(payload: Omit<JWTPayload, 'iss' | 'iat' | 'exp'>):
   const now = Math.floor(Date.now() / 1000);
   const tokenPayload: JWTPayload = {
     ...payload,
-    iss: 'audit-app-key', // This must match the key in Kong consumer configuration
+    iss: 'studio-idp', // This must match the key in Kong consumer configuration
     iat: now,
     exp: now + (24 * 60 * 60) // 24 hours from now
   };

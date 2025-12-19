@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useAuth } from "@/app/auth-provider";
 import {
     Dialog,
@@ -32,6 +32,7 @@ import {
 interface Control {
     id: string;
     control: { code: string; title: string };
+    tags?: string[] | any[]; // Tags from the control (can be string[] or Tag objects)
 }
 
 interface EvidenceUploadDialogProps {
@@ -40,6 +41,7 @@ interface EvidenceUploadDialogProps {
     projectId: string;
     controlId?: string;
     controlCode?: string;
+    controlTags?: string[] | any[]; // Tags from the pre-selected control
     controls?: Control[];
     onSuccess: () => void;
 }
@@ -73,13 +75,16 @@ function formatFileSize(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const DEFAULT_CONTROLS: Control[] = [];
+
 export function EvidenceUploadDialog({
     open,
     onOpenChange,
     projectId,
     controlId,
     controlCode,
-    controls = [],
+    controlTags,
+    controls = DEFAULT_CONTROLS,
     onSuccess,
 }: EvidenceUploadDialogProps) {
     const { token } = useAuth();
@@ -104,6 +109,56 @@ export function EvidenceUploadDialog({
     const [error, setError] = useState<string | null>(null);
 
     const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+
+    // Use a ref to track if we have initialized tags for this open session
+    const tagsInitializedRef = useRef(false);
+
+    // Reset initialization state when dialog closes or control changes
+    useEffect(() => {
+        if (!open) {
+            setTags(prev => prev.length ? [] : prev);
+            setSelectedControls(prev => (controlId && prev.length === 1 && prev[0] === controlId) ? prev : (controlId ? [controlId] : []));
+            tagsInitializedRef.current = false;
+        }
+    }, [open, controlId]);
+
+    // Auto-populate tags when dialog opens with a pre-selected control
+    // RUNS ONLY ONCE PER OPEN SESSION due to tagsInitializedRef check
+    useEffect(() => {
+        if (open && controlId && !tagsInitializedRef.current) {
+            let extractedTags: string[] = [];
+
+            console.log('[DEBUG] Dialog Open - Initializing Tags (Once)', { open, controlId, controlTags, controlsLength: controls.length });
+
+            // First try using controlTags prop (fastest)
+            if (controlTags && controlTags.length > 0) {
+                extractedTags = Array.isArray(controlTags)
+                    ? controlTags.map((t: any) => typeof t === 'string' ? t : (t.name || t))
+                    : [];
+            }
+            // Fallback: try finding in controls array
+            else if (controls.length > 0) {
+                const control = controls.find(c => c.id === controlId);
+                if (control && control.tags && control.tags.length > 0) {
+                    extractedTags = Array.isArray(control.tags)
+                        ? control.tags.map((t: any) => typeof t === 'string' ? t : (t.name || t))
+                        : [];
+                }
+            }
+
+            // Clean and Sort
+            const finalTags = extractedTags.filter(t => t).sort();
+
+            console.log('[DEBUG] Calculated Tags', { finalTags });
+
+            if (finalTags.length > 0) {
+                setTags(finalTags);
+            }
+
+            // Mark as initialized so we don't run this again even if props change
+            tagsInitializedRef.current = true;
+        }
+    }, [open, controlId, controlTags, controls]);
 
     // File handling
     const handleFiles = useCallback((files: FileList | null) => {
@@ -187,10 +242,33 @@ export function EvidenceUploadDialog({
         }
     };
 
-    const toggleControl = (cId: string) => {
+    const toggleControl = async (cId: string) => {
+        const isAdding = !selectedControls.includes(cId);
+
         setSelectedControls(prev =>
             prev.includes(cId) ? prev.filter(id => id !== cId) : [...prev, cId]
         );
+
+        // When adding a control, fetch its tags and add them
+        if (isAdding) {
+            try {
+                // Find the control in the controls array to get its tags
+                const control = controls.find(c => c.id === cId);
+                if (control && (control as any).tags) {
+                    const controlTags = (control as any).tags;
+                    // Add control tags to existing tags (avoid duplicates)
+                    setTags(prevTags => {
+                        const newTags = Array.isArray(controlTags)
+                            ? controlTags.map((t: any) => typeof t === 'string' ? t : t.name)
+                            : [];
+                        const uniqueTags = [...new Set([...prevTags, ...newTags])];
+                        return uniqueTags;
+                    });
+                }
+            } catch (err) {
+                console.error('Error loading control tags:', err);
+            }
+        }
     };
 
     // Submit handlers

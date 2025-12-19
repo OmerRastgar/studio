@@ -51,8 +51,11 @@ router.get('/users', authenticate, requireRole(['customer']), async (req: AuthRe
 
         const users = await prisma.user.findMany({
             where: {
-                createdById: customerId,
                 role: 'compliance',
+                OR: [
+                    { createdById: customerId },
+                    { linkedCustomerId: customerId }
+                ]
             },
             select: {
                 id: true,
@@ -97,12 +100,15 @@ router.post('/share', authenticate, requireRole(['customer']), async (req: AuthR
             return res.status(403).json({ error: 'Project not found or access denied' });
         }
 
-        // Verify the compliance user was created by this customer
+        // Verify the compliance user is linked to this customer OR created by them
         const targetUser = await prisma.user.findFirst({
             where: {
                 id: userId,
-                createdById: customerId,
                 role: 'compliance',
+                OR: [
+                    { createdById: customerId },
+                    { linkedCustomerId: customerId }
+                ]
             },
         });
 
@@ -210,7 +216,11 @@ router.get('/projects/:id', authenticate, requireRole(['compliance']), async (re
                 },
                 projectControls: {
                     include: {
-                        control: true,
+                        control: {
+                            include: {
+                                tags: true
+                            }
+                        },
                         evidenceItems: {
                             include: {
                                 uploadedBy: {
@@ -240,7 +250,7 @@ router.get('/projects/:id', authenticate, requireRole(['compliance']), async (re
                 code: pc.control.code,
                 title: pc.control.title,
                 description: pc.control.description,
-                tags: pc.control.tags,
+                tags: Array.isArray(pc.control.tags) ? pc.control.tags.map((t: any) => t.name) : [],
                 progress: pc.progress,
                 evidenceCount: pc.evidenceCount,
                 evidence: pc.evidenceItems,

@@ -47,7 +47,7 @@ function Nav() {
       title: 'Projects',
       icon: FileText,
       tourId: 'projects',
-      roles: ['admin', 'auditor', 'manager'] // Customer sees projects on dashboard
+      roles: ['admin', 'auditor', 'manager', 'customer'] // Customer sees projects on dashboard
     },
     {
       href: '/users',
@@ -101,6 +101,7 @@ function Nav() {
         if (user?.role === 'admin') return { ...item, href: '/dashboard/admin/projects' };
         if (user?.role === 'manager') return { ...item, href: '/dashboard/manager/projects' };
         if (user?.role === 'auditor') return { ...item, href: '/dashboard/auditor/projects' };
+        if (user?.role === 'customer') return { ...item, href: '/dashboard/customer/projects' };
       }
       return item;
     });

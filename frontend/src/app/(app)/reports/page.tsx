@@ -231,7 +231,7 @@ function ReportsContent() {
         setReportRows(data.data.controls.map((c: any) => ({
           id: c.id,
           controlId: c.controlId,
-          control: c.control?.name || "Unknown Control",
+          control: c.code && c.title ? `${c.code}: ${c.title}` : "Unknown Control",
           observation: c.observation || '',
           evidence: c.evidence || [],
           analysis: c.analysis || '',
@@ -241,7 +241,7 @@ function ReportsContent() {
           flagComment: c.reviewerNotes || '', // Mapping reviewerNotes to flagComment for UI
           reviewerNotes: c.reviewerNotes || '',
           progress: c.progress || 0,
-          tags: c.control?.tags || []
+          tags: c.tags || []
         })));
 
       } catch (error) {

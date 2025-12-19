@@ -170,6 +170,7 @@ export function ControlItem({
                     projectId={projectId}
                     controlId={id}
                     controlCode={code}
+                    controlTags={tags}
                     onSuccess={() => {
                         setShowUploadDialog(false);
                         onEvidenceUploaded?.();

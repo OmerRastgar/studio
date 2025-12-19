@@ -75,3 +75,17 @@ plugins:
       policy: "studio.authz.allow"
       timeout: 5000
       allow_on_error: false
+
+  # JWT Authentication
+  - name: jwt
+    route: api-protected
+    config:
+      secret_is_base64: false
+      run_on_preflight: false
+
+consumers:
+  - username: studio-user
+    jwt_secrets:
+      - key: studio-idp
+        algorithm: HS256
+        secret: your-256-bit-secret-key-here-change-this-in-production

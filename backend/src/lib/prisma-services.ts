@@ -81,7 +81,8 @@ export async function getAgents(): Promise<Agent[]> {
 export async function getEvidence(): Promise<Evidence[]> {
   const evidence = await prisma.evidence.findMany({
     include: {
-      uploadedBy: { select: { id: true, name: true } }
+      uploadedBy: { select: { id: true, name: true } },
+      tags: true
     },
     orderBy: { uploadedAt: 'desc' }
   });
@@ -92,7 +93,7 @@ export async function getEvidence(): Promise<Evidence[]> {
     agentId: item.agentId || undefined,
     name: item.fileName,
     type: item.type as 'document' | 'screenshot' | 'log' | 'network' | 'config',
-    tags: item.tags,
+    tags: item.tags ? item.tags.map((t: any) => t.name) : [],
     uploadedAt: item.uploadedAt.toISOString(),
     uploadedBy: item.uploadedBy?.name || 'Unknown',
     previewUrl: item.fileUrl || '',

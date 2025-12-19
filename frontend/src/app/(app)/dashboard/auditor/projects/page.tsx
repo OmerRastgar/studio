@@ -58,8 +58,9 @@ function AuditorProjectsContent() {
 
         setLoading(true);
         try {
-            const apiBase = typeof window !== 'undefined' ? 'http://localhost:8000' : '';
-            const res = await fetch(`${apiBase}/api/auditor/projects`, {
+            const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+            const apiUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+            const res = await fetch(`${apiUrl}/api/auditor/projects`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 

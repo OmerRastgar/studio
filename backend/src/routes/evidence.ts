@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { GraphService } from '../services/graph.service';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -48,31 +49,78 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
         // Build query
         const where: any = { projectId };
+
+        // If filtering by control, we must find evidence that shares tags with this control
         if (controlId && typeof controlId === 'string') {
-            where.controls = { some: { id: controlId } };
+            const control = await prisma.projectControl.findUnique({
+                where: { id: controlId },
+                include: { control: { include: { tags: true } } }
+            });
+
+            if (control && control.control.tags.length > 0) {
+                const tagNames = control.control.tags.map(t => t.name);
+                where.tags = {
+                    some: {
+                        name: { in: tagNames }
+                    }
+                };
+            } else {
+                // Control has no tags, so no evidence can match via tags.
+                // Return empty unless looking for evidence with NO tags? 
+                // Usually just return empty.
+                return res.json([]);
+            }
         }
 
         const evidence = await prisma.evidence.findMany({
             where,
             include: {
-                controls: {
-                    select: {
-                        id: true,
-                        control: { select: { code: true, title: true } }
-                    }
-                },
+                tags: true,
+                controls: { include: { control: true } }, // Include linked controls
                 uploadedBy: { select: { id: true, name: true } },
                 agent: { select: { id: true, name: true } }
             },
             orderBy: { uploadedAt: 'desc' }
         });
 
-        return res.json(evidence);
+        const formattedEvidence = evidence.map(e => ({
+            ...e,
+            tags: e.tags.map(t => t.name)
+        }));
+
+        return res.json(formattedEvidence);
     } catch (error) {
         console.error('Error fetching evidence:', error);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+// Helper to update evidence counts based on tag matching
+async function updateEvidenceCounts(projectId: string, tagNames: string[], increment: boolean) {
+    if (!tagNames || tagNames.length === 0) return;
+
+    // Find all ProjectControls in this project that match ANY of the tags
+    const matchingControls = await prisma.projectControl.findMany({
+        where: {
+            projectId,
+            control: {
+                tags: { some: { name: { in: tagNames } } }
+            }
+        },
+        select: { id: true }
+    });
+
+    if (matchingControls.length > 0) {
+        await prisma.projectControl.updateMany({
+            where: {
+                id: { in: matchingControls.map(c => c.id) }
+            },
+            data: {
+                evidenceCount: { [increment ? 'increment' : 'decrement']: 1 }
+            }
+        });
+    }
+}
 
 /**
  * POST /api/evidence
@@ -109,48 +157,92 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             (userRole === 'customer' && project.customerId === userId);
 
         if (!canUpload) {
-            return res.status(403).json({ error: 'You do not have permission to upload evidence for this project' });
+            return res.status(403).json({ error: 'Permission denied' });
         }
 
-        // Prepare connect operations for controls
-        const controlsConnect = Array.isArray(controlIds) && controlIds.length > 0
-            ? controlIds.map((id: string) => ({ id }))
-            : [];
+        // DEBUG: Check what IDs we got
+        console.log('[DEBUG-EVIDENCE] Creating evidence:', {
+            projectId,
+            fileName,
+            controlIdsReceived: controlIds
+        });
 
+        // 1. Tag Aggregation (User tags + Inherited Control tags)
+        const finalTags = new Set<string>();
+
+        // Add user provided tags
+        if (Array.isArray(tags)) {
+            tags.forEach((t: string) => finalTags.add(t));
+        }
+
+        // Inherit from controls if specified
+        if (Array.isArray(controlIds) && controlIds.length > 0) {
+            // Need to find the *Control* ID from the *ProjectControl* ID passed in?
+            // Usually 'controlIds' in frontend might be ProjectControl IDs or Control IDs.
+            // Assuming ProjectControl IDs given the context of a Project.
+            const relatedControls = await prisma.projectControl.findMany({
+                where: { id: { in: controlIds }, projectId },
+                include: { control: { include: { tags: true } } }
+            });
+
+            console.log('[DEBUG-EVIDENCE] Related ProjectControls found:', relatedControls.length);
+
+            relatedControls.forEach(pc => {
+                pc.control.tags.forEach(t => finalTags.add(t.name));
+            });
+        }
+
+        // 2. Upsert Tags
+        const tagConnect = [];
+        for (const tagName of Array.from(finalTags)) {
+            if (!tagName) continue;
+            const t = await prisma.tag.upsert({
+                where: { name: tagName },
+                update: {},
+                create: { name: tagName }
+            });
+            tagConnect.push({ id: t.id });
+        }
+
+        const controlConnect = controlIds?.map((id: string) => ({ id })) || [];
+        console.log('[DEBUG-EVIDENCE] Connecting controls:', controlConnect);
+
+        // 3. Create Evidence
         const evidence = await prisma.evidence.create({
             data: {
                 projectId,
                 fileName,
                 fileUrl: fileUrl || null,
-                tags: tags || [],
                 type: type || 'document',
                 uploadedById: userId,
+                tags: {
+                    connect: tagConnect
+                },
                 controls: {
-                    connect: controlsConnect
+                    connect: controlConnect
                 }
             },
             include: {
-                controls: {
-                    select: {
-                        id: true,
-                        control: { select: { code: true, title: true } }
-                    }
-                },
+                tags: true,
+                controls: { include: { control: true } },
                 uploadedBy: { select: { id: true, name: true } }
             }
         });
 
-        // Update evidence count on linked controls
-        if (controlsConnect.length > 0) {
-            await Promise.all(controlsConnect.map((c: any) =>
-                prisma.projectControl.update({
-                    where: { id: c.id },
-                    data: { evidenceCount: { increment: 1 } }
-                })
-            ));
+        // Emit Graph Events for Tags
+        if (evidence && tagConnect.length > 0) {
+            tagConnect.forEach(t => {
+                GraphService.linkEvidenceToTag(evidence.id, t.id).catch(e => console.error(e));
+            });
         }
 
-        return res.status(201).json(evidence);
+        // 4. Update Evidence Counts (Auto-linking)
+        await updateEvidenceCounts(projectId, Array.from(finalTags), true);
+
+        return res.status(201).json({
+            ...evidence,
+            tags: evidence.tags.map(t => t.name)
+        });
     } catch (error) {
         console.error('Error creating evidence:', error);
         return res.status(500).json({ error: 'Internal server error' });
@@ -159,18 +251,18 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
 /**
  * PUT /api/evidence/:id
- * Update evidence metadata (tags, control assignment)
+ * Update evidence metadata (tags)
  */
 router.put('/:id', async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const { fileName, controlIds, tags } = req.body;
+        const { fileName, tags } = req.body; // controlIds ignored in update? User can update tags directly.
         const userId = req.user?.userId;
         const userRole = req.user?.role?.toLowerCase();
 
         const existing = await prisma.evidence.findUnique({
             where: { id },
-            include: { project: true, controls: true }
+            include: { project: true, tags: true }
         });
 
         if (!existing) {
@@ -185,49 +277,66 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
             (userRole === 'customer' && existing.uploadedById === userId);
 
         if (!canEdit) {
-            return res.status(403).json({ error: 'You do not have permission to edit this evidence' });
+            return res.status(403).json({ error: 'Permission denied' });
         }
 
-        // Handle control changes if controlIds provided
-        let controlsUpdate = {};
-        if (Array.isArray(controlIds)) {
-            const oldControlIds = existing.controls.map(c => c.id);
-            // Decrement removed
-            const removed = oldControlIds.filter(id => !controlIds.includes(id));
-            await Promise.all(removed.map(rid =>
-                prisma.projectControl.update({ where: { id: rid }, data: { evidenceCount: { decrement: 1 } } })
-            ));
+        // 1. Handle Tags Change
+        if (tags !== undefined && Array.isArray(tags)) {
+            const oldTags = existing.tags.map(t => t.name);
+            const newTags = tags; // Expecting string array of names
 
-            // Increment added
-            const added = controlIds.filter((id: string) => !oldControlIds.includes(id));
-            await Promise.all(added.map(aid =>
-                prisma.projectControl.update({ where: { id: aid }, data: { evidenceCount: { increment: 1 } } })
-            ));
+            // Decrement counts for old tags
+            await updateEvidenceCounts(existing.projectId, oldTags, false);
 
-            controlsUpdate = {
-                set: controlIds.map((id: string) => ({ id }))
-            };
-        }
+            // Upsert new tags
+            const tagConnect = [];
+            for (const tagName of newTags) {
+                if (!tagName) continue;
+                const t = await prisma.tag.upsert({
+                    where: { name: tagName },
+                    update: {},
+                    create: { name: tagName }
+                });
+                tagConnect.push({ id: t.id });
+            }
 
-        const updated = await prisma.evidence.update({
-            where: { id },
-            data: {
-                fileName: fileName !== undefined ? fileName : existing.fileName,
-                tags: tags !== undefined ? tags : existing.tags,
-                controls: controlsUpdate
-            },
-            include: {
-                controls: {
-                    select: {
-                        id: true,
-                        control: { select: { code: true, title: true } }
+            // Update Evidence
+            const updated = await prisma.evidence.update({
+                where: { id },
+                data: {
+                    fileName: fileName !== undefined ? fileName : existing.fileName,
+                    tags: {
+                        set: tagConnect
                     }
                 },
-                uploadedBy: { select: { id: true, name: true } }
-            }
-        });
+                include: { tags: true }
+            });
 
-        return res.json(updated);
+            // Increment counts for new tags (this might double count if overlap? No, updateEvidenceCounts queries 'hasSome'.
+            // Actually, if a PC matches both OLD and NEW, we decremented then incremented. Net 0. Correct.
+            // If it matched OLD but not NEW, match removed -> Net -1. Correct.
+            // If it matches NEW but not OLD, match added -> Net +1. Correct.
+            await updateEvidenceCounts(existing.projectId, newTags, true);
+
+            return res.json({
+                ...updated,
+                tags: updated.tags.map(t => t.name)
+            });
+        } else {
+            // Only filename update
+            const updated = await prisma.evidence.update({
+                where: { id },
+                data: {
+                    fileName: fileName !== undefined ? fileName : existing.fileName
+                },
+                include: { tags: true }
+            });
+            return res.json({
+                ...updated,
+                tags: updated.tags.map(t => t.name)
+            });
+        }
+
     } catch (error) {
         console.error('Error updating evidence:', error);
         return res.status(500).json({ error: 'Internal server error' });
@@ -246,35 +355,73 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
 
         const existing = await prisma.evidence.findUnique({
             where: { id },
-            include: { project: true, controls: true }
+            include: { project: true, tags: true }
         });
 
         if (!existing) {
             return res.status(404).json({ error: 'Evidence not found' });
         }
 
-        // Check permission
+        // DEBUG: Check permissions details BEFORE decision
+        console.log('[DEBUG-EVIDENCE-DELETE] Check:', {
+            evidenceId: id,
+            userRole,
+            userId,
+            uploadedBy: existing.uploadedById,
+            projectOwner: existing.project.customerId,
+            projectAuditor: existing.project.auditorId
+        });
+
         const canDelete =
             userRole === 'admin' ||
             userRole === 'manager' ||
-            (userRole === 'auditor' && existing.project.auditorId === userId) ||
-            (userRole === 'customer' && existing.uploadedById === userId);
+            (userRole === 'auditor' && (existing.project.auditorId === userId || existing.uploadedById === userId)) ||
+            (userRole === 'customer' && existing.uploadedById === userId); // Strict Uploader check for Customer
+
+        // Status Check: Prevent deletion if Status is "review_pending" or "completed" or "approved" (unless Admin/Manager)
+        console.log('[DEBUG-EVIDENCE-DELETE] Check Passed, validating Status...');
+        if (canDelete && (userRole !== 'admin' && userRole !== 'manager')) {
+            try {
+                const status = existing.project.status;
+                console.log('[DEBUG-EVIDENCE-DELETE] Project Status:', status);
+                if (status === 'review_pending' || status === 'completed' || status === 'approved') {
+                    console.log('[DEBUG-EVIDENCE-DELETE] Status Locked');
+                    return res.status(403).json({ error: `Cannot delete evidence because project is in '${status}' status.` });
+                }
+            } catch (e) {
+                console.error('[DEBUG-EVIDENCE-DELETE] Error reading status:', e);
+            }
+        }
 
         if (!canDelete) {
-            return res.status(403).json({ error: 'You do not have permission to delete this evidence' });
+            console.log('[DEBUG-EVIDENCE-DELETE] Permission denied logic reached');
+            // ... (keep existing logs logic in mind, but we just pass through because I cannot match large block easily)
+            if (userRole === 'customer' && existing.uploadedById !== userId) {
+                return res.status(403).json({ error: 'You can only delete evidence you have uploaded.' });
+            }
+
+            return res.status(403).json({
+                error: 'Permission denied',
+                debug: {
+                    userRole,
+                    userId,
+                    uploadedBy: existing.uploadedById
+                }
+            });
         }
 
-        // Decrement control counts
-        if (existing.controls.length > 0) {
-            await Promise.all(existing.controls.map(c =>
-                prisma.projectControl.update({
-                    where: { id: c.id },
-                    data: { evidenceCount: { decrement: 1 } }
-                })
-            ));
-        }
+        if (canDelete) {
+            console.log('[DEBUG-EVIDENCE-DELETE] Proceeding to delete updateEvidenceCounts...');
+            // Decrement control counts (by tags)
+            const tagNames = existing.tags.map(t => t.name);
+            console.log('[DEBUG-EVIDENCE-DELETE] Tags to update:', tagNames);
 
-        await prisma.evidence.delete({ where: { id } });
+            await updateEvidenceCounts(existing.projectId, tagNames, false);
+
+            console.log('[DEBUG-EVIDENCE-DELETE] Performing DB Delete...');
+            await prisma.evidence.delete({ where: { id } });
+            console.log('[DEBUG-EVIDENCE-DELETE] Done.');
+        }
 
         return res.json({ message: 'Evidence deleted successfully' });
     } catch (error) {

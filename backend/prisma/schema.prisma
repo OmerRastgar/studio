@@ -32,7 +32,8 @@ model Control {
   title       String
   description String?
   category    String?
-  tags        String[]
+  // tags        String[] // Removed
+  tags        Tag[]    @relation("ControlTags")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   
@@ -41,6 +42,17 @@ model Control {
   
   @@unique([frameworkId, code])
   @@map("controls")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  controls  Control[] @relation("ControlTags")
+  evidence  Evidence[] @relation("EvidenceTags")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tags")
 }
 
 // Project Control (customer's copy per project)
@@ -60,7 +72,7 @@ model ProjectControl {
   control Control @relation(fields: [controlId], references: [id], onDelete: Cascade)
   auditRequests AuditRequest[]
   evidenceItems EvidenceItem[]
-  projectEvidence Evidence[]
+  evidence      Evidence[] // Explicit Many-to-Many
   
   @@unique([projectId, controlId])
   @@map("project_controls")
@@ -224,14 +236,15 @@ model Evidence {
   fileName     String       @map("file_name")
   fileUrl      String?      @map("file_url")
   type         EvidenceType @default(document)
-  tags         String[]
+  // tags         String[] // Removed
+  tags         Tag[]       @relation("EvidenceTags")
   uploadedAt   DateTime     @default(now()) @map("uploaded_at")
   uploadedById String       @map("uploaded_by_id")
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
   
   project    Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  controls   ProjectControl[] // Implicit Many-to-Many
+  controls   ProjectControl[] // Explicit Many-to-Many
   agent      Agent?          @relation(fields: [agentId], references: [id], onDelete: SetNull)
   uploadedBy User            @relation("UploadedProjectEvidence", fields: [uploadedById], references: [id])
   

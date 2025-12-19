@@ -1,0 +1,25 @@
+
+> nextn@0.1.0 build
+> next build
+
+   ▲ Next.js 15.3.3
+   - Experiments (use with caution):
+     · cpus: 1
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 6.0s
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./src/app/(app)/reports/page.tsx:322:26
+Type error: Parameter 'prev' implicitly has an 'any' type.
+
+[0m [90m 320 |[39m[0m
+[0m [90m 321 |[39m       setReportRows(rows [33m=>[39m rows[33m.[39mmap(row [33m=>[39m (row[33m.[39mid [33m===[39m selectedControl[33m.[39mid [33m?[39m { [33m...[39mrow[33m,[39m observation[33m:[39m observation } [33m:[39m row)))[33m;[39m[0m
+[0m[31m[1m>[22m[39m[90m 322 |[39m       setSelectedControl(prev [33m=>[39m prev [33m?[39m { [33m...[39mprev[33m,[39m observation[33m:[39m observation } [33m:[39m [36mnull[39m)[33m;[39m[0m
+[0m [90m     |[39m                          [31m[1m^[22m[39m[0m
+[0m [90m 323 |[39m       toast({ title[33m:[39m [32m"Observation Saved"[39m[33m,[39m description[33m:[39m [32m"Your observation has been updated."[39m })[33m;[39m[0m
+[0m [90m 324 |[39m     } [36mcatch[39m (error) {[0m
+[0m [90m 325 |[39m       console[33m.[39merror([32m"Failed to save observation:"[39m[33m,[39m error)[33m;[39m[0m
+Next.js build worker exited with code: 1 and signal: null

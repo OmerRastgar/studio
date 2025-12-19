@@ -184,7 +184,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
                 status: true,
                 avatarUrl: true,
                 lastActive: true,
-                createdAt: true
+                createdAt: true,
+                managerId: true
             }
         });
 

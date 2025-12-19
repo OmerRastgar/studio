@@ -18,39 +18,50 @@ default allow := false
 # These routes are dedicated to specific roles
 # =============================================
 
+# GLOBAL ADMIN ALLOW
+allow if {
+    input.user.role == "admin"
+}
+
+# PROJECTS ROUTES
+allow if {
+    startswith(input.path, "/api/projects")
+    input.user.role in ["manager", "auditor", "customer", "compliance"]
+}
+
 # Admin-only routes
 allow if {
     startswith(input.path, "/api/admin")
-    lower(input.user.role) == "admin"
+    input.user.role == "admin"
 }
 
 # Manager routes (admin + manager)
 allow if {
     startswith(input.path, "/api/manager")
-    lower(input.user.role) in ["admin", "manager"]
+    input.user.role in ["admin", "manager"]
 }
 
 # Auditor routes (admin + auditor + manager [read-only])
 allow if {
     startswith(input.path, "/api/auditor")
-    lower(input.user.role) in ["admin", "auditor"]
+    input.user.role in ["admin", "auditor"]
 }
 
 allow if {
     startswith(input.path, "/api/auditor")
-    lower(input.user.role) == "manager"
+    input.user.role == "manager"
     input.method == "GET"
 }
 
 # Customer routes (admin + customer + manager [read-only])
 allow if {
     startswith(input.path, "/api/customer")
-    lower(input.user.role) in ["admin", "customer"]
+    input.user.role in ["admin", "customer"]
 }
 
 allow if {
     startswith(input.path, "/api/customer")
-    lower(input.user.role) == "manager"
+    input.user.role == "manager"
     input.method == "GET"
 }
 
@@ -61,24 +72,24 @@ allow if {
 # Compliance user management - customer only can create/list compliance users
 allow if {
     startswith(input.path, "/api/compliance/users")
-    lower(input.user.role) in ["admin", "customer"]
+    input.user.role in ["admin", "customer"]
 }
 
 # Compliance project sharing - customer only
 allow if {
     input.path == "/api/compliance/share"
-    lower(input.user.role) in ["admin", "customer"]
+    input.user.role in ["admin", "customer"]
 }
 
 # Compliance dashboard and project access - compliance users only
 allow if {
     startswith(input.path, "/api/compliance/dashboard")
-    lower(input.user.role) in ["admin", "compliance"]
+    input.user.role in ["admin", "compliance"]
 }
 
 allow if {
     startswith(input.path, "/api/compliance/projects")
-    lower(input.user.role) in ["admin", "compliance"]
+    input.user.role in ["admin", "compliance"]
 }
 
 # =============================================
@@ -89,12 +100,12 @@ allow if {
 # Managers cannot DELETE users, only Admin
 allow if {
     startswith(input.path, "/api/users")
-    lower(input.user.role) == "admin"
+    input.user.role == "admin"
 }
 
 allow if {
     startswith(input.path, "/api/users")
-    lower(input.user.role) == "manager"
+    input.user.role == "manager"
     input.method != "DELETE"
 }
 
@@ -105,7 +116,7 @@ allow if {
 
 allow if {
     startswith(input.path, "/api/chat")
-    lower(input.user.role) in ["admin", "manager", "auditor", "customer"]
+    input.user.role in ["admin", "manager", "auditor", "customer"]
 }
 
 # =============================================
@@ -116,7 +127,13 @@ allow if {
 
 allow if {
     startswith(input.path, "/api/evidence")
-    lower(input.user.role) in ["admin", "manager", "auditor", "customer"]
+    input.user.role in ["admin", "manager", "customer"]
+}
+
+allow if {
+    startswith(input.path, "/api/evidence")
+    input.user.role == "auditor"
+    input.method in ["GET", "POST", "PUT", "PATCH", "DELETE"]
 }
 
 # =============================================
@@ -126,7 +143,7 @@ allow if {
 
 allow if {
     startswith(input.path, "/api/uploads")
-    lower(input.user.role) in ["admin", "manager", "auditor", "customer"]
+    input.user.role in ["admin", "manager", "auditor", "customer"]
 }
 
 # =============================================

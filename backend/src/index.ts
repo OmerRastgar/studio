@@ -48,6 +48,7 @@ import auditorRoutes from './routes/auditor';
 import complianceRoutes from './routes/compliance';
 import evidenceRoutes from './routes/evidence';
 import uploadsRoutes from './routes/uploads';
+import tagsRoutes from './routes/tags';
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -60,6 +61,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/auditor', auditorRoutes);
 app.use('/api/compliance', complianceRoutes);
 app.use('/api/evidence', evidenceRoutes);
+app.use('/api/tags', tagsRoutes);
 import systemRoutes from './routes/system';
 console.log('[DEBUG] Registering /api/system routes');
 app.use('/api/system', systemRoutes);

@@ -55,7 +55,7 @@ export function ProjectCard({
                 <div>
                     <h3 className="font-medium text-foreground">{name}</h3>
                     <p className="text-sm text-muted-foreground">{framework}</p>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                    <div className="flex flex-col items-start gap-1 mt-1 text-xs text-muted-foreground">
                         {auditor && (
                             <span className="flex items-center gap-1">
                                 <User className="w-3 h-3" />
