@@ -92,7 +92,11 @@ interface Evidence {
 
 interface ProjectControl {
     id: string;
-    control: { code: string; title: string };
+    control: {
+        code: string;
+        title: string;
+        tags?: { name: string }[];
+    };
 }
 
 function EvidencePageComponent() {
@@ -265,7 +269,11 @@ function EvidencePageComponent() {
                 console.log('Fetched controls:', controlsList.length);
                 setControls(controlsList.map((pc: any) => ({
                     id: pc.id,
-                    control: { code: pc.code, title: pc.title }
+                    control: {
+                        code: pc.code,
+                        title: pc.title,
+                        tags: pc.tags || []
+                    }
                 })));
             }
         } catch (err) {
@@ -358,9 +366,38 @@ function EvidencePageComponent() {
     };
 
     const toggleEditControl = (cId: string) => {
-        setEditControls(prev =>
-            prev.includes(cId) ? prev.filter(id => id !== cId) : [...prev, cId]
-        );
+        setEditControls(prev => {
+            const isAdding = !prev.includes(cId);
+            const targetControl = controls.find(c => c.id === cId);
+
+            if (targetControl && targetControl.control.tags) {
+                const controlTags = targetControl.control.tags || []; // Assuming tags are { name: string }[] or string[]
+                // Need to verify the shape of 'controls' prop or fetch it.
+                // The 'controls' prop in EvidenceUploadDialog (and here) comes from parent.
+                // Check EvidencePageComponent controls usage.
+
+                // We need to update editTags
+                setEditTags(currentTags => {
+                    if (isAdding) {
+                        // Add tags that aren't already there
+                        const newTags = [...currentTags];
+                        controlTags.forEach((t: any) => { // 't' might be object or string depending on interface
+                            const tName = typeof t === 'string' ? t : t.name;
+                            if (!newTags.includes(tName)) newTags.push(tName);
+                        });
+                        return newTags;
+                    } else {
+                        // Remove tags that belong to this control (and ONLY this control?)
+                        // That's risky. What if user manually added same tag?
+                        // For now, let's remove them to solve the "Ghost" issue. User can re-add if needed.
+                        const tagsToRemove = controlTags.map((t: any) => typeof t === 'string' ? t : t.name);
+                        return currentTags.filter(t => !tagsToRemove.includes(t));
+                    }
+                });
+            }
+
+            return isAdding ? [...prev, cId] : prev.filter(id => id !== cId);
+        });
     };
 
     const handleUpdate = async () => {

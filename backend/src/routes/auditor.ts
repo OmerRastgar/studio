@@ -2,6 +2,7 @@ import express from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, requireRole } from '../middleware/auth';
 import { webhookService } from '../services/webhookService';
+import { recalcEvidenceCounts } from '../utils/recalcCounts';
 
 const router = express.Router();
 
@@ -166,7 +167,7 @@ router.get('/projects', async (req, res) => {
             // where: whereClause, // Disabled due to filtering issue
             include: {
                 customer: {
-                    select: { name: true, avatarUrl: true }
+                    select: { id: true, name: true, avatarUrl: true }
                 },
                 framework: {
                     select: { name: true }
@@ -174,7 +175,9 @@ router.get('/projects', async (req, res) => {
                 projectControls: {
                     select: {
                         progress: true,
-                        evidenceCount: true
+                        _count: {
+                            select: { evidence: true }
+                        }
                     }
                 },
                 timeLogs: {
@@ -213,7 +216,7 @@ router.get('/projects', async (req, res) => {
         const projectsWithMetrics = projects.map(p => {
             const totalControls = p.projectControls.length;
             const completedControls = p.projectControls.filter(c => c.progress === 100).length;
-            const totalEvidence = p.projectControls.reduce((sum, c) => sum + c.evidenceCount, 0);
+            const totalEvidence = p.projectControls.reduce((sum, c) => sum + (c._count?.evidence || 0), 0);
             const overallProgress = totalControls > 0
                 ? Math.round(p.projectControls.reduce((sum, c) => sum + c.progress, 0) / totalControls)
                 : 0;
@@ -225,6 +228,8 @@ router.get('/projects', async (req, res) => {
             return {
                 id: p.id,
                 name: p.name,
+                customerId: p.customer?.id,
+                customer: p.customer,
                 customerName: p.customer?.name || 'Unknown',
                 customerAvatar: p.customer?.avatarUrl,
                 frameworkName: p.framework?.name || 'Custom',
@@ -279,8 +284,9 @@ router.get('/projects/:id', async (req, res) => {
                         control: {
                             include: { tags: true }
                         },
-                        evidenceItems: {
+                        evidence: {
                             include: {
+                                tags: true,
                                 uploadedBy: { select: { id: true, name: true } }
                             }
                         }
@@ -319,7 +325,10 @@ router.get('/projects/:id', async (req, res) => {
                 tags: pc.control.tags ? pc.control.tags.map((t: any) => t.name) : [],
                 progress: pc.progress,
                 evidenceCount: pc.evidenceCount,
-                evidence: [...pc.evidenceItems],
+                evidence: pc.evidence.map((e: any) => ({
+                    ...e,
+                    tags: e.tags.map((t: any) => t.name)
+                })),
                 notes: pc.notes
             });
             category.totalControls++;
@@ -444,12 +453,12 @@ router.get('/events', async (req, res) => {
     try {
         const userId = (req as any).user.userId;
 
-        const [dbEvents, projects] = await Promise.all([
+        const [dbEvents, projects, requests] = await Promise.all([
             prisma.auditEvent.findMany({
                 where: { auditorId: userId },
                 include: {
-                    customer: { select: { name: true } },
-                    project: { select: { name: true } }
+                    customer: { select: { id: true, name: true } },
+                    project: { select: { id: true, name: true } }
                 },
                 orderBy: { startTime: 'asc' }
             }),
@@ -463,7 +472,21 @@ router.get('/events', async (req, res) => {
                     name: true,
                     startDate: true,
                     dueDate: true,
-                    customer: { select: { name: true } }
+                    customer: { select: { id: true, name: true } }
+                }
+            }),
+            prisma.auditRequest.findMany({
+                where: {
+                    auditorId: userId,
+                    dueDate: { not: null },
+                    status: { not: 'Completed' }
+                },
+                select: {
+                    id: true,
+                    title: true,
+                    dueDate: true,
+                    customer: { select: { id: true, name: true } },
+                    project: { select: { id: true, name: true } }
                 }
             })
         ]);
@@ -475,15 +498,15 @@ router.get('/events', async (req, res) => {
             if (p.startDate) {
                 events.push({
                     id: `start-${p.id}`,
-                    title: `Project Start: ${p.name}`,
+                    title: `Start: ${p.name}`,
                     description: 'Project Start Date',
                     startTime: p.startDate,
                     endTime: p.startDate,
                     auditorId: userId,
-                    customerId: null,
+                    customerId: p.customer?.id,
                     projectId: p.id,
                     customer: p.customer,
-                    project: { name: p.name },
+                    project: { id: p.id, name: p.name },
                     createdAt: new Date(),
                     updatedAt: new Date()
                 } as any);
@@ -491,15 +514,35 @@ router.get('/events', async (req, res) => {
             if (p.dueDate) {
                 events.push({
                     id: `due-${p.id}`,
-                    title: `Project Due: ${p.name}`,
+                    title: `Due: ${p.name}`,
                     description: 'Project Due Date',
                     startTime: p.dueDate,
                     endTime: p.dueDate,
                     auditorId: userId,
-                    customerId: null,
+                    customerId: p.customer?.id,
                     projectId: p.id,
                     customer: p.customer,
-                    project: { name: p.name },
+                    project: { id: p.id, name: p.name },
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                } as any);
+            }
+        });
+
+        // Add Audit Requests as events
+        requests.forEach(r => {
+            if (r.dueDate) {
+                events.push({
+                    id: `req-${r.id}`,
+                    title: `Request: ${r.title}`,
+                    description: 'Audit Request Due Date',
+                    startTime: r.dueDate,
+                    endTime: r.dueDate,
+                    auditorId: userId,
+                    customerId: r.customer?.id,
+                    projectId: r.project?.id,
+                    customer: r.customer,
+                    project: r.project,
                     createdAt: new Date(),
                     updatedAt: new Date()
                 } as any);
@@ -579,6 +622,13 @@ router.get('/projects/:id/assessment', async (req, res) => {
                                 category: true,
                                 tags: true
                             }
+                        },
+                        evidence: {
+                            include: {
+                                tags: true,
+                                uploadedBy: { select: { id: true, name: true } },
+                                controls: { select: { id: true } } // needed? good for debugging
+                            }
                         }
                     },
                     orderBy: { control: { code: 'asc' } }
@@ -606,7 +656,7 @@ router.get('/projects/:id/assessment', async (req, res) => {
             return res.status(404).json({ error: 'Project not found or access denied' });
         }
 
-        // Fetch all evidence for the project (New Model)
+        // Fetch all evidence for the project (Needed for projectEvidence field)
         const allEvidence = await prisma.evidence.findMany({
             where: { projectId: id },
             include: {
@@ -637,31 +687,16 @@ router.get('/projects/:id/assessment', async (req, res) => {
                 isFlagged: pc.isFlagged,
                 progress: pc.progress,
                 evidenceCount: pc.evidenceCount,
-                evidence: allEvidence
-                    .filter(ev => {
-                        // 1. Explicit Link
-                        const explicitMatch = (ev as any).controls?.some((c: any) => c.id === pc.id);
-
-                        // 2. Tag Match (Robust)
-                        const tagMatch = ev.tags.some(evt =>
-                            Array.isArray(pc.control.tags) &&
-                            pc.control.tags.some((pct: any) =>
-                                (pct.name || '').trim().toLowerCase() === (evt.name || '').trim().toLowerCase()
-                            )
-                        );
-
-                        return explicitMatch || tagMatch;
-                    })
-                    .map(e => ({
-                        id: e.id,
-                        fileName: e.fileName,
-                        fileUrl: e.fileUrl,
-                        type: e.type,
-                        tags: e.tags.map(t => t.name),
-                        uploadedBy: e.uploadedBy ? { id: e.uploadedBy.id, name: e.uploadedBy.name } : null,
-                        uploadedAt: e.uploadedAt,
-                        createdAt: e.createdAt
-                    }))
+                evidence: pc.evidence.map((e: any) => ({
+                    id: e.id,
+                    fileName: e.fileName,
+                    fileUrl: e.fileUrl,
+                    type: e.type,
+                    tags: e.tags.map((t: any) => t.name),
+                    uploadedBy: e.uploadedBy ? { id: e.uploadedBy.id, name: e.uploadedBy.name } : null,
+                    uploadedAt: e.uploadedAt,
+                    createdAt: e.createdAt
+                }))
             };
         });
 
@@ -931,36 +966,23 @@ router.post('/projects/:projectId/controls/:controlId/evidence/link', async (req
         // REFACTOR: Use Many-to-Many connect instead of duplicating data
         // connect all evidence items in one go to avoid race conditions
         if (sourceEvidence.length > 0) {
-            // Link evidence by adding control tags to them
-            if (projectControl.control.tags.length > 0) {
-                const tagsToConnect = projectControl.control.tags.map((t: any) => ({ name: t.name }));
+            // We NO LONGER connect tags based on control. Tags are property of evidence.
+            // We ONLY connect the control relation.
 
-                await Promise.all(sourceEvidence.map(ev =>
-                    prisma.evidence.update({
-                        where: { id: ev.id },
-                        data: { tags: { connect: tagsToConnect } }
-                    })
-                ));
-            }
+            await Promise.all(sourceEvidence.map(ev =>
+                prisma.evidence.update({
+                    where: { id: ev.id },
+                    data: {
+                        controls: { connect: { id: controlId } }
+                    }
+                })
+            ));
         }
 
         const createdItems = sourceEvidence;
 
-        // Update evidence count
-        const controlTagNames = projectControl.control.tags.map((t: any) => t.name);
-        const count = await prisma.evidence.count({
-            where: {
-                projectId,
-                tags: { some: { name: { in: controlTagNames } } }
-            }
-        });
-
-        await prisma.projectControl.update({
-            where: { id: controlId },
-            data: {
-                evidenceCount: count
-            }
-        });
+        // Update evidence count strictly
+        await recalcEvidenceCounts(controlId);
 
         res.json({
             success: true,
@@ -1327,35 +1349,22 @@ router.delete('/projects/:projectId/controls/:controlId/evidence/:evidenceId', a
         // We should explicitly decrement the count.
 
         // Unlink evidence by removing control tags
-        const projectControl = await prisma.projectControl.findUnique({
-            where: { id: controlId },
-            include: { control: { include: { tags: true } } }
+        // Unlink evidence by removing control relation only.
+        // We do NOT remove tags, as they are inherent to the evidence file.
+
+        console.log(`[DEBUG-UNLINK] Evidence=${evidenceId} Control=${controlId}. Disconnecting Relation.`);
+
+        await prisma.evidence.update({
+            where: { id: evidenceId },
+            data: {
+                controls: { disconnect: { id: controlId } }
+            }
         });
 
-        if (projectControl && projectControl.control.tags.length > 0) {
-            const tagsToDisconnect = projectControl.control.tags.map((t: any) => ({ name: t.name }));
-            await prisma.evidence.update({
-                where: { id: evidenceId },
-                data: { tags: { disconnect: tagsToDisconnect } }
-            });
-        }
+        console.log(`[DEBUG-UNLINK] Success.`);
 
-        // Recalculate count
-        let count = 0;
-        if (projectControl) {
-            const controlTagNames = projectControl.control.tags.map((t: any) => t.name);
-            count = await prisma.evidence.count({
-                where: {
-                    projectId,
-                    tags: { some: { name: { in: controlTagNames } } }
-                }
-            });
-        }
-
-        await prisma.projectControl.update({
-            where: { id: controlId },
-            data: { evidenceCount: count }
-        });
+        // Recalculate count strictly
+        await recalcEvidenceCounts(controlId);
 
         res.json({ success: true, message: 'Evidence unlinked' });
     } catch (error) {

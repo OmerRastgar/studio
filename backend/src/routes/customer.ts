@@ -29,9 +29,7 @@ router.get('/dashboard', async (req, res) => {
                 },
                 projectControls: {
                     include: {
-                        control: {
-                            include: { tags: true }
-                        },
+                        control: true, // simplified include
                         _count: {
                             select: { evidence: true }
                         }
@@ -150,7 +148,15 @@ router.get('/projects/:id', async (req, res) => {
                         control: {
                             include: { tags: true }
                         },
-                        /* evidenceItems removed: fetching Evidence via tags */
+                        evidence: {
+                            include: {
+                                tags: true,
+                                uploadedBy: { select: { id: true, name: true } }
+                            }
+                        },
+                        _count: {
+                            select: { evidence: true }
+                        }
                     }
                 }
             }
@@ -161,20 +167,8 @@ router.get('/projects/:id', async (req, res) => {
         }
 
         // Fetch all evidence for the project (New Model)
-        const allEvidence = await prisma.evidence.findMany({
-            where: { projectId: id },
-            include: {
-                tags: true,
-                controls: true, // Vital for explicit linking
-                uploadedBy: { select: { id: true, name: true } }
-            },
-            orderBy: { uploadedAt: 'desc' }
-        });
 
-        console.log(`[Debug] Project ${id} - All Evidence Count: ${allEvidence.length}`);
-        if (allEvidence.length > 0) {
-            console.log(`[Debug] First Evidence Tags:`, allEvidence[0].tags.map(t => t.name));
-        }
+
 
         // Group controls by category
         const controlsByCategory: Record<string, any[]> = {};
@@ -199,26 +193,10 @@ router.get('/projects/:id', async (req, res) => {
                 tags: Array.isArray(pc.control.tags) ? pc.control.tags.map((t: any) => t.name) : [],
                 progress: pc.progress,
                 evidenceCount: pc.evidenceCount,
-                evidence: allEvidence
-                    .filter(ev => {
-                        // 1. Explicit Link (New trustworthy method)
-                        // Note: ev.controls might be undefined until Prisma Client re-generated and backend rebuilt
-                        const explicitMatch = (ev as any).controls?.some((c: any) => c.id === pc.id);
-
-                        // 2. Tag Match (Legacy/Soft method)
-                        const tagMatch = ev.tags.some(evt =>
-                            Array.isArray(pc.control.tags) &&
-                            pc.control.tags.some((pct: any) =>
-                                (pct.name || '').trim().toLowerCase() === (evt.name || '').trim().toLowerCase()
-                            )
-                        );
-
-                        return explicitMatch || tagMatch;
-                    })
-                    .map(e => ({
-                        ...e,
-                        tags: e.tags.map(t => t.name) // Fix: Map Tag objects to strings
-                    })),
+                evidence: pc.evidence.map((e: any) => ({
+                    ...e,
+                    tags: e.tags.map((t: any) => t.name)
+                })),
                 notes: pc.notes,
             });
         });

@@ -46,12 +46,13 @@ export function Header({ user, pageTitle, showSidebarTrigger = true }: HeaderPro
     async function fetchNotifications() {
       if (!token) return;
 
-      try {
+      if (!user || !['auditor', 'manager', 'reviewer'].includes(user.role)) return;
 
+      try {
         const [requestsRes, eventsRes, customersRes] = await Promise.all([
-          fetch('/api/auditor/requests', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/auditor/events', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/auditor/customers', { headers: { Authorization: `Bearer ${token}` } })
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auditor/requests`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auditor/events`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auditor/customers`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
 
         let fetchedNotifications: any[] = [];

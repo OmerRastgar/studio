@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { GraphService } from '../services/graph.service';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { recalcEvidenceCounts } from '../utils/recalcCounts';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -50,26 +51,13 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         // Build query
         const where: any = { projectId };
 
-        // If filtering by control, we must find evidence that shares tags with this control
+        // If filtering by control, we uses STRICT explicit linking
         if (controlId && typeof controlId === 'string') {
-            const control = await prisma.projectControl.findUnique({
-                where: { id: controlId },
-                include: { control: { include: { tags: true } } }
-            });
-
-            if (control && control.control.tags.length > 0) {
-                const tagNames = control.control.tags.map(t => t.name);
-                where.tags = {
-                    some: {
-                        name: { in: tagNames }
-                    }
-                };
-            } else {
-                // Control has no tags, so no evidence can match via tags.
-                // Return empty unless looking for evidence with NO tags? 
-                // Usually just return empty.
-                return res.json([]);
-            }
+            where.controls = {
+                some: {
+                    id: controlId
+                }
+            };
         }
 
         const evidence = await prisma.evidence.findMany({
@@ -237,7 +225,11 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         }
 
         // 4. Update Evidence Counts (Auto-linking)
-        await updateEvidenceCounts(projectId, Array.from(finalTags), true);
+        // Recalculate counts for all affected controls
+        const uniqueControlIds = [...new Set(controlConnect.map((c: any) => c.id))];
+        for (const cid of uniqueControlIds) {
+            await recalcEvidenceCounts(cid as string);
+        }
 
         return res.status(201).json({
             ...evidence,
@@ -256,7 +248,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 router.put('/:id', async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const { fileName, tags } = req.body; // controlIds ignored in update? User can update tags directly.
+        const { fileName, tags, controlIds } = req.body; // controlIds now supported
         const userId = req.user?.userId;
         const userRole = req.user?.role?.toLowerCase();
 
@@ -289,8 +281,35 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
             await updateEvidenceCounts(existing.projectId, oldTags, false);
 
             // Upsert new tags
-            const tagConnect = [];
-            for (const tagName of newTags) {
+            // 2. Handle Controls Change (Inherit Tags)
+            let tagConnect = [];
+
+            // Re-calculate tags if controls change or tags explicitly provided
+            const finalTags = new Set(newTags);
+
+            // If controls are being updated
+            let controlConnect: any = undefined;
+            if (controlIds !== undefined && Array.isArray(controlIds)) {
+                // Fetch new controls to get their tags
+                const relatedControls = await prisma.projectControl.findMany({
+                    where: { id: { in: controlIds }, projectId: existing.projectId },
+                    include: { control: { include: { tags: true } } }
+                });
+
+                // Add control tags to finalTags
+                relatedControls.forEach(pc => {
+                    pc.control.tags.forEach(t => finalTags.add(t.name));
+                });
+
+                controlConnect = controlIds.map(cid => ({ id: cid }));
+            } else {
+                // Keep existing tags from existing controls if not changing controls? 
+                // If tags are explicitly passed, we usually rely on that list. 
+                // But let's stick to the user's explicit tag list + new control tags.
+            }
+
+            // Persist Tags
+            for (const tagName of Array.from(finalTags)) {
                 if (!tagName) continue;
                 const t = await prisma.tag.upsert({
                     where: { name: tagName },
@@ -301,22 +320,31 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
             }
 
             // Update Evidence
+            const updateData: any = {
+                fileName: fileName !== undefined ? fileName : existing.fileName,
+                tags: {
+                    set: tagConnect
+                }
+            };
+
+            if (controlConnect) {
+                updateData.controls = { set: controlConnect };
+            }
+
             const updated = await prisma.evidence.update({
                 where: { id },
-                data: {
-                    fileName: fileName !== undefined ? fileName : existing.fileName,
-                    tags: {
-                        set: tagConnect
-                    }
-                },
-                include: { tags: true }
+                data: updateData,
+                include: { tags: true, controls: { include: { control: true } } }
             });
 
-            // Increment counts for new tags (this might double count if overlap? No, updateEvidenceCounts queries 'hasSome'.
-            // Actually, if a PC matches both OLD and NEW, we decremented then incremented. Net 0. Correct.
-            // If it matched OLD but not NEW, match removed -> Net -1. Correct.
-            // If it matches NEW but not OLD, match added -> Net +1. Correct.
-            await updateEvidenceCounts(existing.projectId, newTags, true);
+            // Recalc counts
+            // await updateEvidenceCounts(existing.projectId, newTags, true); -- DEPRECATED
+
+            if (controlIds && Array.isArray(controlIds)) {
+                for (const cid of controlIds) {
+                    await recalcEvidenceCounts(cid);
+                }
+            }
 
             return res.json({
                 ...updated,

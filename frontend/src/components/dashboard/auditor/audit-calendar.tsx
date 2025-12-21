@@ -21,8 +21,8 @@ interface AuditEvent {
     description: string | null;
     startTime: string;
     endTime: string;
-    customer: { name: string } | null;
-    project: { name: string } | null;
+    customer: { id: string; name: string } | null;
+    project: { id: string; name: string } | null;
 }
 
 export function AuditCalendar() {
@@ -38,6 +38,9 @@ export function AuditCalendar() {
         endTime: '',
         projectId: 'none'
     });
+
+    const [filterType, setFilterType] = useState<'all' | 'project' | 'customer'>('all');
+    const [filterValue, setFilterValue] = useState<string>('all');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -74,6 +77,27 @@ export function AuditCalendar() {
 
         fetchData();
     }, [token]);
+
+    // Derive unique customers from projects
+    const customers = Array.from(new Set(projects.map(p => JSON.stringify({ id: p.customerId || p.customer?.id, name: p.customerName || p.customer?.name }))))
+        .map(s => JSON.parse(s))
+        .filter(c => c.id && c.name && c.name !== 'Unknown');
+
+    // Filter events based on selection
+    const filteredEvents = events.filter(event => {
+        if (filterType === 'all') return true;
+        if (filterValue === 'all') return true;
+
+        if (filterType === 'project') {
+            // Check event.projectId or project name match (backend sends objects now, but let's be safe)
+            return (event as any).projectId === filterValue || (event.project && event.project.id === filterValue);
+        }
+        if (filterType === 'customer') {
+            // Check event.customerId or customer object
+            return (event as any).customerId === filterValue || (event.customer && event.customer.id === filterValue);
+        }
+        return true;
+    });
 
     const handleDateClick = (arg: any) => {
         setNewEvent({
@@ -122,7 +146,7 @@ export function AuditCalendar() {
         }
     };
 
-    const calendarEvents = events.map(event => {
+    const calendarEvents = filteredEvents.map(event => {
         // Determine color based on event type
         let color = '#3b82f6'; // default blue
         if (event.id.startsWith('start-')) color = '#22c55e'; // green for start
@@ -146,18 +170,59 @@ export function AuditCalendar() {
 
     return (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle>Audit Schedule</CardTitle>
-                <Button onClick={() => {
-                    setNewEvent({
-                        title: '',
-                        description: '',
-                        startTime: new Date().toISOString().split('T')[0],
-                        endTime: new Date().toISOString().split('T')[0],
-                        projectId: 'none'
-                    });
-                    setIsDialogOpen(true);
-                }}>Add Event</Button>
+                <div className="flex items-center gap-2">
+                    <Select value={filterType} onValueChange={(v: any) => { setFilterType(v); setFilterValue('all'); }}>
+                        <SelectTrigger className="w-[140px]">
+                            <SelectValue placeholder="Filter By" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Check All</SelectItem>
+                            <SelectItem value="project">Project</SelectItem>
+                            <SelectItem value="customer">Customer</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {filterType === 'project' && (
+                        <Select value={filterValue} onValueChange={setFilterValue}>
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Select Project" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Projects</SelectItem>
+                                {projects.map(p => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    {filterType === 'customer' && (
+                        <Select value={filterValue} onValueChange={setFilterValue}>
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Select Customer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Customers</SelectItem>
+                                {customers.map((c: any) => (
+                                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    <Button onClick={() => {
+                        setNewEvent({
+                            title: '',
+                            description: '',
+                            startTime: new Date().toISOString().split('T')[0],
+                            endTime: new Date().toISOString().split('T')[0],
+                            projectId: 'none'
+                        });
+                        setIsDialogOpen(true);
+                    }}>Add Event</Button>
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="h-[600px]">
