@@ -26,17 +26,22 @@ export function initializeSocket(httpServer: HTTPServer) {
     io.use((socket: AuthenticatedSocket, next) => {
         const token = socket.handshake.auth.token || socket.handshake.query.token;
 
+        console.log('[Socket Auth] Authenticating socket connection, has token:', !!token);
+
         if (!token) {
             return next(new Error('Authentication required'));
         }
 
         try {
             const decoded = jwt.verify(token as string, JWT_SECRET) as any;
-            socket.userId = decoded.userId;
+            console.log('[Socket Auth] Decoded JWT:', decoded);
+            socket.userId = decoded.userId || decoded.id || decoded.sub;
             socket.userRole = decoded.role;
             socket.userName = decoded.name;
+            console.log('[Socket Auth] Set socket userId:', socket.userId, 'role:', socket.userRole);
             next();
         } catch (err) {
+            console.error('[Socket Auth] JWT verification failed:', err);
             next(new Error('Invalid token'));
         }
     });
@@ -71,25 +76,33 @@ export function initializeSocket(httpServer: HTTPServer) {
 
         // Handle sending a message
         socket.on('send_message', async (data: { conversationId: string; content: string }) => {
+            console.log('[Socket] Received send_message event from user:', socket.userName, 'Data:', data);
+            console.log('[Socket] Socket userId:', userId, 'socket.userId:', socket.userId);
             try {
                 const { conversationId, content } = data;
 
-                if (!content || content.trim() === '') return;
+                if (!content || content.trim() === '') {
+                    console.log('[Socket] Empty content, ignoring');
+                    return;
+                }
 
                 // Verify participant
+                console.log('[Socket] Verifying participant for conversation:', conversationId);
                 const participant = await prisma.conversationParticipant.findFirst({
                     where: { conversationId, userId }
                 });
 
                 if (!participant) {
+                    console.log('[Socket] User is not a participant');
                     socket.emit('error', { message: 'Not a participant' });
                     return;
                 }
 
+                console.log('[Socket] Creating message in database');
                 // Create message
                 const message = await prisma.message.create({
                     data: {
-                        conversationId,
+                        conversationId: conversationId,
                         senderId: userId,
                         content: content.trim()
                     },
@@ -99,6 +112,8 @@ export function initializeSocket(httpServer: HTTPServer) {
                         }
                     }
                 });
+
+                console.log('[Socket] Message created:', message.id);
 
                 // Update conversation timestamp
                 await prisma.conversation.update({
@@ -112,13 +127,15 @@ export function initializeSocket(httpServer: HTTPServer) {
                     data: { lastReadAt: new Date() }
                 });
 
+                console.log('[Socket] Broadcasting new_message to conversation room');
                 // Broadcast to all participants in the conversation
                 io.to(`conversation:${conversationId}`).emit('new_message', {
                     conversationId,
                     message
                 });
+                console.log('[Socket] Message broadcast complete');
             } catch (error) {
-                console.error('Send message error:', error);
+                console.error('[Socket] Send message error:', error);
                 socket.emit('error', { message: 'Failed to send message' });
             }
         });

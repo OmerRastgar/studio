@@ -1,0 +1,5 @@
+2024-10-15 08:30:00 UTC | ALLOW | TCP | 192.168.1.100:54321 → 10.0.1.50:443 | Duration:7200s | Bytes:15MB | Service:Admin_Portal
+2024-10-15 14:22:10 UTC | ALLOW | TCP | 192.168.1.101:49234 → 10.0.1.50:443 | Duration:1800s | Bytes:5MB | Service:Order_Management
+2024-10-16 03:15:33 UTC | DENY | TCP | 45.134.26.178:61000 → 10.0.1.50:22 | Duration:0s | Bytes:0 | Reason:Port_Scanning
+2024-10-16 10:05:30 UTC | ALLOW | TCP | 203.0.113.46:42111 → 10.0.1.51:5432 | Duration:300s | Bytes:2MB | Service:Database_API | Auth:VPN+MFA
+2024-10-17 16:45:19 UTC | ALERT | UDP | 192.168.1.105:123 → 8.8.8.8:53 | Duration:1s | Bytes:512 | Action:ALLOWED | Note:Unusual_DNS_Query

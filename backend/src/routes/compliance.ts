@@ -1,214 +1,249 @@
-import express from 'express';
+
+import { Router, Request, Response } from 'express';
+import neo4j from 'neo4j-driver';
+import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
-import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { hashPassword } from '../lib/jwt';
+import { kratosAdmin } from '../lib/kratos';
 
-const router = express.Router();
+const router = Router();
 
-// Create a compliance user (Customer only)
-router.post('/users', authenticate, requireRole(['customer']), async (req: AuthRequest, res) => {
+const NEO4J_URI = process.env.NEO4J_URI || 'bolt://neo4j:7687';
+const NEO4J_USER = process.env.NEO4J_USER || 'neo4j';
+const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || 'auditgraph123';
+
+const driver = neo4j.driver(
+    NEO4J_URI,
+    neo4j.auth.basic(NEO4J_USER, NEO4J_PASSWORD),
+    { disableLosslessIntegers: true } // Community edition often sends integers that JS parses as objects otherwise
+);
+
+// GET /api/compliance/projection
+// Calculates potential compliance coverage across all standards based on user's uploaded evidence
+router.get('/projection', authenticate, async (req: Request, res: Response) => {
+    const session = driver.session();
     try {
-        const { name, email, password } = req.body;
-        const customerId = req.user!.userId;
+        const userId = (req as AuthRequest).user?.userId;
 
-        // Check if user exists
-        const existingUser = await prisma.user.findUnique({
-            where: { email },
-        });
-
-        if (existingUser) {
-            return res.status(400).json({ error: 'User with this email already exists' });
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const hashedPassword = await hashPassword(password);
+        // Get user email from Postgres (Neo4j uses email as identifier)
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { email: true }
+        });
 
-        const newUser = await prisma.user.create({
-            data: {
-                name,
-                email,
-                password: hashedPassword,
-                role: 'compliance',
-                createdById: customerId,
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // 1. Run sophisticated cross-walk query
+        // Matches: User -> Evidence -> Tag -> Control -> Standard
+        // We start with Standards to ensure we always return a list, even if User has no data.
+        const query = `
+                MATCH (total_c:Control)-[:BELONGS_TO]->(s:Standard)
+                WITH s, count(DISTINCT total_c) as total
+                
+                // Find controls covered by User's Evidence via Tags (if any)
+                OPTIONAL MATCH (u:User {email: $userEmail})-[:UPLOADED]->(e:Evidence)-[:HAS_TAG]->(t:Tag)<-[:HAS_TAG]-(c:Control)-[:BELONGS_TO]->(s)
+                
+                // Aggregate
+                RETURN s.id as id, s.name as name, count(DISTINCT c) as covered, total
+                ORDER BY covered DESC
+            `;
+
+        console.log(`[Compliance] Running projection query for user: ${userId} (${user.email})`);
+        const result = await session.run(query, { userEmail: user.email });
+        console.log(`[Compliance] Query returned ${result.records.length} records`);
+
+        // 2. Get existing Active projects for this user to check for duplicates
+        const existingProjects = await prisma.project.findMany({
+            where: {
+                customerId: userId,
+                status: { not: 'rejected' }
             },
+            select: {
+                id: true,
+                frameworkId: true,
+                status: true
+            }
         });
 
-        res.status(201).json({
-            id: newUser.id,
-            name: newUser.name,
-            email: newUser.email,
-            role: newUser.role,
+        // Create a lookup map
+        const projectMap = new Map();
+        existingProjects.forEach(p => {
+            if (p.frameworkId) projectMap.set(p.frameworkId, { id: p.id, status: p.status });
         });
+
+        const projection = result.records.map(r => {
+            const covered = Number(r.get('covered'));
+            const total = Number(r.get('total'));
+            const frameworkId = r.get('id');
+            const existing = projectMap.get(frameworkId);
+
+            return {
+                id: frameworkId,
+                name: r.get('name'),
+                covered,
+                total,
+                percentage: total > 0 ? Math.round((covered / total) * 100) : 0,
+                hasProject: !!existing,
+                projectId: existing?.id || null,
+                projectStatus: existing?.status || null
+            };
+        });
+
+        console.log(`[PROJECTION_DEBUG] User: ${(req as any).user?.userId || 'undefined'}, Payload: ${JSON.stringify(projection)}`);
+        res.json({ success: true, data: projection });
+
     } catch (error) {
-        console.error('Error creating compliance user:', error);
-        res.status(500).json({ error: 'Failed to create compliance user' });
+        console.error('Compliance projection CRITICAL error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+        res.status(500).json({ error: 'Failed to calculate compliance projection' });
+    } finally {
+        await session.close();
     }
+    // ... projection endpoint ...
 });
 
-// List compliance users created by the customer
-router.get('/users', authenticate, requireRole(['customer']), async (req: AuthRequest, res) => {
+// GET /api/compliance/users
+// Fetch all compliance users created by the current customer
+// GET /api/compliance/users
+// Fetch all compliance users created by the current customer
+// GET /api/compliance/users
+// Fetch all compliance users created by the current customer
+router.get('/users', authenticate, async (req: Request, res: Response) => {
     try {
-        const customerId = req.user!.userId;
+        const userId = (req as AuthRequest).user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         const users = await prisma.user.findMany({
             where: {
-                role: 'compliance',
-                OR: [
-                    { createdById: customerId },
-                    { linkedCustomerId: customerId }
-                ]
+                linkedCustomerId: userId,
+                role: 'compliance'
             },
             select: {
                 id: true,
                 name: true,
                 email: true,
+                role: true,
+                status: true,
+                lastActive: true,
                 createdAt: true,
                 sharedProjects: {
                     include: {
                         project: {
                             select: {
                                 id: true,
-                                name: true,
-                            },
-                        },
-                    },
-                },
-            },
+                                name: true
+                            }
+                        }
+                    }
+                }
+            }
         });
 
         res.json(users);
     } catch (error) {
-        console.error('Error fetching compliance users:', error);
+        console.error('List compliance users error:', error);
         res.status(500).json({ error: 'Failed to fetch compliance users' });
     }
 });
 
-// Toggle project share for a compliance user (Customer only)
-router.post('/share', authenticate, requireRole(['customer']), async (req: AuthRequest, res) => {
+// GET /api/compliance/dashboard
+// Fetch dashboard data for a compliance user (shared projects)
+router.get('/dashboard', authenticate, async (req: Request, res: Response) => {
     try {
-        const { userId, projectId, action } = req.body; // action: 'share' | 'unshare'
-        const customerId = req.user!.userId;
-
-        // Verify the customer owns the project
-        const project = await prisma.project.findFirst({
-            where: {
-                id: projectId,
-                customerId: customerId,
-            },
-        });
-
-        if (!project) {
-            return res.status(403).json({ error: 'Project not found or access denied' });
-        }
-
-        // Verify the compliance user is linked to this customer OR created by them
-        const targetUser = await prisma.user.findFirst({
-            where: {
-                id: userId,
-                role: 'compliance',
-                OR: [
-                    { createdById: customerId },
-                    { linkedCustomerId: customerId }
-                ]
-            },
-        });
-
-        if (!targetUser) {
-            return res.status(403).json({ error: 'User not found or access denied' });
-        }
-
-        if (action === 'share') {
-            await prisma.projectShare.upsert({
-                where: {
-                    userId_projectId: {
-                        userId,
-                        projectId,
-                    },
-                },
-                create: {
-                    userId,
-                    projectId,
-                },
-                update: {},
-            });
-        } else if (action === 'unshare') {
-            await prisma.projectShare.deleteMany({
-                where: {
-                    userId,
-                    projectId,
-                },
-            });
-        } else {
-            return res.status(400).json({ error: 'Invalid action' });
-        }
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error managing project share:', error);
-        res.status(500).json({ error: 'Failed to update project share' });
-    }
-});
-
-// Get shared projects for logged-in compliance user
-router.get('/dashboard', authenticate, requireRole(['compliance']), async (req: AuthRequest, res) => {
-    try {
-        const userId = req.user?.userId;
+        const userId = (req as AuthRequest).user?.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        const shares = await prisma.projectShare.findMany({
-            where: {
-                userId,
-            },
+        // Fetch projects shared with this user
+        const sharedData = await prisma.projectShare.findMany({
+            where: { userId },
             include: {
                 project: {
-                    include: {
-                        framework: true,
+                    select: {
+                        id: true,
+                        name: true,
+                        status: true,
+                        description: true,
+                        startDate: true,
+                        dueDate: true,
+                        framework: {
+                            select: {
+                                name: true
+                            }
+                        },
                         projectControls: {
                             select: {
-                                progress: true,
-                                evidenceCount: true
+                                progress: true
                             }
                         }
-                    },
-                },
-            },
+                    }
+                }
+            }
         });
 
-        const projects = shares.map(share => ({
-            ...share.project,
-            sharedAt: share.createdAt,
-        }));
+        const projects = sharedData.map(s => {
+            const p = s.project;
+            // Calculate average progress
+            const totalControls = p.projectControls.length;
+            const totalProgress = p.projectControls.reduce((sum, c) => sum + c.progress, 0);
+            const avgProgress = totalControls > 0 ? Math.round(totalProgress / totalControls) : 0;
 
-        res.json(projects);
+            return {
+                id: p.id,
+                name: p.name,
+                frameworkName: p.framework?.name || 'Custom',
+                status: p.status,
+                progress: avgProgress,
+                startDate: p.startDate,
+                dueDate: p.dueDate
+            };
+        });
+
+        const stats = {
+            totalProjects: projects.length,
+            activeProjects: projects.filter(p => p.status === 'in_progress' || p.status === 'pending').length,
+            completedProjects: projects.filter(p => p.status === 'completed').length,
+            avgCompliance: projects.length > 0 ? Math.round(projects.reduce((acc, p) => acc + p.progress, 0) / projects.length) : 0
+        };
+
+        res.json({ stats, projects });
+
     } catch (error) {
-        console.error('Error fetching compliance dashboard:', error);
-        res.status(500).json({ error: 'Failed to fetch dashboard' });
+        console.error('Compliance dashboard error:', error);
+        res.status(500).json({ error: 'Failed to load compliance dashboard' });
     }
 });
 
-// Get project details for compliance user (if shared)
-router.get('/projects/:id', authenticate, requireRole(['compliance']), async (req: AuthRequest, res) => {
+// GET /api/compliance/projects/:id
+// Fetch single project details if shared
+router.get('/projects/:id', authenticate, async (req: Request, res: Response) => {
     try {
-        const userId = req.user?.userId;
-        const { id } = req.params;
+        const userId = (req as AuthRequest).user?.userId;
+        const projectId = req.params.id;
 
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        // Verify project is shared with this user
+        // Check access
         const share = await prisma.projectShare.findUnique({
             where: {
                 userId_projectId: {
                     userId,
-                    projectId: id,
-                },
-            },
+                    projectId
+                }
+            }
         });
 
         if (!share) {
-            return res.status(403).json({ error: 'Project not shared with this user' });
+            return res.status(404).json({ error: 'Project not found or not shared' });
         }
 
+        // Fetch details matching customer dashboard structure
         const project = await prisma.project.findUnique({
-            where: { id },
+            where: { id: projectId },
             include: {
                 framework: true,
                 auditor: {
@@ -217,33 +252,32 @@ router.get('/projects/:id', authenticate, requireRole(['compliance']), async (re
                 projectControls: {
                     include: {
                         control: {
+                            include: { tags: true }
+                        },
+                        evidence: {
                             include: {
-                                tags: true
+                                tags: true,
+                                uploadedBy: { select: { id: true, name: true } }
                             }
                         },
-                        evidenceItems: {
-                            include: {
-                                uploadedBy: {
-                                    select: { id: true, name: true }
-                                }
-                            }
+                        _count: {
+                            select: { evidence: true }
                         }
                     }
                 }
             }
         });
 
-        if (!project) {
-            return res.status(404).json({ error: 'Project not found' });
-        }
+        if (!project) return res.status(404).json({ error: 'Project not found' });
 
-        // Group controls by category (reuse logic from customer route)
+        // Group controls by category (Transformation Logic)
         const controlsByCategory: Record<string, any[]> = {};
         project.projectControls.forEach(pc => {
             const category = pc.control.category || 'Uncategorized';
             if (!controlsByCategory[category]) {
                 controlsByCategory[category] = [];
             }
+
             controlsByCategory[category].push({
                 id: pc.id,
                 controlId: pc.controlId,
@@ -253,11 +287,15 @@ router.get('/projects/:id', authenticate, requireRole(['compliance']), async (re
                 tags: Array.isArray(pc.control.tags) ? pc.control.tags.map((t: any) => t.name) : [],
                 progress: pc.progress,
                 evidenceCount: pc.evidenceCount,
-                evidence: pc.evidenceItems,
+                evidence: pc.evidence.map((e: any) => ({
+                    ...e,
+                    tags: e.tags.map((t: any) => t.name)
+                })),
                 notes: pc.notes,
             });
         });
 
+        // Calculate category progress
         const categories = Object.entries(controlsByCategory).map(([name, controls]) => ({
             name,
             controls,
@@ -271,76 +309,136 @@ router.get('/projects/:id', authenticate, requireRole(['compliance']), async (re
             data: {
                 id: project.id,
                 name: project.name,
+                status: project.status,
                 framework: project.framework,
                 auditor: project.auditor,
+                startDate: project.startDate,
                 dueDate: project.dueDate,
+                endDate: project.endDate,
                 categories,
             }
         });
+
     } catch (error) {
         console.error('Compliance project details error:', error);
         res.status(500).json({ error: 'Failed to fetch project details' });
     }
 });
 
-// Upload evidence for a shared project control
-router.post('/projects/:projectId/controls/:controlId/evidence', authenticate, requireRole(['compliance']), async (req: AuthRequest, res) => {
+// POST /api/compliance/users
+// Create a new compliance user
+router.post('/users', authenticate, async (req: Request, res: Response) => {
     try {
-        const userId = req.user?.userId;
-        const { projectId, controlId } = req.params;
-        const { fileName, fileUrl, tags } = req.body;
-
+        const userId = (req as AuthRequest).user?.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        // Verify project is shared with this user
-        const share = await prisma.projectShare.findUnique({
-            where: {
-                userId_projectId: {
-                    userId,
-                    projectId,
+        const { name, email, password } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const existingUser = await prisma.user.findUnique({
+            where: { email: email.toLowerCase() }
+        });
+
+        if (existingUser) {
+            return res.status(409).json({ error: 'User with this email already exists' });
+        }
+
+        // 1. Create Identity in Kratos
+        console.log(`[Compliance] Creating Kratos identity for ${email}`);
+        const { data: identity } = await kratosAdmin.createIdentity({
+            createIdentityBody: {
+                schema_id: "default",
+                traits: {
+                    email: email.toLowerCase(),
+                    name: name, // Schema expects a string, not an object
+                    role: "compliance",
                 },
+                metadata_public: {
+                    role: "compliance",
+                    linked_customer_id: userId
+                },
+                credentials: {
+                    password: { config: { password: password } }
+                },
+                state: "active"
+            }
+        });
+
+        console.log(`[Compliance] Kratos Identity created: ${identity.id}`);
+
+        // 2. Create in Prisma, ensuring IDs match
+        const newUser = await prisma.user.create({
+            data: {
+                id: identity.id, // Sychronize ID with Kratos
+                name,
+                email: email.toLowerCase(),
+                password: "managed-by-kratos", // Password is managed by Kratos
+                role: 'compliance',
+                status: 'Active',
+                linkedCustomerId: userId,
+                avatarUrl: `https://picsum.photos/seed/${email}/100/100`
             },
-        });
-
-        if (!share) {
-            return res.status(403).json({ error: 'Project not shared with this user' });
-        }
-
-        // Find or create project control
-        // Note: Project controls should already exist if the project is initialized, 
-        // but we verify it belongs to the project.
-        const projectControl = await prisma.projectControl.findFirst({
-            where: { projectId, controlId }
-        });
-
-        if (!projectControl) {
-            return res.status(404).json({ error: 'Control not found in project' });
-        }
-
-        // Create evidence item
-        const evidence = await prisma.evidenceItem.create({
-            data: {
-                projectControlId: projectControl.id,
-                fileName,
-                fileUrl,
-                tags: tags || [],
-                tagSource: 'manual',
-                uploadedById: userId,
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                status: true,
+                createdAt: true
             }
         });
 
-        // Update evidence count
-        await prisma.projectControl.update({
-            where: { id: projectControl.id },
-            data: {
-                evidenceCount: { increment: 1 }
-            }
-        });
+        res.status(201).json(newUser);
+    } catch (error: any) {
+        console.error('Create compliance user error:', error?.response?.data || error);
+        res.status(500).json({ error: 'Failed to create compliance user. ' + (error?.response?.data?.error?.message || error.message) });
+    }
+});
 
-        res.json({ success: true, data: evidence });
+// POST /api/compliance/share
+// Share a project with a compliance user
+router.post('/share', authenticate, async (req: Request, res: Response) => {
+    try {
+        const authUserId = (req as AuthRequest).user?.userId;
+        if (!authUserId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { projectId, userId, action } = req.body;
+
+        if (!projectId || !userId) {
+            return res.status(400).json({ error: 'Project ID and Target User ID are required' });
+        }
+
+        if (action === 'unshare') {
+            await prisma.projectShare.deleteMany({
+                where: {
+                    projectId,
+                    userId
+                }
+            });
+            return res.json({ success: true, message: 'Project unshared successfully' });
+        } else {
+            const share = await prisma.projectShare.upsert({
+                where: {
+                    userId_projectId: {
+                        userId,
+                        projectId
+                    }
+                },
+                update: {},
+                create: {
+                    projectId,
+                    userId
+                }
+            });
+            return res.status(201).json(share);
+        }
+
     } catch (error) {
-        console.error('Compliance evidence upload error:', error);
-        res.status(500).json({ error: 'Failed to upload evidence' });
+        console.error('Share project error:', error);
+        res.status(500).json({ error: 'Failed to share project' });
     }
 });
 

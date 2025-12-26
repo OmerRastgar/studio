@@ -211,6 +211,22 @@ export class GraphService {
     }
 
     /**
+     * Enqueues an event to link Evidence to a Project in the Graph.
+     * This is an async operation (Eventual Consistency).
+     */
+    static async linkEvidenceToProject(evidenceId: string, projectId: string) {
+        const eventId = uuidv4();
+        await neo4jSyncQueue.add('link_evidence_to_project', {
+            eventId,
+            payload: { evidenceId, projectId },
+            timestamp: new Date().toISOString()
+        }, {
+            jobId: eventId // Dedup ID
+        });
+        console.log(`[GraphService] Enqueued link_evidence_to_project event: ${eventId}`);
+    }
+
+    /**
      * Enqueues an event to link Evidence from one Project to Evidence for another Standard (of the same Customer) in the Graph.
      * This is an async operation (Eventual Consistency).
      */
@@ -224,5 +240,21 @@ export class GraphService {
             jobId: eventId // Dedup ID
         });
         console.log(`[GraphService] Enqueued link_evidence_across_standards event: ${eventId}`);
+    }
+
+    /**
+     * Updates a property on a node (Generic).
+     * This is an async operation (Eventual Consistency).
+     */
+    static async updateNodeProperty(label: string, id: string, property: string, value: any) {
+        const eventId = uuidv4();
+        await neo4jSyncQueue.add('update_node_property', {
+            eventId,
+            payload: { label, id, property, value },
+            timestamp: new Date().toISOString()
+        }, {
+            jobId: eventId // Dedup ID
+        });
+        console.log(`[GraphService] Enqueued update_node_property event: ${eventId}`);
     }
 }

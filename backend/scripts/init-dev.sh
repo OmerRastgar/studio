@@ -20,6 +20,10 @@ npx prisma db push
 echo "Seeding database..."
 npx prisma db seed
 
+# Start worker
+echo "Starting worker..."
+npx tsx src/worker/index.ts &
+
 # Start the application
 echo "Starting application..."
 npm run dev

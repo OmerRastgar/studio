@@ -1,0 +1,4 @@
+2024-10-15 03:45:22 UTC | 185.220.101.34 | - | POST /wp-login.php | 401 | Mozilla/5.0 (X11; Linux x86_64) | username=admin | HTTP | - | 0.3s | BLOCKED:WAF_Rule_981257
+2024-10-15 11:18:09 UTC | 192.168.1.105 | michael.scott@paperworksonline.ie | POST /auth/login | 401 | Mozilla/5.0 (Windows NT 10.0; Win64; x64) | - | HTTPS | Dublin_Office | 0.4s | Reason:Invalid_password | COUNT:2/5
+2024-10-16 08:42:51 UTC | 45.134.26.178 | - | GET /admin/ | 403 | python-requests/2.26.0 | - | HTTP | - | 0.2s | BLOCKED:WAF_Rule_932150
+2024-10-17 15:33:07 UTC | 192.168.1.100 | pam.beasley@paperworksonline.ie | POST /auth/login | 401 | Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) | - | HTTPS | Dublin_Office | 0.5s | Reason:Expired_session | ACTION:Logged_out

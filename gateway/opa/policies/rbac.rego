@@ -5,6 +5,23 @@ import rego.v1
 default allow := false
 
 # =============================================
+# JWT PAYLOAD EXTRACTION
+# =============================================
+# Kong jwt plugin injects verified JWT payload into input
+# We extract user claims from the JWT for authorization decisions
+
+# Extract user from JWT payload (if JWT auth is used)
+user := input.request.jwt.payload if {
+    input.request.jwt.payload
+}
+
+# Fallback to direct user input (for backward compatibility with backend auth)
+user := input.user if {
+    not input.request.jwt.payload
+    input.user
+}
+
+# =============================================
 # ROLE DEFINITIONS
 # =============================================
 # - admin: Full system access
@@ -20,48 +37,48 @@ default allow := false
 
 # GLOBAL ADMIN ALLOW
 allow if {
-    input.user.role == "admin"
+    user.role == "admin"
 }
 
 # PROJECTS ROUTES
 allow if {
     startswith(input.path, "/api/projects")
-    input.user.role in ["manager", "auditor", "customer", "compliance"]
+    user.role in ["manager", "auditor", "customer", "compliance"]
 }
 
 # Admin-only routes
 allow if {
     startswith(input.path, "/api/admin")
-    input.user.role == "admin"
+    user.role == "admin"
 }
 
 # Manager routes (admin + manager)
 allow if {
     startswith(input.path, "/api/manager")
-    input.user.role in ["admin", "manager"]
+    user.role in ["admin", "manager"]
 }
 
 # Auditor routes (admin + auditor + manager [read-only])
 allow if {
     startswith(input.path, "/api/auditor")
-    input.user.role in ["admin", "auditor"]
+    user.role in ["admin", "auditor"]
 }
 
 allow if {
     startswith(input.path, "/api/auditor")
-    input.user.role == "manager"
+    user.role == "manager"
     input.method == "GET"
 }
 
 # Customer routes (admin + customer + manager [read-only])
 allow if {
     startswith(input.path, "/api/customer")
-    input.user.role in ["admin", "customer"]
+    user.role in ["admin", "customer"]
 }
 
 allow if {
     startswith(input.path, "/api/customer")
-    input.user.role == "manager"
+    user.role == "manager"
     input.method == "GET"
 }
 
@@ -72,24 +89,30 @@ allow if {
 # Compliance user management - customer only can create/list compliance users
 allow if {
     startswith(input.path, "/api/compliance/users")
-    input.user.role in ["admin", "customer"]
+    user.role in ["admin", "customer"]
 }
 
 # Compliance project sharing - customer only
 allow if {
     input.path == "/api/compliance/share"
-    input.user.role in ["admin", "customer"]
+    user.role in ["admin", "customer"]
+}
+
+# Compliance Projection - customer only
+allow if {
+    startswith(input.path, "/api/compliance/projection")
+    user.role in ["admin", "customer"]
 }
 
 # Compliance dashboard and project access - compliance users only
 allow if {
     startswith(input.path, "/api/compliance/dashboard")
-    input.user.role in ["admin", "compliance"]
+    user.role in ["admin", "compliance"]
 }
 
 allow if {
     startswith(input.path, "/api/compliance/projects")
-    input.user.role in ["admin", "compliance"]
+    user.role in ["admin", "compliance"]
 }
 
 # =============================================
@@ -100,12 +123,12 @@ allow if {
 # Managers cannot DELETE users, only Admin
 allow if {
     startswith(input.path, "/api/users")
-    input.user.role == "admin"
+    user.role == "admin"
 }
 
 allow if {
     startswith(input.path, "/api/users")
-    input.user.role == "manager"
+    user.role == "manager"
     input.method != "DELETE"
 }
 
@@ -116,7 +139,7 @@ allow if {
 
 allow if {
     startswith(input.path, "/api/chat")
-    input.user.role in ["admin", "manager", "auditor", "customer"]
+    user.role in ["admin", "manager", "auditor", "customer"]
 }
 
 # =============================================
@@ -127,13 +150,29 @@ allow if {
 
 allow if {
     startswith(input.path, "/api/evidence")
-    input.user.role in ["admin", "manager", "customer"]
+    user.role in ["admin", "manager"]
+    input.method == "GET"
 }
 
 allow if {
     startswith(input.path, "/api/evidence")
-    input.user.role == "auditor"
+    user.role == "customer"
+    input.method in ["GET", "POST", "PUT", "DELETE"]
+}
+
+allow if {
+    startswith(input.path, "/api/evidence")
+    user.role == "auditor"
     input.method in ["GET", "POST", "PUT", "PATCH", "DELETE"]
+}
+
+# =============================================
+# SECURE VIEWER ROUTES
+# Access controlled by backend service (minio) + token
+# =============================================
+allow if {
+    startswith(input.path, "/api/secure-view")
+    user.role in ["admin", "manager", "auditor", "customer", "compliance"]
 }
 
 # =============================================
@@ -143,7 +182,7 @@ allow if {
 
 allow if {
     startswith(input.path, "/api/uploads")
-    input.user.role in ["admin", "manager", "auditor", "customer"]
+    user.role in ["admin", "manager", "auditor", "customer"]
 }
 
 # =============================================
@@ -165,7 +204,47 @@ allow if {
     input.method == "OPTIONS"
 }
 
+# =============================================
+# LEARNING ROUTES
+# Admin, manager, auditor, customer can access learning
+# =============================================
+allow if {
+    startswith(input.path, "/api/learning")
+    user.role in ["admin", "manager", "auditor", "customer"]
+}
+
+# =============================================
+# CASB ROUTES
+# Customer and auditor can access CASB integrations
+# Customer integrates their environment, auditor reviews
+# =============================================
+allow if {
+    startswith(input.path, "/api/casb")
+    user.role in ["customer", "auditor"]
+}
+
+# =============================================
+# FINDINGS ROUTES
+# Customer and auditor can access findings
+# Day-to-day operational findings
+# =============================================
+allow if {
+    startswith(input.path, "/api/findings")
+    user.role in ["customer", "auditor"]
+}
+
+# =============================================
+# AGENTS ROUTES
+# Customer and auditor can manage agents
+# =============================================
+allow if {
+    startswith(input.path, "/api/agents")
+    user.role in ["customer", "auditor"]
+}
+
+
 # System routes (public for readme)
 allow if {
     startswith(input.path, "/api/system")
 }
+

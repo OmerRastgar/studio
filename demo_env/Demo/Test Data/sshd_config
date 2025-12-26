@@ -1,0 +1,9 @@
+PermitRootLogin no
+PasswordAuthentication no
+AuthenticationMethods publickey,keyboard-interactive
+PubkeyAuthentication yes
+X11Forwarding no
+MaxAuthTries 3
+ClientAliveInterval 300
+ClientAliveCountMax 0
+AllowUsers pam michael

@@ -1,0 +1,37 @@
+[
+    {
+        "id": "demo-admin-id",
+        "email": "admin@demo.com",
+        "name": "Demo Admin",
+        "role": "admin",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Admin"
+    },
+    {
+        "id": "demo-manager-id",
+        "email": "manager@demo.com",
+        "name": "Demo Manager",
+        "role": "manager",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Manager"
+    },
+    {
+        "id": "demo-auditor-id",
+        "email": "auditor@demo.com",
+        "name": "Demo Auditor",
+        "role": "auditor",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Auditor"
+    },
+    {
+        "id": "demo-customer-id",
+        "email": "customer@demo.com",
+        "name": "Demo Customer",
+        "role": "customer",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Customer"
+    },
+    {
+        "id": "demo-compliance-id",
+        "email": "compliance@demo.com",
+        "name": "Demo Compliance",
+        "role": "compliance",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Compliance"
+    }
+]

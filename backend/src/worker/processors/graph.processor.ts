@@ -3,8 +3,7 @@ import neo4j from 'neo4j-driver';
 
 const NEO4J_URI = process.env.NEO4J_URI || 'bolt://neo4j:7687';
 const NEO4J_USER = process.env.NEO4J_USER || 'neo4j';
-const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || 'auditgraph123';
-
+const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD!;
 const driver = neo4j.driver(NEO4J_URI, neo4j.auth.basic(NEO4J_USER, NEO4J_PASSWORD));
 
 export const graphProcessor = async (job: Job) => {
@@ -53,9 +52,6 @@ export const graphProcessor = async (job: Job) => {
                   SET r.updatedAt = datetime()
                 `, { reviewerId: payload.reviewerId, projectId: payload.projectId, eventId });
       } else if (job.name === 'link_evidence_to_control') {
-        // DEPRECATED: Direct links removed in favor of Tag-based linking
-        console.log('[GraphProcessor] link_evidence_to_control is deprecated. Skipping.');
-        /*
         await tx.run(`
           MERGE (e:Evidence {id: $evidenceId})
           MERGE (c:Control {id: $controlId})
@@ -63,7 +59,6 @@ export const graphProcessor = async (job: Job) => {
           ON CREATE SET r.createdAt = datetime(), r.eventId = $eventId
           SET r.updatedAt = datetime()
         `, { evidenceId: payload.evidenceId, controlId: payload.controlId, eventId });
-        */
       } else if (job.name === 'link_evidence_uploader') {
         await tx.run(`
                   MERGE (u:User {id: $userId})
@@ -144,6 +139,42 @@ export const graphProcessor = async (job: Job) => {
                   ON CREATE SET r.createdAt = datetime(), r.eventId = $eventId
                   SET r.updatedAt = datetime()
                `, { evidenceId1: payload.evidenceId1, evidenceId2: payload.evidenceId2, standardId: payload.standardId, eventId });
+      } else if (job.name === 'link_evidence_to_project') {
+        await tx.run(`
+                  MERGE (e:Evidence {id: $evidenceId})
+                  MERGE (p:Project {id: $projectId})
+                  MERGE (e)-[r:BELONGS_TO]->(p)
+                  ON CREATE SET r.createdAt = datetime(), r.eventId = $eventId
+                  SET r.updatedAt = datetime()
+               `, { evidenceId: payload.evidenceId, projectId: payload.projectId, eventId });
+      } else if (job.name === 'user_created') {
+        await tx.run(`
+                  MERGE (u:User {id: $id})
+                  ON CREATE SET u.email = $email, u.name = $name, u.role = $role, u.createdAt = datetime(), u.eventId = $eventId
+                  ON MATCH SET u.email = $email, u.name = $name, u.role = $role, u.updatedAt = datetime(), u.eventId = $eventId
+               `, { id: payload.id, email: payload.email, name: payload.name, role: payload.role, eventId });
+      } else if (job.name === 'user_updated') {
+        await tx.run(`
+                  MERGE (u:User {id: $id})
+                  SET u.email = $email, u.name = $name, u.role = $role, u.updatedAt = datetime(), u.eventId = $eventId
+               `, { id: payload.id, email: payload.email, name: payload.name, role: payload.role || null, eventId });
+      } else if (job.name === 'user_deleted') {
+        await tx.run(`
+                  MATCH (u:User {id: $id})
+                  DETACH DELETE u
+               `, { id: payload.id });
+      } else if (job.name === 'update_node_property') {
+        const { label, id, property, value } = payload;
+        // Construct query safely with dynamic property lookup not being purely dynamic but parameter usage
+        // Cypher doesn't allow dynamic property keys in SET directly easily without APOC, but we can assume safe property names from trusted backend.
+        // Or simpler: handle specific known properties or use a generic approach with string concatenation (careful of injection if property is user input, here it is dev controlled).
+        if (['fileName', 'code', 'title', 'name'].includes(property)) {
+          await tx.run(`
+                MATCH (n:${label} {id: $id})
+                SET n.${property} = $value
+                SET n.updatedAt = datetime()
+            `, { id, value });
+        }
       }
 
       // MARK EVENT AS PROCESSED

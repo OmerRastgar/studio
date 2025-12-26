@@ -1,0 +1,18 @@
+[mysqld]
+# PCI DSS 8.5 – default password lifetime
+default_password_lifetime = 90
+
+# Disable remote root
+skip_networking = 0
+bind-address = 127.0.0.1
+
+# SSL between app & DB (optional same-box, mandatory if separate)
+ssl_ca   = /etc/mysql/ssl/ca.pem
+ssl_cert = /etc/mysql/ssl/server-cert.pem
+ssl_key  = /etc/mysql/ssl/server-key.pem
+require_secure_transport = ON
+
+# Logging – PCI 10.2
+general_log = 0
+slow_query_log = 1
+log_warnings = 2

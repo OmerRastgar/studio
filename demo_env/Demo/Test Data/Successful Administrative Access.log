@@ -1,0 +1,5 @@
+# Apache/Nginx combined log format with additional fields
+2024-10-15 08:32:17 UTC | 192.168.1.100 | pam.beasley@paperworksonline.ie | GET /wp-admin/ | 200 | Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) | session_id=a1b2c3d4e5 | HTTPS | Dublin_Office | 2.1s
+2024-10-15 09:15:42 UTC | 203.0.113.45* | michael.scott@paperworksonline.ie | POST /admin/update-product/145 | 200 | Mozilla/5.0 (Windows NT 10.0; Win64; x64) | session_id=f6g7h8i9j0 | HTTPS | VPN_Dublin | 1.8s | MFA:verified
+2024-10-15 14:22:11 UTC | 192.168.1.101 | alice.jones@paperworksonline.ie | GET /admin/orders/ | 200 | Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) | session_id=k1l2m3n4o5 | HTTPS | Dublin_Office | 0.9s
+2024-10-16 10:05:33 UTC | 203.0.113.46* | pam.beasley@paperworksonline.ie | PUT /api/products/inventory | 200 | PostmanRuntime/7.29.0 | session_id=p6q7r8s9t0 | HTTPS | VPN_Dublin | 1.2s | MFA:verified | API_Key:sk_live_...a3b4

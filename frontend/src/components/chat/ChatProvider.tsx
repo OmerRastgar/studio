@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { useAuth } from '@/app/auth-provider';
+import { useAuth } from '@/components/auth/kratos-auth-provider';
 
 interface User {
     id: string;
@@ -110,13 +110,16 @@ export function ChatProvider({ children }: ChatProviderProps) {
     // Calculate unread total
     const unreadTotal = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
-    // Refresh contacts
-    const fetchContacts = useCallback(async () => {
+    // Refresh contacts with retry logic for expired tokens
+    const fetchContacts = useCallback(async (retryCount = 0) => {
         // Wait for auth to finish loading
         if (authLoading) return;
 
         const token = getToken();
-        if (!token) return;
+        if (!token) {
+            console.log('[ChatProvider] No token available yet, skipping contacts fetch');
+            return;
+        }
 
         // Compliance role does not have chat access
         if (user?.role === 'compliance') return;
@@ -133,23 +136,35 @@ export function ChatProvider({ children }: ChatProviderProps) {
                 console.log('Contacts data:', data.data);
                 setContacts(data.data || []);
                 setError(null);
+            } else if (res.status === 401 && retryCount < 3) {
+                // Token expired or not ready yet, wait and retry
+                const delay = (retryCount + 1) * 500; // 500ms, 1s, 1.5s
+                console.log(`Token not ready or expired, retrying in ${delay}ms... (attempt ${retryCount + 1}/3)`);
+                setTimeout(() => fetchContacts(retryCount + 1), delay);
             } else {
                 const errText = await res.text();
                 console.error('Failed to fetch contacts:', res.status, errText);
-                setError(`Failed to load contacts: ${res.status} ${res.statusText}`);
+                if (retryCount >= 3) {
+                    setError(`Failed to load contacts: ${res.status} ${res.statusText}`);
+                }
             }
         } catch (error: any) {
             console.error('Failed to fetch contacts:', error);
-            setError(`Network error loading contacts: ${error.message}`);
+            if (retryCount >= 3) {
+                setError(`Network error loading contacts: ${error.message}`);
+            }
         }
     }, [API_URL, authLoading, user?.role]);
 
-    // Refresh conversations
-    const refreshConversations = useCallback(async () => {
+    // Refresh conversations with retry logic
+    const refreshConversations = useCallback(async (retryCount = 0) => {
         if (authLoading) return;
 
         const token = getToken();
-        if (!token) return;
+        if (!token) {
+            console.log('[ChatProvider] No token available yet, skipping conversations fetch');
+            return;
+        }
 
         // Compliance role does not have chat access
         if (user?.role === 'compliance') return;
@@ -162,6 +177,11 @@ export function ChatProvider({ children }: ChatProviderProps) {
             if (res.ok) {
                 const data = await res.json();
                 setConversations(data.data || []);
+            } else if (res.status === 401 && retryCount < 3) {
+                // Token not ready or expired, wait and retry
+                const delay = (retryCount + 1) * 500; // 500ms, 1s, 1.5s
+                console.log(`[Conversations] Token not ready or expired, retrying in ${delay}ms... (attempt ${retryCount + 1}/3)`);
+                setTimeout(() => refreshConversations(retryCount + 1), delay);
             }
         } catch (error) {
             console.error('Failed to fetch conversations:', error);
@@ -196,8 +216,11 @@ export function ChatProvider({ children }: ChatProviderProps) {
         // Compliance role does not have chat access
         if (user?.role === 'compliance') return;
 
-        // Socket.IO connects directly to backend (not through Kong which doesn't proxy WebSockets)
-        const SOCKET_URL = typeof window !== 'undefined' ? 'http://localhost:4000' : '';
+        // Socket.IO connects through Kong (which proxies to backend)
+        const SOCKET_URL = API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+
+        console.log('[ChatProvider] Initializing socket connection to:', SOCKET_URL);
+        console.log('[ChatProvider] Token available:', !!token);
 
         const newSocket = io(SOCKET_URL, {
             auth: { token },
@@ -205,6 +228,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         });
 
         newSocket.on('connect', () => {
+            console.log('[ChatProvider] Socket connected successfully');
             setIsConnected(true);
             // We fetch on connect too, to ensure we have latest data after a reconnect
             fetchContacts();
@@ -212,7 +236,12 @@ export function ChatProvider({ children }: ChatProviderProps) {
         });
 
         newSocket.on('disconnect', () => {
+            console.log('[ChatProvider] Socket disconnected');
             setIsConnected(false);
+        });
+
+        newSocket.on('connect_error', (error) => {
+            console.error('[ChatProvider] Socket connection error:', error);
         });
 
         newSocket.on('new_message', (data: { conversationId: string; message: Message }) => {
@@ -322,8 +351,18 @@ export function ChatProvider({ children }: ChatProviderProps) {
     }, []);
 
     const sendMessage = useCallback((content: string) => {
-        if (!socket || !activeConversation || !content.trim()) return;
+        console.log('[ChatProvider] sendMessage called with:', { content, hasSocket: !!socket, activeConversation, trimmed: content.trim() });
 
+        if (!socket || !activeConversation || !content.trim()) {
+            console.warn('[ChatProvider] Cannot send message:', {
+                hasSocket: !!socket,
+                hasConversation: !!activeConversation,
+                hasContent: !!content.trim()
+            });
+            return;
+        }
+
+        console.log('[ChatProvider] Emitting send_message event to socket');
         socket.emit('send_message', {
             conversationId: activeConversation,
             content: content.trim()

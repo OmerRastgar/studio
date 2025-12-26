@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { PrismaClient } from '@prisma/client';
 import neo4j, { Driver } from 'neo4j-driver';
 
@@ -13,9 +14,9 @@ const prisma = new PrismaClient({
 });
 
 // Neo4j Configuration
-const NEO4J_URI = 'bolt://localhost:7687';
-const NEO4J_USER = 'neo4j';
-const NEO4J_PASSWORD = 'auditgraph123';
+const NEO4J_URI = process.env.NEO4J_URI || 'bolt://localhost:7687';
+const NEO4J_USER = process.env.NEO4J_USER || 'neo4j';
+const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || 'neo4j_password_env_missing'; // Ensure this fails if env missing
 
 const driver: Driver = neo4j.driver(
     NEO4J_URI,

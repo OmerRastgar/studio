@@ -1,0 +1,20 @@
+MATCH (e:Evidence)-[r]-(n) 
+RETURN e, r, n
+
+
+
+
+MATCH (e:Evidence)-[:HAS_TAG]->(t:Tag)<-[:HAS_TAG]-(pciControl:Control)
+MATCH (pciControl)-[:BELONGS_TO]->(s:Standard)
+WHERE s.name CONTAINS 'PCI'
+RETURN e.fileName, t.name, pciControl.code, pciControl.title
+
+
+
+
+
+
+MATCH path = (isoControl:Control)<-[:PROVES]-(e:Evidence)-[:HAS_TAG]->(t:Tag)<-[:HAS_TAG]-(pciControl:Control)
+MATCH (pciControl)-[:BELONGS_TO]->(pciStd:Standard)
+WHERE pciStd.name CONTAINS 'PCI'
+RETURN path

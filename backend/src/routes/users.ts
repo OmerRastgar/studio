@@ -2,6 +2,8 @@ import express from 'express';
 import { prisma } from '../lib/prisma';
 import { hashPassword } from '../lib/jwt';
 import { authenticate, requireRole } from '../middleware/auth';
+import { kratosAdmin } from '../lib/kratos';
+import { neo4jSyncQueue } from '../lib/queue';
 
 const router = express.Router();
 
@@ -14,6 +16,11 @@ router.use(requireRole(['admin', 'manager']));
 router.get('/', async (req, res) => {
     try {
         const currentUser = (req as any).user;
+
+        // 1. Fetch from Kratos (Source of Truth for Identity)
+        const { data: identities } = await kratosAdmin.listIdentities();
+
+        // 2. Fetch from Local DB (Source of Truth for Relations & Activity)
         const whereClause: any = {};
 
         // Manager Isolation: Only see users they manage or are linked to their customers
@@ -24,35 +31,60 @@ router.get('/', async (req, res) => {
             ];
         }
 
-        const users = await prisma.user.findMany({
+        const localUsers = await prisma.user.findMany({
             where: whereClause,
             select: {
                 id: true,
-                name: true,
-                email: true,
-                role: true,
-                status: true,
                 avatarUrl: true,
                 lastActive: true,
-                createdAt: true,
                 managerId: true,
                 linkedCustomerId: true,
                 linkedCustomer: {
                     select: { name: true }
                 }
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
+            }
+        });
+
+        // 3. Merge & Filter
+        const userMap = new Map(localUsers.map(u => [u.id, u]));
+
+        const mergedUsers = identities.map(identity => {
+            const local = userMap.get(identity.id);
+            const traits = identity.traits as any;
+
+            // Enforce Manager Isolation
+            // If current user is manager, they can ONLY see users present in their filtered local fetch
+            if (currentUser.role === 'manager' && !local) {
+                return null;
+            }
+
+            return {
+                id: identity.id,
+                name: typeof traits.name === 'string'
+                    ? traits.name
+                    : `${traits.name?.first || ''} ${traits.name?.last || ''}`.trim(),
+                email: traits.email,
+                role: traits.role, // Truth from Kratos
+                status: identity.state === 'active' ? 'Active' : 'Inactive', // Truth from Kratos
+                createdAt: identity.created_at, // Truth from Kratos
+                avatarUrl: local?.avatarUrl || `https://picsum.photos/seed/${identity.id}/100/100`,
+                lastActive: local?.lastActive?.toISOString() || null, // Truth from Local
+                managerId: local?.managerId || null,
+                linkedCustomerId: local?.linkedCustomerId || null,
+                linkedCustomer: local?.linkedCustomer || null
+            };
+        }).filter(user => user !== null);
+
+        // Sort by Created At desc (using Kratos timestamp)
+        mergedUsers.sort((a, b) => {
+            const timeA = new Date(a!.createdAt || 0).getTime();
+            const timeB = new Date(b!.createdAt || 0).getTime();
+            return timeB - timeA;
         });
 
         res.json({
             success: true,
-            users: users.map(user => ({
-                ...user,
-                lastActive: user.lastActive?.toISOString(),
-                createdAt: user.createdAt.toISOString(),
-            })),
+            users: mergedUsers,
         });
     } catch (error) {
         console.error('Get users error:', error);
@@ -63,6 +95,7 @@ router.get('/', async (req, res) => {
 // POST /api/users - Create new user
 router.post('/', async (req, res) => {
     try {
+        console.log('[User Create Debug] Request:', { body: req.body, admin: (req as any).user?.userId });
         const { name, email, role } = req.body;
         const currentUser = (req as any).user;
 
@@ -105,6 +138,7 @@ router.post('/', async (req, res) => {
             }
         }
 
+        // 1. Check if user exists locally (quick fail)
         const existingUser = await prisma.user.findUnique({
             where: { email: email.toLowerCase() },
         });
@@ -113,10 +147,32 @@ router.post('/', async (req, res) => {
             return res.status(409).json({ error: 'User with this email already exists' });
         }
 
-        const defaultPassword = await hashPassword('password123');
+        // 2. Create Identity in Kratos
+
+        // Default password for users created via this flow (they should do recovery/reset)
+        const tempPassword = 'password123';
+
+        const { data: identity } = await kratosAdmin.createIdentity({
+            createIdentityBody: {
+                schema_id: 'default',
+                state: 'active',
+                traits: {
+                    email,
+                    name,
+                    role
+                },
+                credentials: {
+                    password: { config: { password: tempPassword } }
+                }
+            }
+        });
+
+        // 3. Create Shadow User in Local DB
+        const defaultPassword = await hashPassword(tempPassword);
 
         const user = await prisma.user.create({
             data: {
+                id: identity.id, // CRITICAL: Sync IDs
                 name,
                 email: email.toLowerCase(),
                 role,
@@ -141,7 +197,6 @@ router.post('/', async (req, res) => {
         });
 
         // Audit Log
-        // Assuming req.user is populated by authenticate middleware
         const adminName = (req as any).user?.name || 'System Admin';
 
         await prisma.auditLog.create({
@@ -154,6 +209,15 @@ router.post('/', async (req, res) => {
             },
         });
 
+        // Sync to Neo4j
+        await neo4jSyncQueue.add('user_created', {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            eventId: `EVT-${Date.now()}`
+        });
+
         res.json({
             success: true,
             user: {
@@ -162,8 +226,12 @@ router.post('/', async (req, res) => {
                 createdAt: user.createdAt.toISOString(),
             },
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Create user error:', error);
+        // Handle Kratos duplicates
+        if (error.response?.status === 409) {
+            return res.status(409).json({ error: 'Email already exists' });
+        }
         res.status(500).json({ error: 'Failed to create user' });
     }
 });
@@ -171,6 +239,7 @@ router.post('/', async (req, res) => {
 // PUT /api/users/:id - Update user
 router.put('/:id', async (req, res) => {
     try {
+        console.log(`[User Update Debug] Starting update for ${req.params.id}`, { payload: req.body });
         const { name, role, status } = req.body;
         const userId = req.params.id;
 
@@ -178,20 +247,120 @@ router.put('/:id', async (req, res) => {
             return res.status(400).json({ error: 'Name and role are required' });
         }
 
-        const existingUser = await prisma.user.findUnique({
-            where: { id: userId },
-        });
+        // 1. Fetch & Update Kratos Identity (Source of Truth)
+        let identity;
+        try {
+            // Fetch current
+            const { data } = await kratosAdmin.getIdentity({ id: userId });
+            identity = data;
+            console.log(`[User Update Debug] Fetched Kratos Identity:`, { id: identity.id, email: (identity.traits as any)?.email });
 
-        if (!existingUser) {
-            return res.status(404).json({ error: 'User not found' });
+            // Prepare updates
+            const currentTraits = identity.traits as any;
+            const updatedTraits = {
+                ...currentTraits,
+                role: role,
+            };
+
+            if (name) {
+                if (name) {
+                    updatedTraits.name = name;
+                }
+            }
+
+            // Perform Update
+            // Note: We intentionally don't update 'state' here unless explicitly requested below, 
+            // but we must provide it in the body.
+
+            const updateBody = {
+                schema_id: identity.schema_id,
+                state: (identity.state as any) || 'active',
+                traits: updatedTraits
+            };
+
+            if (status && (status === 'Active' || status === 'Inactive')) {
+                updateBody.state = status === 'Active' ? 'active' : 'inactive';
+            }
+
+            const { data: updatedIdentity } = await kratosAdmin.updateIdentity({
+                id: userId,
+                updateIdentityBody: updateBody
+            });
+
+            // Update our reference for the local DB sync
+            identity = updatedIdentity;
+
+        } catch (error) {
+            console.error('Kratos update failed:', error);
+            if ((error as any).response?.status === 404) {
+                return res.status(404).json({ error: 'User not found in identity provider' });
+            }
+            return res.status(500).json({ error: 'Failed to update identity provider' });
         }
 
-        const updatedUser = await prisma.user.update({
+        // 2. Pre-Sync Check: Resolve Email Conflicts (Legacy Data)
+        // If a local user exists with this email but DIFFERENT ID, it's a legacy record.
+        // We must remove it to allow the Kratos-linked record (Source of Truth) to be created.
+        const userEmail = (identity.traits as any).email;
+        if (userEmail) {
+            const conflictUser = await prisma.user.findUnique({
+                where: { email: userEmail.toLowerCase() },
+            });
+
+            if (conflictUser && conflictUser.id !== userId) {
+                console.warn(`Resolving legacy user conflict for email ${userEmail}: Migrating legacy ID ${conflictUser.id} to Kratos ID ${userId}`);
+
+                try {
+                    // MIGRATION: Attempt to update the legacy user's ID to match Kratos ID.
+                    // This preserves relationships (Projects, Findings, etc.) if FKs cascade.
+                    await prisma.user.update({
+                        where: { id: conflictUser.id },
+                        data: {
+                            id: userId,
+                            // Verify verified status or other fields if needed? 
+                            // For now just ID migration is key for linkage.
+                        }
+                    });
+                } catch (migrationError) {
+                    console.error("Failed to migrate legacy user ID (likely FK constraints). Archiving legacy user instead.", migrationError);
+
+                    // Fallback: If we can't migrate ID, we must free up the email.
+                    // Rename legacy user email so we can create the new one.
+                    await prisma.user.update({
+                        where: { id: conflictUser.id },
+                        data: {
+                            email: `${userEmail}.legacy.${Date.now()}`,
+                            status: 'Inactive'
+                        }
+                    });
+                    // This creates a "zombie" record but preserves data for manual recovery if needed.
+                }
+            }
+        }
+
+        // 3. Update/Create Local DB (Sync)
+        const emailToSync = (identity.traits as any).email;
+        if (!emailToSync) {
+            throw new Error(`[User Update Debug] CRITICAL: No email found in Kratos identity traits for ${userId}. Cannot sync to local DB.`);
+        }
+
+        console.log(`[User Update Debug] Upserting local user:`, { id: userId, email: emailToSync });
+
+        const updatedUser = await prisma.user.upsert({
             where: { id: userId },
-            data: {
+            update: {
                 name,
                 role,
-                status: status || existingUser.status,
+                status: status || undefined,
+            },
+            create: {
+                id: userId,
+                name,
+                email: (identity.traits as any).email,
+                role,
+                status: status || 'Active',
+                password: await hashPassword('kratos_managed_user'),
+                avatarUrl: `https://picsum.photos/seed/${userId}/100/100`,
             },
             select: {
                 id: true,
@@ -205,6 +374,7 @@ router.put('/:id', async (req, res) => {
             },
         });
 
+        // Audit Log
         const adminName = (req as any).user?.name || 'System Admin';
 
         await prisma.auditLog.create({
@@ -217,6 +387,15 @@ router.put('/:id', async (req, res) => {
             },
         });
 
+        // Sync to Neo4j
+        await neo4jSyncQueue.add('user_updated', {
+            id: updatedUser.id,
+            email: updatedUser.email,
+            name: updatedUser.name,
+            role: updatedUser.role,
+            eventId: `EVT-${Date.now()}`
+        });
+
         res.json({
             success: true,
             user: {
@@ -225,15 +404,28 @@ router.put('/:id', async (req, res) => {
                 createdAt: updatedUser.createdAt.toISOString(),
             },
         });
-    } catch (error) {
-        console.error('Update user error:', error);
-        res.status(500).json({ error: 'Failed to update user' });
+    } catch (error: any) {
+        console.error('[User Update Debug] Update user error:', error);
+
+        if (error.code === 'P2002') {
+            console.error('[User Update Debug] Prisma Unique Constraint Violation:', error.meta);
+            return res.status(409).json({
+                error: 'Database conflict: Email already synced to another user ID.',
+                details: error.meta
+            });
+        }
+
+        res.status(500).json({
+            error: 'Failed to update user',
+            details: (error instanceof Error) ? error.message : String(error)
+        });
     }
 });
 
 // DELETE /api/users/:id - Delete user
 router.delete('/:id', async (req, res) => {
     try {
+        console.log(`[User Delete Debug] Deleting user ${req.params.id}`);
         const userId = req.params.id;
 
         const existingUser = await prisma.user.findUnique({
@@ -254,6 +446,20 @@ router.delete('/:id', async (req, res) => {
             }
         }
 
+        // 1. Delete from Kratos (Best Effort/Sync)
+        try {
+            await kratosAdmin.deleteIdentity({ id: userId });
+        } catch (kratosErr: any) {
+            if (kratosErr.response?.status !== 404) {
+                // If deletion fails (and not just "not found"), we should probably block deletion?
+                // Or allow "force delete"? For now, lets warn but proceed to clean up local state if implicit.
+                // Actually safer to block to prevent zombie identities.
+                console.error('Kratos delete failed:', kratosErr);
+                return res.status(500).json({ error: 'Failed to delete identity provider record' });
+            }
+        }
+
+        // 2. Delete from Local DB
         await prisma.user.delete({
             where: { id: userId },
         });
@@ -268,6 +474,12 @@ router.delete('/:id', async (req, res) => {
                 details: `User ${existingUser.name} (${existingUser.email}) was deleted`,
                 severity: 'High',
             },
+        });
+
+        // Sync to Neo4j
+        await neo4jSyncQueue.add('user_deleted', {
+            id: userId,
+            eventId: `EVT-${Date.now()}`
         });
 
         res.json({

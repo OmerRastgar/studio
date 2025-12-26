@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "f0e46946-32cf-4a7a-b373-4832f52ebc55",
+      "name": "ISO 27001",
+      "covered": 53,
+      "total": 84,
+      "percentage": 63
+    },
+    {
+      "id": "b247032a-8c2d-43d9-a69d-df60939ace85",
+      "name": "Cyber Essentails ",
+      "covered": 14,
+      "total": 31,
+      "percentage": 45
+    },
+    {
+      "id": "d07e1068-1760-4cd9-9a4c-df5421055209",
+      "name": "PCI DSS",
+      "covered": 10,
+      "total": 20,
+      "percentage": 50
+    }
+  ]
+}

@@ -7,6 +7,12 @@ services:
   - name: backend-api
     url: http://studio-backend:4000
 
+  - name: secure-viewer
+    url: http://studio-viewer:4001/v1/evidence
+
+  - name: kratos-service
+    url: http://studio-kratos:4433
+
 routes:
   # Public: Auth routes (no JWT required)
   - name: auth-routes
@@ -21,6 +27,14 @@ routes:
     paths:
       - /api/health
     strip_path: false
+
+  # Kratos Public API (No JWT)
+  - name: kratos-route
+    service: kratos-service
+    paths:
+      - /kratos
+    strip_path: true
+    preserve_host: true
   
   # Protected: All other API routes
   - name: api-protected
@@ -28,6 +42,23 @@ routes:
     paths:
       - /api
     strip_path: false
+
+  # WebSocket: Socket.IO
+  - name: socket-io-route
+    service: backend-api
+    paths:
+      - /socket.io
+    strip_path: false
+    protocols:
+      - http
+      - https
+  
+  # Secure Evidence Viewer
+  - name: secure-view-route
+    service: secure-viewer
+    paths:
+      - /api/secure-view
+    strip_path: true
   
   # Frontend (public)
   - name: app-route
@@ -44,7 +75,7 @@ plugins:
         - "http://localhost:3000"
         - "http://localhost:8000"
         - "http://localhost"
-        - "*"
+        # - "*" # Removed insecure wildcard for production readiness
       methods:
         - GET
         - POST
@@ -52,10 +83,14 @@ plugins:
         - DELETE
         - OPTIONS
         - PATCH
+        - HEAD
       headers:
         - Accept
         - Authorization
         - Content-Type
+        - Cookie
+        - X-Requested-With
+        - X-Forwarded-Proto
       credentials: true
       max_age: 3600
 
@@ -67,7 +102,23 @@ plugins:
       bandwidth_metrics: true
       upstream_health_metrics: true
 
+  - name: bot-detection
+    config:
+      allow:
+        - "(Pingdom.com_bot_version_.*)"
+        - "(Googlebot/.*)"
+      deny:
+        - "(.*curl.*)"
+
+  # JWT Verification Plugin
+  # Verifies HS256 JWTs issued by backend
+  - name: jwt
+    route: api-protected
+    config:
+      claims_to_verify: ["exp"]
+
   # OPA Authorization for protected API routes
+  # Reads user from JWT payload verified by jwt plugin above
   - name: opa
     route: api-protected
     config:
@@ -76,16 +127,19 @@ plugins:
       timeout: 5000
       allow_on_error: false
 
-  # JWT Authentication
-  - name: jwt
-    route: api-protected
+  - name: opa
+    route: secure-view-route
     config:
-      secret_is_base64: false
-      run_on_preflight: false
+      opa_url: "http://studio-opa:8181"
+      policy: "studio.authz.allow"
+      timeout: 5000
+      allow_on_error: false
+
+
 
 consumers:
   - username: studio-user
     jwt_secrets:
       - key: studio-idp
         algorithm: HS256
-        secret: your-256-bit-secret-key-here-change-this-in-production
+        secret: ${JWT_SECRET} # Injected at runtime

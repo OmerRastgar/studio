@@ -1,0 +1,4 @@
+2024-10-15 03:45:20 UTC | 185.220.101.34 | CRITICAL | SQL_INJECTION | POST /wp-login.php | User-Agent:Mozilla/5.0 (X11; Linux x86_64) | Rule:942100 | Action:BLOCKED | Confidence:100
+2024-10-15 12:18:33 UTC | 198.51.100.23 | HIGH | XSS_ATTACK | GET /product?query=<script>alert(1)</script> | User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) | Rule:941100 | Action:BLOCKED | Confidence:95
+2024-10-16 09:42:15 UTC | 192.168.1.105 | MEDIUM | RATE_LIMIT | POST /api/checkout | User-Agent:python-requests/2.26.0 | Requests:120/60s | Action:DELAYED | Rule:912000
+2024-10-17 18:22:41 UTC | 203.0.113.45 | INFO | GEO_BLOCK | GET /admin/ | Country:US | Action:ALLOWED (Whitelisted_VPN) | Rule:910000

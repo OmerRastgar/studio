@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useAuth } from "@/app/auth-provider";
+import { useAuth } from "@/components/auth/kratos-auth-provider";
 import {
     Dialog,
     DialogContent,
@@ -52,10 +52,14 @@ interface UploadedFile {
 }
 
 const ALLOWED_EXTENSIONS = [
-    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.csv',
-    '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp',
-    '.mp3', '.wav', '.ogg', '.m4a',
-    '.json', '.xml', '.yaml', '.yml', '.log', '.config', '.ini'
+    // Documents
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.csv', '.odt', '.ods', '.odp',
+    // Images
+    '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.svg', '.heic', '.avif',
+    // Audio
+    '.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac',
+    // Config/Logs/Code
+    '.json', '.xml', '.yaml', '.yml', '.log', '.config', '.ini', '.env', '.conf', '.properties', '.sh', '.bat', '.ps1', '.js', '.ts', '.py', '.java', '.c', '.cpp', '.h', '.rs', '.go', '.sql', '.md', '.dockerfile', '.lock'
 ];
 
 function getFileIcon(type: string) {
@@ -169,10 +173,13 @@ export function EvidenceUploadDialog({
 
         Array.from(files).forEach(file => {
             const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+            const hasNoExt = !file.name.includes('.');
 
-            if (!ALLOWED_EXTENSIONS.includes(ext)) {
-                setError(`File type not allowed: ${file.name}`);
-                return;
+            // Relaxed check: Allow if in list OR if no extension OR just let it through to backend
+            // User asked: "upload different files", implying we shouldn't block client side.
+            if (!ALLOWED_EXTENSIONS.includes(ext) && !hasNoExt) {
+                // Instead of blocking, we can allow it as 'unknown' or just warn
+                console.warn(`File type technically not in whitelist: ${file.name}, allowing anyway.`);
             }
 
             if (file.size > maxSize) {
@@ -440,7 +447,6 @@ export function EvidenceUploadDialog({
                                 type="file"
                                 multiple
                                 className="hidden"
-                                accept={ALLOWED_EXTENSIONS.join(',')}
                                 onChange={(e) => handleFiles(e.target.files)}
                             />
                         </div>

@@ -237,7 +237,7 @@ router.get('/projects', async (req, res) => {
                 startDate: p.startDate,
                 dueDate: p.dueDate,
                 endDate: p.endDate,
-                role: p.reviewerAuditorId === userId ? 'reviewer' : 'auditor',
+                role: userRole === 'manager' ? 'manager' : (p.reviewerAuditorId === userId ? 'reviewer' : 'auditor'),
                 metrics: {
                     progress: overallProgress,
                     completedControls,
@@ -740,8 +740,8 @@ router.put('/projects/:projectId/controls/:controlId/observation', async (req, r
         const { observation } = req.body;
 
         // Only auditors can save observations
-        if (userRole === 'manager') {
-            return res.status(403).json({ error: 'Managers have view-only access' });
+        if (userRole === 'manager' || userRole === 'admin') {
+            return res.status(403).json({ error: 'View-only access: Cannot modify observations' });
         }
 
         // Verify auditor owns this project
@@ -785,8 +785,8 @@ router.put('/projects/:projectId/controls/:controlId/analysis', async (req, res)
         const { analysis } = req.body;
 
         // Only auditors can save analysis
-        if (userRole === 'manager') {
-            return res.status(403).json({ error: 'Managers have view-only access' });
+        if (userRole === 'manager' || userRole === 'admin') {
+            return res.status(403).json({ error: 'View-only access: Cannot modify AI analysis' });
         }
 
         // Verify auditor owns this project

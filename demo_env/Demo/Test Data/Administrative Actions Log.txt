@@ -1,0 +1,6 @@
+# Custom application log for critical admin actions
+2024-10-15 09:18:05 UTC | michael.scott | USER_MANAGEMENT | Created new user: james.halpert@paperworksonline.ie | Role:Inventory_Clerk | IP:203.0.113.45 | Auth:MFA_verified
+2024-10-15 11:32:44 UTC | pam.beasley | SYSTEM_CONFIG | Updated SSL certificate | Domain:paperworksonline.ie | Expiry:2025-10-15 | IP:192.168.1.100
+2024-10-16 14:55:12 UTC | michael.scott | PRODUCT_MANAGEMENT | Changed product price | Product_ID:145 | Old:€24.99 | New:€22.99 | IP:203.0.113.45
+2024-10-16 16:20:33 UTC | pam.beasley | SECURITY | Enabled MFA for all admin accounts | Affected_Users:2 | IP:192.168.1.100
+2024-10-17 10:15:27 UTC | pam.beasley | DATA_MANAGEMENT | Executed GDPR data purge | Data_Subject:customer_45892 | Reason:Right_to_erasure | Records_Deleted:15 | IP:192.168.1.100

@@ -1,0 +1,184 @@
+// ============================================
+// CASB Integration & Findings Models
+// ============================================
+
+model CASBIntegration {
+  id                String              @id @default(uuid())
+  name              String
+  type              CASBIntegrationType
+  vendor            String?
+  status            IntegrationStatus   @default(pending)
+  
+  authType          AuthType
+  credentials       Json?
+  tokenExpiry       DateTime?
+  
+  config            Json?
+  syncFrequency     Int                 @default(3600)
+  lastSyncAt        DateTime?
+  nextSyncAt        DateTime?
+  
+  createdById       String              @map("created_by_id")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  
+  createdBy         User                @relation("CASBIntegrations", fields: [createdById], references: [id])
+  findings          Finding[]
+  syncLogs          IntegrationSyncLog[]
+  
+  @@map("casb_integrations")
+}
+
+model Finding {
+  id                String           @id @default(uuid())
+  
+  integrationId     String?          @map("integration_id")
+  integration       CASBIntegration? @relation(fields: [integrationId], references: [id])
+  agentId           String?          @map("agent_id")
+  agent             Agent?           @relation(fields: [agentId], references: [id])
+  
+  title             String
+  description       String
+  severity          FindingSeverity
+  category          FindingCategory
+  type              String
+  
+  status            FindingStatus    @default(open)
+  assignedToId      String?          @map("assigned_to_id")
+  assignedTo        User?            @relation("AssignedFindings", fields: [assignedToId], references: [id])
+  
+  affectedResource  String?          @map("affected_resource")
+  resourceType      String?          @map("resource_type")
+  location          String?
+  
+  rawData           Json?            @map("raw_data")
+  evidence          String[]
+  
+  frameworks        String[]
+  controls          String[]
+  
+  recommendation    String?
+  remediationSteps  String?          @map("remediation_steps")
+  dueDate           DateTime?        @map("due_date")
+  resolvedAt        DateTime?        @map("resolved_at")
+  resolvedById      String?          @map("resolved_by_id")
+  resolvedBy        User?            @relation("ResolvedFindings", fields: [resolvedById], references: [id])
+  
+  firstSeenAt       DateTime         @default(now()) @map("first_seen_at")
+  lastSeenAt        DateTime         @default(now()) @map("last_seen_at")
+  occurrenceCount   Int              @default(1) @map("occurrence_count")
+  
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  
+  comments          FindingComment[]
+  
+  @@map("findings")
+}
+
+model FindingComment {
+  id         String   @id @default(uuid())
+  findingId  String   @map("finding_id")
+  authorId   String   @map("author_id")
+  content    String
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  finding    Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  author     User     @relation("FindingComments", fields: [authorId], references: [id])
+  
+  @@map("finding_comments")
+}
+
+model IntegrationSyncLog {
+  id                String          @id @default(uuid())
+  integrationId     String          @map("integration_id")
+  status            SyncStatus
+  startedAt         DateTime        @default(now()) @map("started_at")
+  completedAt       DateTime?       @map("completed_at")
+  
+  recordsProcessed  Int             @default(0) @map("records_processed")
+  findingsCreated   Int             @default(0) @map("findings_created")
+  findingsUpdated   Int             @default(0) @map("findings_updated")
+  
+  error             String?
+  details           Json?
+  
+  integration       CASBIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  
+  @@map("integration_sync_logs")
+}
+
+// Enums
+enum CASBIntegrationType {
+  saas_office365
+  saas_google_workspace
+  saas_salesforce
+  saas_slack
+  saas_github
+  saas_aws
+  saas_azure
+  saas_gcp
+  onprem_exchange
+  onprem_sharepoint
+  onprem_active_directory
+  casb_netskope
+  casb_mcafee_mvision
+  casb_zscaler
+  casb_cisco_cloudlock
+  agent_endpoint
+  agent_network
+}
+
+enum IntegrationStatus {
+  pending
+  active
+  failed
+  disabled
+  syncing
+}
+
+enum AuthType {
+  oauth2
+  api_key
+  saml
+  certificate
+  basic_auth
+}
+
+enum FindingSeverity {
+  critical
+  high
+  medium
+  low
+  info
+}
+
+enum FindingCategory {
+  data_leak
+  malware
+  unauthorized_access
+  policy_violation
+  compliance_gap
+  misconfiguration
+  anomaly
+  suspicious_activity
+  vulnerability
+  other
+}
+
+enum FindingStatus {
+  open
+  investigating
+  in_progress
+  resolved
+  false_positive
+  accepted_risk
+  dismissed
+}
+
+enum SyncStatus {
+  running
+  completed
+  failed
+  cancelled
+}

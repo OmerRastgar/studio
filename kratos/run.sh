@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+# Generate kratos.yml from template using sed for substitution
+# We use | as delimiter assuming it won't be present in the values.
+# If values contain |, this will break.
+echo "Generating /etc/config/kratos/kratos.yml from template..."
+
+sed -e "s|\${DSN}|$DSN|g" \
+    -e "s|\${GOOGLE_CLIENT_ID}|$GOOGLE_CLIENT_ID|g" \
+    -e "s|\${GOOGLE_CLIENT_SECRET}|$GOOGLE_CLIENT_SECRET|g" \
+    /etc/config/kratos/kratos.template.yml > /etc/config/kratos/kratos.yml
+
+echo "Configuration generated. Starting Kratos..."
+
+# Execute the passed command
+exec kratos "$@"

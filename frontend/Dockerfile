@@ -15,7 +15,7 @@ COPY --chown=node:node package.json ./
 # Copy package-lock.json if it exists, otherwise npm install will create it
 COPY --chown=node:node package-lock.json* ./
 # Install dependencies using npm ci for deterministic builds
-RUN npm ci --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 
 # ---- Builder ----
 # This stage builds the Next.js application.

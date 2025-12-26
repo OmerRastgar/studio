@@ -13,9 +13,10 @@ if (!ENV_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('JWT_SECRET environment variable is not set');
 }
 
-const JWT_SECRET = ENV_SECRET || 'your-256-bit-secret-key-here-change-this-in-production';
+const JWT_SECRET = ENV_SECRET || (() => { throw new Error('JWT_SECRET required in production'); })();
 
 export interface JWTPayload {
+  sub?: string; // Standard subject claim
   userId: string;
   email: string;
   role: string;

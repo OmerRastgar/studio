@@ -15,6 +15,13 @@ router.use(authenticate);
  * List evidence for a project (optionally filtered by control)
  * Query params: projectId (required), controlId (optional)
  */
+// ... (previous imports)
+
+/**
+ * GET /api/evidence
+ * List evidence for a project (optionally filtered by control)
+ * Query params: projectId (required), controlId (optional)
+ */
 router.get('/', async (req: AuthRequest, res: Response) => {
     try {
         const { projectId, controlId } = req.query;
@@ -66,19 +73,139 @@ router.get('/', async (req: AuthRequest, res: Response) => {
                 tags: true,
                 controls: { include: { control: true } }, // Include linked controls
                 uploadedBy: { select: { id: true, name: true } },
-                agent: { select: { id: true, name: true } }
+                agent: { select: { id: true, name: true } },
+                _count: {
+                    select: { annotations: true }
+                }
             },
             orderBy: { uploadedAt: 'desc' }
         });
 
         const formattedEvidence = evidence.map(e => ({
             ...e,
-            tags: e.tags.map(t => t.name)
+            tags: e.tags.map(t => t.name),
+            annotationCount: e._count.annotations
         }));
 
         return res.json(formattedEvidence);
     } catch (error) {
         console.error('Error fetching evidence:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ... (GET /:id and other routes remain)
+
+/**
+ * POST /api/evidence/:id/annotations
+ * Create a new annotation
+ */
+router.post('/:id/annotations', async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        // Check for notifyCustomer in body
+        const { text, x, y, page, notifyCustomer } = req.body;
+        const userId = req.user?.userId;
+
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        // Validations
+        if (x === undefined || y === undefined || !text) {
+            return res.status(400).json({ error: 'Missing Required Fields (text, x, y)' });
+        }
+
+        const evidence = await prisma.evidence.findUnique({
+            where: { id },
+            include: {
+                project: {
+                    include: {
+                        projectShares: true,
+                        customer: true // Fetch customer for notification
+                    }
+                }
+            }
+        });
+
+        if (!evidence) return res.status(404).json({ error: 'Evidence not found' });
+
+        const userRole = req.user?.role?.toLowerCase();
+        const hasAccess =
+            userRole === 'admin' ||
+            userRole === 'manager' ||
+            (userRole === 'auditor' && (evidence.project.auditorId === userId || evidence.project.reviewerAuditorId === userId)) ||
+            (userRole === 'reviewer' && (evidence.project.auditorId === userId || evidence.project.reviewerAuditorId === userId)) ||
+            (userRole === 'customer' && evidence.project.customerId === userId) ||
+            evidence.project.projectShares.some(share => share.userId === userId);
+
+        if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+        const annotation = await prisma.evidenceAnnotation.create({
+            data: {
+                evidenceId: id,
+                authorId: userId,
+                text,
+                x,
+                y,
+                page: page || 1
+            },
+            include: { author: { select: { id: true, name: true, role: true } } }
+        });
+
+        // Notify Customer Logic
+        if (notifyCustomer) {
+            const customerEmail = evidence.project.customer?.email;
+            if (customerEmail) {
+                console.log(`[NOTIFICATION] Sending email to customer ${customerEmail}: New comment on evidence ${evidence.fileName}`);
+                // In a real app: await emailService.send(...)
+            } else {
+                console.log(`[NOTIFICATION] Customer email not found for project ${evidence.projectId}`);
+            }
+        }
+
+        return res.status(201).json({ data: annotation });
+    } catch (error) {
+        console.error('Error creating annotation:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/evidence/:id
+ * Get single evidence metadata
+ */
+router.get('/:id', async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user?.userId;
+        const userRole = req.user?.role?.toLowerCase();
+
+        const evidence = await prisma.evidence.findUnique({
+            where: { id },
+            include: {
+                project: { include: { projectShares: true } }
+            }
+        });
+
+        if (!evidence) {
+            return res.status(404).json({ error: 'Evidence not found' });
+        }
+
+        // Access control
+        const hasAccess =
+            userRole === 'admin' ||
+            userRole === 'manager' ||
+            (userRole === 'auditor' && (evidence.project.auditorId === userId || evidence.project.reviewerAuditorId === userId)) ||
+            (userRole === 'reviewer' && (evidence.project.auditorId === userId || evidence.project.reviewerAuditorId === userId)) ||
+            (userRole === 'customer' && evidence.project.customerId === userId) ||
+            evidence.project.projectShares.some(share => share.userId === userId);
+
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        return res.json({ data: evidence });
+    } catch (error) {
+        console.error('Error fetching evidence details:', error);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -138,9 +265,9 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         }
 
         // Only customer (owner), auditor (assigned), admin, manager can upload
+        // Only customer (owner) and auditor (assigned) can upload
+        // Managers and Admins are explicitly excluded from uploading evidence to maintain audit integrity
         const canUpload =
-            userRole === 'admin' ||
-            userRole === 'manager' ||
             (userRole === 'auditor' && project.auditorId === userId) ||
             (userRole === 'customer' && project.customerId === userId);
 
@@ -224,6 +351,20 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             });
         }
 
+        // Emit Graph Events for Controls & Uploader
+        if (evidence) {
+            GraphService.linkEvidenceUploader(evidence.id, userId, userRole || 'unknown').catch(e => console.error(e));
+            GraphService.linkEvidenceToProject(evidence.id, evidence.projectId).catch(e => console.error(e));
+
+            if (evidence.controls && evidence.controls.length > 0) {
+                evidence.controls.forEach(pc => {
+                    if (pc.control) {
+                        GraphService.linkEvidenceToControl(evidence.id, pc.control.id).catch(e => console.error(e));
+                    }
+                });
+            }
+        }
+
         // 4. Update Evidence Counts (Auto-linking)
         // Recalculate counts for all affected controls
         const uniqueControlIds = [...new Set(controlConnect.map((c: any) => c.id))];
@@ -261,12 +402,20 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ error: 'Evidence not found' });
         }
 
-        // Check permission
+        // DEBUG: Permission Check
+        console.log('[DEBUG-EVIDENCE-PUT] Permission Check:', {
+            id,
+            userId,
+            userRole,
+            projectAuditor: existing.project.auditorId,
+            uploadedBy: existing.uploadedById
+        });
+
         const canEdit =
-            userRole === 'admin' ||
-            userRole === 'manager' ||
             (userRole === 'auditor' && existing.project.auditorId === userId) ||
             (userRole === 'customer' && existing.uploadedById === userId);
+
+        console.log('[DEBUG-EVIDENCE-PUT] canEdit result:', canEdit);
 
         if (!canEdit) {
             return res.status(403).json({ error: 'Permission denied' });
@@ -282,7 +431,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
 
             // Upsert new tags
             // 2. Handle Controls Change (Inherit Tags)
-            let tagConnect = [];
+            const tagConnect: any[] = [];
 
             // Re-calculate tags if controls change or tags explicitly provided
             const finalTags = new Set(newTags);
@@ -301,7 +450,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
                     pc.control.tags.forEach(t => finalTags.add(t.name));
                 });
 
-                controlConnect = controlIds.map(cid => ({ id: cid }));
+                controlConnect = controlIds.map((id: string) => ({ id }));
             } else {
                 // Keep existing tags from existing controls if not changing controls? 
                 // If tags are explicitly passed, we usually rely on that list. 
@@ -346,9 +495,22 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
                 }
             }
 
+            // Sync with Graph
+            if (updated.controls && updated.controls.length > 0) {
+                // Ensure project link (idempotent)
+                GraphService.linkEvidenceToProject(updated.id, updated.projectId).catch(e => console.error(e));
+
+                updated.controls.forEach(pc => {
+                    if (pc.control) {
+                        GraphService.linkEvidenceToControl(updated.id, pc.control.id).catch(e => console.error(e));
+                    }
+                });
+            }
+
             return res.json({
                 ...updated,
-                tags: updated.tags.map(t => t.name)
+                tags: updated.tags.map(t => t.name),
+                annotationCount: (updated as any)._count?.annotations || 0
             });
         } else {
             // Only filename update
@@ -390,34 +552,22 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ error: 'Evidence not found' });
         }
 
-        // DEBUG: Check permissions details BEFORE decision
-        console.log('[DEBUG-EVIDENCE-DELETE] Check:', {
-            evidenceId: id,
-            userRole,
-            userId,
-            uploadedBy: existing.uploadedById,
-            projectOwner: existing.project.customerId,
-            projectAuditor: existing.project.auditorId
-        });
+
 
         const canDelete =
-            userRole === 'admin' ||
-            userRole === 'manager' ||
             (userRole === 'auditor' && (existing.project.auditorId === userId || existing.uploadedById === userId)) ||
             (userRole === 'customer' && existing.uploadedById === userId); // Strict Uploader check for Customer
 
-        // Status Check: Prevent deletion if Status is "review_pending" or "completed" or "approved" (unless Admin/Manager)
-        console.log('[DEBUG-EVIDENCE-DELETE] Check Passed, validating Status...');
-        if (canDelete && (userRole !== 'admin' && userRole !== 'manager')) {
+        // Status Check: Prevent deletion if Status is "review_pending" or "completed" or "approved"
+        // Status Check: Prevent deletion if Status is "review_pending" or "completed" or "approved"
+        if (canDelete) {
             try {
                 const status = existing.project.status;
-                console.log('[DEBUG-EVIDENCE-DELETE] Project Status:', status);
                 if (status === 'review_pending' || status === 'completed' || status === 'approved') {
-                    console.log('[DEBUG-EVIDENCE-DELETE] Status Locked');
                     return res.status(403).json({ error: `Cannot delete evidence because project is in '${status}' status.` });
                 }
             } catch (e) {
-                console.error('[DEBUG-EVIDENCE-DELETE] Error reading status:', e);
+                // Ignore status check error
             }
         }
 
@@ -459,3 +609,117 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
 });
 
 export default router;
+
+// Annotations Endpoints
+
+/**
+ * GET /api/evidence/:id/annotations
+ * Fetch annotations for specific evidence
+ */
+router.get('/:id/annotations', async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user?.userId;
+
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        // Verify access to evidence
+        const evidence = await prisma.evidence.findUnique({
+            where: { id },
+            include: {
+                project: { include: { projectShares: true } },
+                annotations: { include: { author: { select: { id: true, name: true, role: true } } } }
+            }
+        });
+
+        if (!evidence) return res.status(404).json({ error: 'Evidence not found' });
+
+        const userRole = req.user?.role?.toLowerCase();
+        const hasAccess =
+            userRole === 'admin' ||
+            userRole === 'manager' ||
+            (userRole === 'auditor' && (evidence.project.auditorId === userId || evidence.project.reviewerAuditorId === userId)) ||
+            (userRole === 'reviewer' && (evidence.project.auditorId === userId || evidence.project.reviewerAuditorId === userId)) ||
+            (userRole === 'customer' && evidence.project.customerId === userId) ||
+            evidence.project.projectShares.some(share => share.userId === userId);
+
+        if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+        return res.json({ data: evidence.annotations });
+    } catch (error) {
+        console.error('Error fetching annotations:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/evidence/:id/annotations
+ * Create a new annotation
+ */
+router.post('/:id/annotations', async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { text, x, y, page, notifyCustomer } = req.body;
+        const userId = req.user?.userId;
+
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        // Validations
+        if (x === undefined || y === undefined || !text) {
+            return res.status(400).json({ error: 'Missing Required Fields (text, x, y)' });
+        }
+
+        const evidence = await prisma.evidence.findUnique({
+            where: { id },
+            include: {
+                project: {
+                    include: {
+                        projectShares: true,
+                        customer: true // Fetch customer
+                    }
+                }
+            }
+        });
+
+        if (!evidence) return res.status(404).json({ error: 'Evidence not found' });
+
+        const userRole = req.user?.role?.toLowerCase();
+        const hasAccess =
+            userRole === 'admin' ||
+            userRole === 'manager' ||
+            (userRole === 'auditor' && (evidence.project.auditorId === userId || evidence.project.reviewerAuditorId === userId)) ||
+            (userRole === 'reviewer' && (evidence.project.auditorId === userId || evidence.project.reviewerAuditorId === userId)) ||
+            (userRole === 'customer' && evidence.project.customerId === userId) ||
+            evidence.project.projectShares.some(share => share.userId === userId);
+
+        if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+        const annotation = await prisma.evidenceAnnotation.create({
+            data: {
+                evidenceId: id,
+                authorId: userId,
+                text,
+                x,
+                y,
+                page: page || 1
+            },
+            include: { author: { select: { id: true, name: true, role: true } } }
+        });
+
+        // Notify Customer Logic
+        if (notifyCustomer) {
+            const customerEmail = evidence.project.customer?.email;
+            if (customerEmail) {
+                console.log(`[NOTIFICATION] Sending email to customer ${customerEmail}: New comment on evidence ${evidence.fileName}`);
+                // In a real app: await emailService.send(...)
+            } else {
+                console.log(`[NOTIFICATION] Customer email not found for project ${evidence.projectId}`);
+            }
+        }
+
+        return res.status(201).json({ data: annotation });
+    } catch (error) {
+        console.error('Error creating annotation:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});

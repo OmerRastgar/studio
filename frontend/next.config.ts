@@ -3,9 +3,21 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   /* config options here */
   reactStrictMode: false,
+  devIndicators: false,
   output: 'standalone',
   async rewrites() {
     return [
+
+      {
+        source: '/kratos/:path*',
+        destination: 'http://kratos:4433/:path*',
+      },
+      {
+        source: '/api/secure-view/:path*',
+        destination: process.env.VIEWER_URL
+          ? `${process.env.VIEWER_URL}/v1/evidence/:path*`
+          : 'http://studio-viewer:4001/v1/evidence/:path*',
+      },
       {
         source: '/api/:path*',
         destination: process.env.BACKEND_URL
@@ -50,10 +62,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    workerThreads: false,
-    cpus: 1,
-  },
+
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {

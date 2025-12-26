@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken, extractTokenFromHeader } from '../lib/jwt';
 import { prisma } from '../lib/prisma';
 import { checkAuthorization } from '../lib/opa';
-
+import { kratosAuthenticate } from './kratos-auth';
 export interface AuthRequest extends Request {
     user?: {
         userId: string;
@@ -12,77 +12,96 @@ export interface AuthRequest extends Request {
     };
 }
 
+export interface KratosAuthRequest extends AuthRequest {
+    kratosSession?: any;
+}
+
 /**
  * Authentication middleware that supports:
- * 1. Kong-injected headers (X-User-Id, X-User-Role, X-User-Email) - primary when Kong validates JWT
- * 2. Direct JWT validation - fallback for local development or backend-to-backend calls
+ * 1. Kratos Session (Cookie/Token) - Native Kratos auth
+ * 2. Kong-injected headers (X-User-Id, X-User-Role, X-User-Email) - primary when Kong validates JWT
+ * 3. Direct JWT validation - fallback for local development or legacy tokens
  */
-export async function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-        // Check for Kong-injected headers first (Kong has already validated JWT)
-        const kongUserId = req.headers['x-user-id'] as string;
-        const kongUserRole = req.headers['x-user-role'] as string;
-        const kongUserEmail = req.headers['x-user-email'] as string;
+export async function authenticate(req: Request, res: Response, next: NextFunction) {
+    const authReq = req as KratosAuthRequest;
 
-        if (kongUserId && kongUserRole) {
-            // Kong has validated the JWT and injected user info
-            // Optionally fetch user name from database
-            let userName = 'User';
-            try {
-                const user = await prisma.user.findUnique({
-                    where: { id: kongUserId },
-                    select: { name: true }
-                });
-                if (user) {
-                    userName = user.name || 'User';
-                }
-            } catch (dbError) {
-                // If DB lookup fails, continue with default name
-                console.warn('Could not fetch user name:', dbError);
-            }
+    // 1. Try Kratos Authentication first
+    await kratosAuthenticate(authReq, res, async () => {
+        // Callback from kratosAuthenticate continues here
 
-            req.user = {
-                userId: kongUserId,
-                email: kongUserEmail || '',
-                role: kongUserRole,
-                name: userName,
-            };
+        // If Kratos successfully authenticated, proceed
+        if (authReq.user) {
             return next();
         }
 
-        // Fallback: Direct JWT validation (for local dev or backend-to-backend calls)
-        let token = extractTokenFromHeader(req.headers.authorization || null);
+        try {
+            // 2. Check for Kong-injected headers (Kong has already validated JWT)
+            const kongUserId = req.headers['x-user-id'] as string;
+            const kongUserRole = req.headers['x-user-role'] as string;
+            const kongUserEmail = req.headers['x-user-email'] as string;
 
-        // If no header, check cookie (simple parsing)
-        if (!token && req.headers.cookie) {
-            const match = req.headers.cookie.match(/auth_token=([^;]+)/);
-            if (match) {
-                token = match[1];
+            if (kongUserId && kongUserRole) {
+                // Kong has validated the JWT and injected user info
+                // Optionally fetch user name from database
+                let userName = 'User';
+                try {
+                    const user = await prisma.user.findUnique({
+                        where: { id: kongUserId },
+                        select: { name: true }
+                    });
+                    if (user) {
+                        userName = user.name || 'User';
+                    }
+                } catch (dbError) {
+                    console.warn('Could not fetch user name:', dbError);
+                }
+
+                authReq.user = {
+                    userId: kongUserId,
+                    email: kongUserEmail || '',
+                    role: kongUserRole,
+                    name: userName,
+                };
+                return next();
             }
+
+            // 3. Fallback: Direct JWT validation (for local dev or backend-to-backend calls)
+            let token = extractTokenFromHeader(req.headers.authorization || null);
+
+            // If no header, check cookie (simple parsing)
+            if (!token && req.headers.cookie) {
+                const match = req.headers.cookie.match(/auth_token=([^;]+)/);
+                if (match) {
+                    token = match[1];
+                }
+            }
+
+            if (!token) {
+                return res.status(401).json({ error: 'Authentication required' });
+            }
+
+            const payload = verifyToken(token);
+
+            if (!payload) {
+                return res.status(401).json({ error: 'Invalid or expired token' });
+            }
+
+            // Support both userId (legacy) and sub (standard/Kong)
+            const userId = payload.userId || (payload.sub as string);
+
+            authReq.user = {
+                userId: userId,
+                email: payload.email,
+                role: payload.role,
+                name: payload.name,
+            };
+
+            next();
+        } catch (error) {
+            console.error('Auth middleware error:', error);
+            res.status(500).json({ error: 'Internal server error' });
         }
-
-        if (!token) {
-            return res.status(401).json({ error: 'Authentication required' });
-        }
-
-        const payload = verifyToken(token);
-
-        if (!payload) {
-            return res.status(401).json({ error: 'Invalid or expired token' });
-        }
-
-        req.user = {
-            userId: payload.userId,
-            email: payload.email,
-            role: payload.role,
-            name: payload.name,
-        };
-
-        next();
-    } catch (error) {
-        console.error('Auth middleware error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+    });
 }
 
 /**

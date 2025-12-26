@@ -23,7 +23,7 @@ async function getAvailableContacts(userId: string, rawRole: string) {
     console.log(`[Chat] getAvailableContacts called for userId=${userId} role=${userRole}`);
 
     switch (userRole) {
-        case 'customer':
+        case 'customer': {
             // Customers can chat with:
             // 1. Their Manager
             // 2. Assigned auditors (via projects)
@@ -54,8 +54,10 @@ async function getAvailableContacts(userId: string, rawRole: string) {
                 }
             });
             return customerContacts;
+        }
 
-        case 'auditor':
+
+        case 'auditor': {
             // Auditors can chat with:
             // 1. Their Manager
             // 2. Assigned customers
@@ -76,8 +78,9 @@ async function getAvailableContacts(userId: string, rawRole: string) {
                 }
             });
             return auditorContacts;
+        }
 
-        case 'manager':
+        case 'manager': {
             // Managers can chat with:
             // 1. Admin
             // 2. Their created Users (Auditors, Customers, Compliance)
@@ -96,8 +99,9 @@ async function getAvailableContacts(userId: string, rawRole: string) {
                 }
             });
             return managerContacts;
+        }
 
-        case 'admin':
+        case 'admin': {
             // Admins can chat with everyone
             const allContacts = await prisma.user.findMany({
                 where: { id: { not: userId } },
@@ -106,6 +110,7 @@ async function getAvailableContacts(userId: string, rawRole: string) {
                 }
             });
             return allContacts;
+        }
 
         default:
             return [];
