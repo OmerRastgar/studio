@@ -24,7 +24,7 @@ services:
     volumes:
       - ./kratos:/etc/config/kratos
     entrypoint: /bin/sh /etc/config/kratos/run.sh
-    command: -c /etc/config/kratos/kratos.yml migrate sql -e --yes
+    command: -c /tmp/kratos.yml migrate sql -e --yes
     networks:
       - default
     depends_on:
@@ -44,7 +44,7 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     entrypoint: /bin/sh /etc/config/kratos/run.sh
-    command: serve -c /etc/config/kratos/kratos.yml --dev --watch-courier
+    command: serve -c /tmp/kratos.yml --dev --watch-courier
     volumes:
       - ./kratos:/etc/config/kratos
     networks:

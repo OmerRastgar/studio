@@ -5,8 +5,7 @@ node_modules/
 # Certificates
 certs/
 
-# Generated Configs
-kratos/kratos.yml
+
 
 # Next.js
 .next/

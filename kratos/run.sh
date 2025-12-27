@@ -9,7 +9,7 @@ echo "Generating /etc/config/kratos/kratos.yml from template..."
 sed -e "s|\${DSN}|$DSN|g" \
     -e "s|\${GOOGLE_CLIENT_ID}|$GOOGLE_CLIENT_ID|g" \
     -e "s|\${GOOGLE_CLIENT_SECRET}|$GOOGLE_CLIENT_SECRET|g" \
-    /etc/config/kratos/kratos.template.yml > /etc/config/kratos/kratos.yml
+    /etc/config/kratos/kratos.template.yml > /tmp/kratos.yml
 
 echo "Configuration generated. Starting Kratos..."
 
