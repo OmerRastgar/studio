@@ -97,8 +97,11 @@ services:
       MINIO_PORT: 9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET:-evidence}
       MINIO_USE_SSL: "false"
+      # Neo4j
+      NEO4J_AUTH: ${NEO4J_AUTH}
       # Observability
       FLUENT_BIT_URL: ${FLUENT_BIT_URL:-http://fluent-bit:9880/app-logs}
       LOKI_URL: ${LOKI_URL:-http://loki:3100}

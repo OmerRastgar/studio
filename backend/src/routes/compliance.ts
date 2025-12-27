@@ -9,13 +9,22 @@ import { kratosAdmin } from '../lib/kratos';
 const router = Router();
 
 const NEO4J_URI = process.env.NEO4J_URI || 'bolt://neo4j:7687';
-const NEO4J_USER = process.env.NEO4J_USER || 'neo4j';
-const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || 'auditgraph123';
+// Handle NEO4J_AUTH=username/password format
+let NEO4J_USER = process.env.NEO4J_USER || 'neo4j';
+let NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || 'auditgraph123';
+
+if (process.env.NEO4J_AUTH) {
+    const [auth_user, auth_pass] = process.env.NEO4J_AUTH.split('/');
+    if (auth_user && auth_pass) {
+        NEO4J_USER = auth_user;
+        NEO4J_PASSWORD = auth_pass;
+    }
+}
 
 const driver = neo4j.driver(
     NEO4J_URI,
     neo4j.auth.basic(NEO4J_USER, NEO4J_PASSWORD),
-    { disableLosslessIntegers: true } // Community edition often sends integers that JS parses as objects otherwise
+    { disableLosslessIntegers: true }
 );
 
 // GET /api/compliance/projection

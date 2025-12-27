@@ -15,7 +15,12 @@ interface AuthenticatedSocket extends Socket {
 export function initializeSocket(httpServer: HTTPServer) {
     const io = new SocketIOServer(httpServer, {
         cors: {
-            origin: ['http://localhost:3000', 'http://localhost:8000'],
+            origin: [
+                'http://localhost:3000',
+                'http://localhost:8000',
+                'https://demo.cybergaar.com',
+                process.env.PUBLIC_URL || ''
+            ].filter(Boolean),
             methods: ['GET', 'POST'],
             credentials: true
         },
