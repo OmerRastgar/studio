@@ -5,8 +5,8 @@ set -u
 function create_user_and_database() {
 	local database=$1
 	echo "  Processing database '$database'..."
-	exists=$(psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" -tAc "SELECT 1 FROM pg_database WHERE datname = '$database'")
-	if [ "$exists" = "1" ]; then
+	# Check if DB exists (trimming whitespace)
+	if psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" -tAc "SELECT 1 FROM pg_database WHERE datname = '$database'" | grep -q 1; then
 		echo "  Database '$database' already exists. Skipping."
 	else
 		echo "  Creating user and database '$database'"
