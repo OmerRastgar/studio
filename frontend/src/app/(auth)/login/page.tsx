@@ -282,6 +282,7 @@ function LoginForm() {
                         nodes={flow.ui.nodes.filter((n: any) => n.group !== 'oidc' && n.attributes.name !== 'provider')}
                         isLoading={false}
                         onSubmit={onSubmit}
+                        botProof={true}
                     />
                     {!is2FAStep && (
                         <div className="mt-4">

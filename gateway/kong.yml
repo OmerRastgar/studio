@@ -65,6 +65,10 @@ routes:
     service: nextjs-app
     paths:
       - /
+    hosts:
+      - demo.cybergaar.com
+      - localhost
+      - 127.0.0.1
     strip_path: false
 
 # Global plugins
@@ -75,6 +79,9 @@ plugins:
         - "http://localhost:3000"
         - "http://localhost:8000"
         - "http://localhost"
+        - "https://localhost:8443"
+        - "https://localhost"
+        - "https://demo.cybergaar.com"
         # - "*" # Removed insecure wildcard for production readiness
       methods:
         - GET

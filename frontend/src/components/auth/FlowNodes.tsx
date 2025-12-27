@@ -13,7 +13,7 @@ interface FlowNodesProps {
     botProof?: boolean;
 }
 
-export const FlowNodes = ({ nodes, isLoading, onSubmit, onResend, onMethodClick }: FlowNodesProps) => {
+export const FlowNodes = ({ nodes, isLoading, onSubmit, onResend, onMethodClick, botProof }: FlowNodesProps) => {
     // Initialize state with default values from nodes
     const [values, setValues] = useState<Record<string, any>>(() => {
         const initialValues: Record<string, any> = {};
@@ -110,6 +110,19 @@ export const FlowNodes = ({ nodes, isLoading, onSubmit, onResend, onMethodClick 
                     ))
                 }
             </div>
+
+            {/* Cloudflare Turnstile Widget */}
+            {botProof && (
+                <div className="flex justify-center mt-4">
+                    <div
+                        className="cf-turnstile"
+                        data-sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
+                        data-theme="light"
+                        data-size="normal"
+                        data-callback="onTurnstileSuccess" // This callback needs to be handled globally or passed down
+                    ></div>
+                </div>
+            )}
         </form>
     );
 };

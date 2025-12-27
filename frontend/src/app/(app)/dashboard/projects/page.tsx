@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/kratos-auth-provider";
 
+export const dynamic = 'force-dynamic';
+
 export default function ProjectsRedirectPage() {
     const { user, loading } = useAuth();
     const router = useRouter();

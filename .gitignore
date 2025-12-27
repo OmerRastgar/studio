@@ -1,6 +1,13 @@
 # Dependencies
 node_modules/
 
+
+# Certificates
+certs/
+
+# Generated Configs
+kratos/kratos.yml
+
 # Next.js
 .next/
 out/
@@ -24,7 +31,3 @@ yarn-error.log*
 # IDE
 .vscode
 .idea
-
-# Generated Configs
-kratos/kratos.yml
-gateway/kong.yml

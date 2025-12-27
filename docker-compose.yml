@@ -57,9 +57,9 @@ services:
   mailhog:
     image: mailhog/mailhog:latest
     container_name: studio-mailhog
-    ports:
-      - "1025:1025" # SMTP (Internal mostly, but exposed for debug)
-      - "8025:8025" # UI
+    # ports:
+    #   - "1025:1025" # SMTP (Internal mostly, but exposed for debug)
+    #   - "8025:8025" # UI
     networks:
       - default
 
@@ -86,6 +86,7 @@ services:
       WATCHPACK_POLLING: "true"
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-auditdb}
       JWT_SECRET: ${JWT_SECRET}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
       # MinIO Configuration
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
@@ -130,8 +131,8 @@ services:
       target: dependencies
     container_name: studio-frontend
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    # ports:
+    #   - "3000:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -144,6 +145,7 @@ services:
       TEMPO_URL: ${TEMPO_URL:-http://tempo:4318/v1/traces}
       # API URL (Client-side calls go to Kong)
       NEXT_PUBLIC_API_URL: ""
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
       # Force Webpack to poll for changes (Fixes Windows/Docker sync issues)
       WATCHPACK_POLLING: "true"
     volumes:
@@ -162,8 +164,8 @@ services:
       dockerfile: Dockerfile
     container_name: studio-opa
     restart: unless-stopped
-    ports:
-      - "8181:8181"
+    # ports:
+    #   - "8181:8181"
     networks:
       - default
     healthcheck:
@@ -184,21 +186,26 @@ services:
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: "/etc/kong/kong.yml"
-      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+      KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
       KONG_ADMIN_LISTEN: "0.0.0.0:8001"
       # Enable custom OPA plugin
       KONG_PLUGINS: "bundled,opa,bot-detection,cors,jwt,prometheus"
       KONG_LUA_PACKAGE_PATH: "/usr/local/custom/?.lua;;"
       # Inject JWT Secret for substitution in kong.yml
       JWT_SECRET: ${JWT_SECRET}
+      # TLS Configuration
+      KONG_SSL_CERT: /etc/secrets/cert.pem
+      KONG_SSL_CERT_KEY: /etc/secrets/key.pem
     ports:
       - "80:8000" # Proxy
-      - "8080:8000" # Proxy (Direct) - Changed from 8000 due to Hyper-V reservation
-      - "8081:8001" # Admin - Changed from 8001 due to Hyper-V reservation
+      # - "8080:8000" # Proxy (Direct)
+      # - "8081:8001" # Admin
+      - "443:8443" # HTTPS Proxy
     volumes:
       - ./gateway/kong.yml:/etc/kong/kong.template.yml:ro
       - ./gateway/run.sh:/run.sh:ro
       - ./gateway/plugins/opa:/usr/local/custom/kong/plugins/opa:ro
+      - ./certs:/etc/secrets:ro
     entrypoint: /bin/sh /run.sh
     command: "kong docker-start"
     networks:
@@ -230,8 +237,8 @@ services:
     container_name: studio-n8n
     restart: unless-stopped
     # ports: - Exposed for workflow management? Usually yes, but verify. Keeping for now as it has UI.
-    ports:
-      - "5800:5678"
+    # ports:
+    #   - "5800:5678"
     environment:
       - N8N_HOST=localhost
       - N8N_PORT=5678
@@ -279,8 +286,8 @@ services:
     image: fluent/fluent-bit:latest
     container_name: studio-fluent-bit
     restart: unless-stopped
-    ports:
-      - "9880:9880" # HTTP Input
+    # ports:
+    #   - "9880:9880" # HTTP Input
     volumes:
       - ./observability/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
       - ./observability/parsers.conf:/fluent-bit/etc/parsers.conf
@@ -291,8 +298,8 @@ services:
     image: grafana/loki:latest
     container_name: studio-loki
     restart: unless-stopped
-    ports:
-      - "3100:3100"
+    # ports:
+    #   - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - default
@@ -304,12 +311,12 @@ services:
     command: [ "-config.file=/etc/tempo/tempo-local.yaml" ]
     volumes:
       - ./observability/tempo-local.yaml:/etc/tempo/tempo-local.yaml
-    ports:
-      - "14268:14268" # jaeger ingest
-      - "3200:3200" # tempo
-      - "4317:4317" # otlp grpc
-      - "4318:4318" # otlp http
-      - "9411:9411" # zipkin
+    # ports:
+    #   - "14268:14268" # jaeger ingest
+    #   - "3200:3200" # tempo
+    #   - "4317:4317" # otlp grpc
+    #   - "4318:4318" # otlp http
+    #   - "9411:9411" # zipkin
     networks:
       - default
 
@@ -317,8 +324,8 @@ services:
     image: prom/prometheus:latest
     container_name: studio-prometheus
     restart: unless-stopped
-    ports:
-      - "9090:9090"
+    # ports:
+    #   - "9090:9090"
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
