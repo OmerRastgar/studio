@@ -360,4 +360,4 @@ volumes:
 networks:
   default:
     name: core_network
-    external: true
+    driver: bridge
