@@ -217,14 +217,17 @@ export function ChatProvider({ children }: ChatProviderProps) {
         if (user?.role === 'compliance') return;
 
         // Socket.IO connects through Kong (which proxies to backend)
-        const SOCKET_URL = API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+        const SOCKET_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
         console.log('[ChatProvider] Initializing socket connection to:', SOCKET_URL);
         console.log('[ChatProvider] Token available:', !!token);
 
         const newSocket = io(SOCKET_URL, {
             auth: { token },
-            transports: ['websocket', 'polling']
+            path: '/socket.io/',
+            transports: ['websocket', 'polling'],
+            secure: true,
+            rejectUnauthorized: false
         });
 
         newSocket.on('connect', () => {
