@@ -49,5 +49,5 @@ export const config = {
     // But we still rely on the function's isPublic check for the public app pages to be safe
     // OR we can make the matcher very specific. 
     // Let's use negative matcher for files/api, and let function handle page logic.
-    matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+    matcher: ['/((?!api|kratos|_next/static|_next/image|favicon.ico).*)'],
 };

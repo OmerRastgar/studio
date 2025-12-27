@@ -192,6 +192,7 @@ function LoginForm() {
     };
 
     if (!flow) return <div className="flex justify-center p-8">Loading...</div>;
+    if (!flow.ui) return <div className="flex justify-center p-8 text-red-500">Error: Invalid flow state (missing UI)</div>;
 
     const is2FAStep = flow.ui.nodes.some((n: any) => n.group === "totp" || n.group === "lookup_secret" || n.attributes.name === "totp_code");
     const showExtras = !refresh && !is2FAStep;

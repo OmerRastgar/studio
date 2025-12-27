@@ -136,6 +136,7 @@ function RegisterForm() {
     };
 
     if (!flow) return <div className="flex justify-center p-8">Loading...</div>;
+    if (!flow.ui) return <div className="flex justify-center p-8 text-red-500">Error: Invalid flow state (missing UI)</div>;
 
     return (
         <div className="flex min-h-screen items-center justify-center p-4">
