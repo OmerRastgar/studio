@@ -8,10 +8,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-auditdb}
+      POSTGRES_MULTIPLE_DATABASES: "auditdb,kratos"
     # ports: - Removed for security (use internal network)
     #   - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     networks:
       - default
 
@@ -20,7 +22,7 @@ services:
     image: oryd/kratos:v1.1.0
     container_name: kratos-migrate
     environment:
-      - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-auditdb}?sslmode=disable
+      - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/kratos?sslmode=disable
     volumes:
       - ./kratos:/etc/config/kratos
     entrypoint: /bin/sh /etc/config/kratos/run.sh
@@ -39,7 +41,7 @@ services:
     #   - "4433:4433" # Public API
     #   - "4434:4434" # Admin API
     environment:
-      - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-auditdb}?sslmode=disable
+      - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/kratos?sslmode=disable
       - LOG_LEVEL=debug
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
