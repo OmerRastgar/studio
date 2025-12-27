@@ -42,7 +42,10 @@ services:
       - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-auditdb}?sslmode=disable
       - LOG_LEVEL=debug
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - PUBLIC_URL=${PUBLIC_URL:-http://localhost}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-localhost}
     entrypoint: /bin/sh /etc/config/kratos/run.sh
     command: serve -c /tmp/kratos.yml --dev --watch-courier
     volumes:

@@ -6,10 +6,11 @@ serve:
   public:
     host: 0.0.0.0
     port: 4433
-    base_url: http://localhost/kratos
+    base_url: ${PUBLIC_URL}/kratos
     cors:
       enabled: true
       allowed_origins:
+        - ${PUBLIC_URL}
         - http://localhost
         - http://localhost:8000
         - http://localhost:8080
@@ -34,14 +35,14 @@ serve:
     base_url: http://kratos:4434/
 
 selfservice:
-  default_browser_return_url: http://localhost/
+  default_browser_return_url: ${PUBLIC_URL}/
   allowed_return_urls:
-    - http://localhost
-    - http://localhost/dashboard
-    - http://localhost/login
-    - http://localhost/registration
-    - http://localhost/settings
-    - http://localhost/compliance/reset-password
+    - ${PUBLIC_URL}
+    - ${PUBLIC_URL}/dashboard
+    - ${PUBLIC_URL}/login
+    - ${PUBLIC_URL}/registration
+    - ${PUBLIC_URL}/settings
+    - ${PUBLIC_URL}/compliance/reset-password
   
   methods:
     password:
@@ -55,9 +56,9 @@ selfservice:
       config:
         rp:
           display_name: AuditStudio
-          id: localhost
+          id: ${COOKIE_DOMAIN}
           origins:
-            - http://localhost
+            - ${PUBLIC_URL}
     oidc:
       enabled: true
       config:
@@ -75,27 +76,27 @@ selfservice:
 
   flows:
     error:
-      ui_url: http://localhost/error
+      ui_url: ${PUBLIC_URL}/error
     settings:
-      ui_url: http://localhost/settings
+      ui_url: ${PUBLIC_URL}/settings
       privileged_session_max_age: 15m
     recovery:
       enabled: true
-      ui_url: http://localhost/recovery
+      ui_url: ${PUBLIC_URL}/recovery
       after:
-        default_browser_return_url: http://localhost/compliance/reset-password
+        default_browser_return_url: ${PUBLIC_URL}/compliance/reset-password
     verification:
       enabled: true
-      ui_url: http://localhost/verification
+      ui_url: ${PUBLIC_URL}/verification
     logout:
       after:
-        default_browser_return_url: http://localhost/login
+        default_browser_return_url: ${PUBLIC_URL}/login
     login:
-      ui_url: http://localhost/login
+      ui_url: ${PUBLIC_URL}/login
       lifespan: 10m
     registration:
       lifespan: 10m
-      ui_url: http://localhost/registration
+      ui_url: ${PUBLIC_URL}/registration
       after:
         password:
           hooks:
@@ -109,7 +110,7 @@ selfservice:
 
 session:
   cookie:
-    domain: localhost
+    domain: ${COOKIE_DOMAIN}
     path: /
     same_site: Lax
   lifespan: 24h
