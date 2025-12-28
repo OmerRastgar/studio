@@ -49,7 +49,7 @@ services:
       - PUBLIC_URL=${PUBLIC_URL:-http://localhost}
       - COOKIE_DOMAIN=${COOKIE_DOMAIN:-localhost}
     entrypoint: /bin/sh /etc/config/kratos/run.sh
-    command: serve -c /tmp/kratos.yml --dev --watch-courier
+    command: serve -c /tmp/kratos.yml --watch-courier
     volumes:
       - ./kratos:/etc/config/kratos
     networks:
