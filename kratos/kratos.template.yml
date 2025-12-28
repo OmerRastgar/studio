@@ -2,6 +2,14 @@ version: v1.1.0
 
 dsn: ${DSN}
 
+secrets:
+  cookie:
+    - ${SECRET_COOKIE}
+  cipher:
+    - ${SECRET_DEFAULT}
+  default:
+    - ${SECRET_DEFAULT}
+
 serve:
   public:
     host: 0.0.0.0

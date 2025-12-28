@@ -48,6 +48,8 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - PUBLIC_URL=${PUBLIC_URL:-http://localhost}
       - COOKIE_DOMAIN=${COOKIE_DOMAIN:-localhost}
+      - SECRET_COOKIE=${JWT_SECRET}
+      - SECRET_DEFAULT=${JWT_SECRET}
     entrypoint: /bin/sh /etc/config/kratos/run.sh
     command: serve -c /tmp/kratos.yml --watch-courier
     volumes:
