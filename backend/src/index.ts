@@ -91,5 +91,6 @@ app.use('/api/uploads', uploadsRoutes);
 
 httpServer.listen(PORT, () => {
     console.log(`Backend service running on port ${PORT}`);
+    console.log(`[VERSION Check] Timestamp: ${new Date().toISOString()} - Code Updated`);
     console.log(`Socket.IO ready on port ${PORT}`);
 });

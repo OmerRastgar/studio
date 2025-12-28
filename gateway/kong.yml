@@ -14,6 +14,18 @@ services:
     url: http://studio-kratos:4433
 
 routes:
+  # WebSocket: Socket.IO (Top priority)
+  - name: socket-io-route
+    service: backend-api
+    paths:
+      - /socket.io
+    hosts:
+      - demo.cybergaar.com
+    strip_path: false
+    protocols:
+      - http
+      - https
+
   # Public: Auth routes (no JWT required)
   - name: auth-routes
     service: backend-api
@@ -43,17 +55,7 @@ routes:
       - /api
     strip_path: false
 
-  # WebSocket: Socket.IO
-  - name: socket-io-route
-    service: backend-api
-    paths:
-      - /socket.io
-    hosts:
-      - demo.cybergaar.com
-    strip_path: false
-    protocols:
-      - http
-      - https
+
   
   # Secure Evidence Viewer
   - name: secure-view-route
@@ -61,7 +63,7 @@ routes:
     paths:
       - /api/secure-view
     strip_path: true
-  
+
   # Frontend (public)
   - name: app-route
     service: nextjs-app
