@@ -72,7 +72,7 @@ router.post('/token', kratosAuthenticate, async (req: KratosAuthRequest, res) =>
             data: {
                 token,
                 token_type: 'Bearer',
-                expires_in: 3600, // 1 hour in seconds
+                expires_in: 86400, // 24 hours in seconds
                 user: {
                     id: userId,
                     email,
@@ -121,7 +121,7 @@ router.post('/token/refresh', kratosAuthenticate, async (req: KratosAuthRequest,
             data: {
                 token,
                 token_type: 'Bearer',
-                expires_in: 3600
+                expires_in: 86400
             }
         });
 

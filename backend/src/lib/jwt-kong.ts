@@ -30,7 +30,7 @@ export function generateKongJWT(payload: Omit<KongJWTPayload, 'iss' | 'aud' | 'i
         iss: 'studio-idp', // Matches Kong consumer key
         aud: 'studio-api',
         iat: now,
-        exp: now + 3600  // 1 hour
+        exp: now + 86400  // 24 hours
     };
 
     return jwt.sign(fullPayload, JWT_SECRET!, {
