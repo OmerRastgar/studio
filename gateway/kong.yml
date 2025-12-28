@@ -113,13 +113,7 @@ plugins:
       bandwidth_metrics: true
       upstream_health_metrics: true
 
-  - name: bot-detection
-    config:
-      allow:
-        - "(Pingdom.com_bot_version_.*)"
-        - "(Googlebot/.*)"
-      deny:
-        - "(.*curl.*)"
+
 
   # JWT Verification Plugin
   # Verifies HS256 JWTs issued by backend
