@@ -105,6 +105,8 @@ services:
       FLUENT_BIT_URL: ${FLUENT_BIT_URL:-http://fluent-bit:9880/app-logs}
       LOKI_URL: ${LOKI_URL:-http://loki:3100}
       TEMPO_URL: ${TEMPO_URL:-http://tempo:4318/v1/traces}
+    extra_hosts:
+      - "demo.cybergaar.com:host-gateway"
     networks:
       - default
 
@@ -161,6 +163,8 @@ services:
       - /app/.next
     user: root
     command: sh -c "npm run build && npm start"
+    extra_hosts:
+      - "demo.cybergaar.com:host-gateway"
     networks:
       - default
 
