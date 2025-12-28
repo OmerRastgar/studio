@@ -160,7 +160,7 @@ services:
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
       # Force Webpack to poll for changes (Fixes Windows/Docker sync issues)
       WATCHPACK_POLLING: "true"
-      KRATOS_INTERNAL_URL: "http://demo.cybergaar.com/kratos"
+      KRATOS_INTERNAL_URL: "http://studio-kratos:4433"
     volumes:
       - ./frontend:/app
       - /app/node_modules

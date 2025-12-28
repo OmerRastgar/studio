@@ -10,7 +10,9 @@ const nextConfig: NextConfig = {
 
       {
         source: '/kratos/:path*',
-        destination: 'http://kratos:4433/:path*',
+        destination: process.env.KRATOS_INTERNAL_URL
+          ? `${process.env.KRATOS_INTERNAL_URL}/:path*`
+          : 'http://kratos:4433/:path*',
       },
       {
         source: '/api/secure-view/:path*',
