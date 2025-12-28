@@ -6,7 +6,7 @@ secrets:
   cookie:
     - ${SECRET_COOKIE}
   cipher:
-    - ${SECRET_DEFAULT}
+    - ${SECRET_CIPHER}
   default:
     - ${SECRET_DEFAULT}
 
