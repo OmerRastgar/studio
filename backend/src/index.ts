@@ -25,6 +25,10 @@ import { pinoHttp } from 'pino-http';
 import { logger } from './lib/logger';
 
 app.use(pinoHttp({ logger }));
+app.use((req, res, next) => {
+    console.log(`[Backend Request] ${req.method} ${req.url} Host:${req.headers.host}`);
+    next();
+});
 app.use(helmet());
 app.use(hpp());
 
