@@ -3,9 +3,29 @@ import { Configuration, FrontendApi } from '@ory/client';
 import { AuthRequest } from './auth';
 
 // Initialize Kratos client
+// Initialize Kratos client
+const kratosUrl = process.env.KRATOS_PUBLIC_URL || 'http://kratos:4433';
+const publicUrl = new URL(kratosUrl);
+
+// Determine correct origin/scheme for spoofing the browser
+// Ideally we'd use FRONTEND_URL env var, but deriving from Kratos URL is a decent fallback
+// for the "same domain" assumption.
+const isLocal = publicUrl.hostname === 'localhost' || publicUrl.hostname === '127.0.0.1';
+const scheme = isLocal ? 'http' : 'https';
+const origin = `${scheme}://${publicUrl.host}`; // e.g. https://demo.cybergaar.com
+
 const kratos = new FrontendApi(
     new Configuration({
-        basePath: process.env.KRATOS_PUBLIC_URL || 'http://kratos:4433',
+        basePath: kratosUrl,
+        baseOptions: {
+            headers: {
+                'Origin': origin,
+                'Referer': origin,
+                'X-Forwarded-Host': publicUrl.host,
+                'X-Forwarded-Proto': scheme
+            },
+            withCredentials: true
+        }
     })
 );
 
