@@ -223,11 +223,12 @@ export function ChatProvider({ children }: ChatProviderProps) {
         console.log('[ChatProvider] Token available:', !!token);
 
         const newSocket = io(SOCKET_URL, {
-            auth: { token },
             path: '/socket.io/',
-            transports: ['websocket', 'polling'],
-            secure: true,
-            rejectUnauthorized: false
+            auth: { token },
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            autoConnect: true,
+            withCredentials: true // Important for cookies if needed, though we use token
         });
 
         newSocket.on('connect', () => {
