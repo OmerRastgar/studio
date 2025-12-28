@@ -6,13 +6,23 @@ set -e
 # If values contain |, this will break.
 echo "Generating /etc/config/kratos/kratos.yml from template..."
 
+# Prepare secrets
+# Cipher must be exactly 32 chars (AES-256)
+VAL_SECRET_DEFAULT=${SECRET_DEFAULT:-PLEASE_CHANGE_ME_IN_PROD_DEFAULT_SECRET}
+VAL_SECRET_COOKIE=${SECRET_COOKIE:-PLEASE_CHANGE_ME_IN_PROD_COOKIE_SECRET}
+# Truncate to 32 chars for cipher
+# Truncate to 32 chars for cipher (using awk for compatibility)
+VAL_SECRET_CIPHER=$(echo "$VAL_SECRET_DEFAULT" | awk '{print substr($0, 1, 32)}')
+echo "Debug: Cipher secret truncated to 32 characters."
+
 sed -e "s|\${DSN}|$DSN|g" \
     -e "s|\${GOOGLE_CLIENT_ID}|$GOOGLE_CLIENT_ID|g" \
     -e "s|\${GOOGLE_CLIENT_SECRET}|$GOOGLE_CLIENT_SECRET|g" \
     -e "s|\${PUBLIC_URL}|$PUBLIC_URL|g" \
     -e "s|\${COOKIE_DOMAIN}|$COOKIE_DOMAIN|g" \
-    -e "s|\${SECRET_COOKIE}|${SECRET_COOKIE:-PLEASE_CHANGE_ME_IN_PROD_COOKIE_SECRET}|g" \
-    -e "s|\${SECRET_DEFAULT}|${SECRET_DEFAULT:-PLEASE_CHANGE_ME_IN_PROD_DEFAULT_SECRET}|g" \
+    -e "s|\${SECRET_COOKIE}|$VAL_SECRET_COOKIE|g" \
+    -e "s|\${SECRET_DEFAULT}|$VAL_SECRET_DEFAULT|g" \
+    -e "s|\${SECRET_CIPHER}|$VAL_SECRET_CIPHER|g" \
     /etc/config/kratos/kratos.template.yml > /tmp/kratos.yml
 
 echo "Configuration generated. Starting Kratos..."
