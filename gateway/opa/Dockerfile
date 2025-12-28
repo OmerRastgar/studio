@@ -1,4 +1,4 @@
-FROM openpolicyagent/opa:latest
+FROM openpolicyagent/opa:latest-debug
 
 # Copy policies
 COPY policies /policies
