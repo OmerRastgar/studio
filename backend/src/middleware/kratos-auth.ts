@@ -81,6 +81,10 @@ export async function kratosAuthenticate(
         const err = error as any;
         if (err.response?.status !== 401) {
             console.error('Kratos auth check failed:', err.message);
+            if (err.response) {
+                console.error('Kratos response data:', JSON.stringify(err.response.data));
+                console.error('Kratos response status:', err.response.status);
+            }
         }
         next();
     }
