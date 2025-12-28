@@ -48,6 +48,8 @@ routes:
     service: backend-api
     paths:
       - /socket.io
+    hosts:
+      - demo.cybergaar.com
     strip_path: false
     protocols:
       - http

@@ -34,9 +34,14 @@ export async function kratosAuthenticate(
         }
 
         // 2. Validate session with Kratos
+        // IMPORTANT: Only pass xSessionToken if it's NOT a JWT (which starts with 'eyJ')
+        // Kratos will reject the request if an invalid x-session-token is provided, ignoring the valid cookie.
+        const isJwt = token?.startsWith('eyJ');
+        const sessionToken = isJwt ? undefined : token;
+
         const { data: session } = await kratos.toSession({
             cookie: cookie,
-            xSessionToken: token,
+            xSessionToken: sessionToken,
         });
 
         if (!session.active) {
