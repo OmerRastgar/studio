@@ -84,6 +84,8 @@ app.use('/api/learning', learningRoutes);
 app.use('/api/casb', casbRoutes);
 app.use('/api/findings', findingsRoutes);
 app.use('/api/agents', agentsRoutes);
+import profileRoutes from './routes/profile';
+app.use('/api/profile', profileRoutes);
 import systemRoutes from './routes/system';
 import maintenanceRoutes from './routes/maintenance';
 

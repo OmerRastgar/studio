@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plug, Server, KeyRound, Bot, Trash2, Shield, Smartphone, Lock } from 'lucide-react';
+import { Plug, Server, KeyRound, Bot, Trash2, Shield, Smartphone, Lock, User, Calendar, MessageSquare, Briefcase } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,10 +18,88 @@ import { UiNode, SettingsFlow } from '@ory/client';
 import { kratos } from '@/lib/kratos';
 import { FlowNodes } from '@/components/auth/FlowNodes';
 import { useAuth } from '@/components/auth/kratos-auth-provider';
+import { toast } from 'sonner';
+
+interface Integration {
+  provider: string;
+  config: any;
+}
+
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  bio?: string;
+  role: string;
+  avatarUrl?: string;
+  integrations: Integration[];
+  experience?: string;
+  certifications?: string[];
+}
 
 function ProfileSettings() {
-  const [certifications, setCertifications] = useState(['CISA', 'CISSP']);
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Form States
+  const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
+  const [experience, setExperience] = useState('');
+  const [certifications, setCertifications] = useState<string[]>([]);
   const [newCert, setNewCert] = useState('');
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const res = await fetch('/api/profile');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setProfile(data.user);
+          setName(data.user.name);
+          setBio(data.user.bio || '');
+          setExperience(data.user.experience || '');
+          setCertifications(data.user.certifications || []);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          bio,
+          experience,
+          certifications
+        })
+      });
+
+      if (res.ok) {
+        toast.success("Profile updated successfully");
+        fetchProfile(); // Refresh
+      } else {
+        toast.error("Failed to update profile");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleAddCert = () => {
     if (newCert && !certifications.includes(newCert)) {
@@ -34,6 +112,10 @@ function ProfileSettings() {
     setCertifications(certifications.filter(cert => cert !== certToRemove));
   };
 
+  if (loading) return <div>Loading profile...</div>;
+
+  const isAuditor = user?.role === 'auditor';
+
   return (
     <Card>
       <CardHeader>
@@ -43,43 +125,65 @@ function ProfileSettings() {
       <CardContent className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="name">Full Name</Label>
-          <Input id="name" defaultValue="Admin Auditor" />
+          <Input
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" defaultValue="admin@cybergaar.com" />
+          <Input id="email" type="email" value={profile?.email || ''} disabled className="bg-muted" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="bio">Bio</Label>
-          <Textarea id="bio" placeholder="Tell us a little about yourself" defaultValue="Experienced lead auditor with a decade of experience in cybersecurity and compliance for SaaS companies." />
+          <Textarea
+            id="bio"
+            placeholder="Tell us a little about yourself"
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+          />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="previous-career">Previous Career</Label>
-          <Textarea id="previous-career" placeholder="Describe your previous roles and experience" defaultValue="Senior Security Engineer at TechCorp, focusing on infrastructure security and threat modeling." />
-        </div>
-        <div className="space-y-4">
-          <Label>Certifications</Label>
-          <div className="flex flex-wrap gap-2">
-            {certifications.map(cert => (
-              <Badge key={cert} variant="secondary" className="flex items-center gap-2">
-                {cert}
-                <button onClick={() => handleRemoveCert(cert)} className="rounded-full hover:bg-muted-foreground/20 p-0.5">
-                  <Trash2 className="h-3 w-3" />
-                  <span className="sr-only">Remove {cert}</span>
-                </button>
-              </Badge>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Input
-              value={newCert}
-              onChange={(e) => setNewCert(e.target.value)}
-              placeholder="e.g., CISM"
-            />
-            <Button onClick={handleAddCert} variant="outline">Add</Button>
-          </div>
-        </div>
-        <Button>Save Changes</Button>
+
+        {isAuditor && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="experience">Experience</Label>
+              <Textarea
+                id="experience"
+                placeholder="Describe your previous roles and experience"
+                value={experience}
+                onChange={(e) => setExperience(e.target.value)}
+              />
+            </div>
+            <div className="space-y-4">
+              <Label>Certifications</Label>
+              <div className="flex flex-wrap gap-2">
+                {certifications.map(cert => (
+                  <Badge key={cert} variant="secondary" className="flex items-center gap-2">
+                    {cert}
+                    <button onClick={() => handleRemoveCert(cert)} className="rounded-full hover:bg-muted-foreground/20 p-0.5">
+                      <Trash2 className="h-3 w-3" />
+                      <span className="sr-only">Remove {cert}</span>
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newCert}
+                  onChange={(e) => setNewCert(e.target.value)}
+                  placeholder="e.g., CISM"
+                />
+                <Button onClick={handleAddCert} variant="outline">Add</Button>
+              </div>
+            </div>
+          </>
+        )}
+
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Changes'}
+        </Button>
       </CardContent>
     </Card>
   );
@@ -87,176 +191,214 @@ function ProfileSettings() {
 
 
 function IntegrationsSettings() {
-  const [aiProvider, setAiProvider] = useState('gemini');
+  const { user } = useAuth();
+  const [integrations, setIntegrations] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchIntegrations();
+  }, []);
+
+  const fetchIntegrations = async () => {
+    try {
+      const res = await fetch('/api/profile');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.user.integrations) {
+          const map: Record<string, any> = {};
+          data.user.integrations.forEach((i: Integration) => {
+            map[i.provider] = i.config;
+          });
+          setIntegrations(map);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveIntegration = async (provider: string, config: any) => {
+    try {
+      const res = await fetch('/api/profile/integrations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, config })
+      });
+      if (res.ok) {
+        toast.success(`${provider} settings saved`);
+        fetchIntegrations();
+      } else {
+        toast.error(`Failed to save ${provider} settings`);
+      }
+    } catch (e) {
+      toast.error('Error saving settings');
+    }
+  };
+
+  const isAdmin = user?.role === 'admin';
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="font-headline">Integrations</CardTitle>
-        <CardDescription>Connect and configure external services for your organization.</CardDescription>
+        <CardDescription>Connect and configure external services.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Accordion type="multiple" defaultValue={['minio']} className="w-full">
-          {/* MinIO Storage Section */}
-          <AccordionItem value="minio">
+        <Accordion type="multiple" defaultValue={isAdmin ? ['minio'] : ['google']} className="w-full">
+
+          {/* ADMIN ONLY INTEGRATIONS */}
+          {isAdmin && (
+            <>
+              <AccordionItem value="minio">
+                <AccordionTrigger>
+                  <div className='flex items-center gap-2'>
+                    <Server className="w-4 h-4" />
+                    <span className='font-semibold'>MinIO Storage</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="p-2 space-y-4">
+                  <IntegrationForm
+                    provider="minio"
+                    initialConfig={integrations['minio']}
+                    videoUrl="https://minio.example.com"
+                    fields={[
+                      { key: 'url', label: 'MinIO URL', placeholder: 'https://minio.example.com:9000' },
+                      { key: 'accessKey', label: 'Access Key', placeholder: 'Access Key' },
+                      { key: 'secretKey', label: 'Secret Key', type: 'password', placeholder: ' Secret Key' },
+                      { key: 'bucket', label: 'Bucket Name', placeholder: 'evidence' },
+                    ]}
+                    onSave={saveIntegration}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="kong">
+                <AccordionTrigger>
+                  <div className='flex items-center gap-2'>
+                    <KeyRound className="w-4 h-4" />
+                    <span className='font-semibold'>Kong API Gateway</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="p-2 space-y-4">
+                  <IntegrationForm
+                    provider="kong"
+                    initialConfig={integrations['kong']}
+                    fields={[
+                      { key: 'adminUrl', label: 'Admin URL', placeholder: 'https://kong-admin:8001' },
+                      { key: 'token', label: 'Admin Token', type: 'password', placeholder: 'Optional' },
+                    ]}
+                    onSave={saveIntegration}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </>
+          )}
+
+          {/* USER INTEGRATIONS (Everyone) */}
+          <AccordionItem value="google">
             <AccordionTrigger>
               <div className='flex items-center gap-2'>
-                <Server />
-                <span className='font-semibold'>MinIO Storage</span>
+                <Calendar className="w-4 h-4" />
+                <span className='font-semibold'>Google Calendar</span>
               </div>
             </AccordionTrigger>
-            <AccordionContent className="space-y-4 p-2">
-              <div className="space-y-2">
-                <Label htmlFor="minio-url">MinIO URL</Label>
-                <Input id="minio-url" placeholder="https://minio.example.com:9000" aria-label="MinIO URL input" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="minio-access-key">Access Key</Label>
-                <Input id="minio-access-key" placeholder="YourMinioAccessKey" aria-label="MinIO Access Key input" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="minio-secret-key">Secret Key</Label>
-                <Input id="minio-secret-key" type="password" placeholder="••••••••••••••••" aria-label="MinIO Secret Key input" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="minio-bucket">Bucket Name</Label>
-                <Input id="minio-bucket" defaultValue="cybergaar-evidence" aria-label="MinIO Bucket Name input" />
-              </div>
-              <div className='flex justify-between items-center'>
-                <Button variant="outline">Test Connection</Button>
-                <Button>Save MinIO Settings</Button>
-              </div>
+            <AccordionContent className="p-2 space-y-4">
+              <div className="text-sm text-muted-foreground mb-2">Connect your Google Calendar to sync meeting events seamlessly.</div>
+              <IntegrationForm
+                provider="google"
+                initialConfig={integrations['google']}
+                fields={[
+                  { key: 'clientId', label: 'Client ID', placeholder: 'Google OAuth Client ID' },
+                  { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'Google OAuth Client Secret' },
+                ]}
+                onSave={saveIntegration}
+              />
+              <Button variant="outline" className="w-full mt-2">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-4 h-4 mr-2" />
+                Sign in with Google
+              </Button>
             </AccordionContent>
           </AccordionItem>
 
-          {/* Kong API Gateway Section */}
-          <AccordionItem value="kong">
+          <AccordionItem value="jira">
             <AccordionTrigger>
               <div className='flex items-center gap-2'>
-                <KeyRound />
-                <span className='font-semibold'>Kong API Gateway</span>
+                <Briefcase className="w-4 h-4" />
+                <span className='font-semibold'>Jira</span>
               </div>
             </AccordionTrigger>
-            <AccordionContent className="space-y-4 p-2">
-              <div className='flex justify-end'>
-                <Badge variant="destructive">Not Connected</Badge>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="kong-admin-url">Admin URL</Label>
-                <Input id="kong-admin-url" placeholder="https://kong-admin.example.com:8001" aria-label="Kong Admin URL input" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="kong-proxy-url">Proxy URL (Optional)</Label>
-                <Input id="kong-proxy-url" placeholder="" aria-label="Kong Proxy URL input" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="kong-admin-token">Admin Token (Optional)</Label>
-                <Input id="kong-admin-token" type="password" placeholder="••••••••••••••••" aria-label="Kong Admin Token input" />
-              </div>
-              <div className='flex justify-between items-center'>
-                <Button variant="outline">Test Connection</Button>
-                <Button>Save Kong Settings</Button>
-              </div>
+            <AccordionContent className="p-2 space-y-4">
+              <div className="text-sm text-muted-foreground mb-2">Sync findings and issues to your Jira project.</div>
+              <IntegrationForm
+                provider="jira"
+                initialConfig={integrations['jira']}
+                fields={[
+                  { key: 'domain', label: 'Jira Domain', placeholder: 'your-company.atlassian.net' },
+                  { key: 'email', label: 'Email', placeholder: 'email@example.com' },
+                  { key: 'apiToken', label: 'API Token', type: 'password', placeholder: 'Atlassian API Token' },
+                ]}
+                onSave={saveIntegration}
+              />
             </AccordionContent>
           </AccordionItem>
 
-          {/* AI Providers Section */}
-          <AccordionItem value="ai-providers">
+          <AccordionItem value="slack">
             <AccordionTrigger>
               <div className='flex items-center gap-2'>
-                <Bot />
-                <span className='font-semibold'>AI Providers</span>
+                <MessageSquare className="w-4 h-4" />
+                <span className='font-semibold'>Slack</span>
               </div>
             </AccordionTrigger>
-            <AccordionContent className="space-y-4 p-2">
-              <div className="space-y-2">
-                <Label htmlFor="ai-provider-select">AI Provider</Label>
-                <Select value={aiProvider} onValueChange={setAiProvider}>
-                  <SelectTrigger id="ai-provider-select" aria-label="Select AI Provider">
-                    <SelectValue placeholder="Select an AI Provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gemini">Google Gemini</SelectItem>
-                    <SelectItem value="openai">OpenAI GPT</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {aiProvider === 'gemini' && (
-                <div className='space-y-4'>
-                  <div className="space-y-2">
-                    <Label htmlFor="gemini-api-key">API Key</Label>
-                    <Input id="gemini-api-key" type="password" placeholder="AIzaSy..." aria-label="Gemini API Key input" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gemini-custom-url">Custom URL (Optional)</Label>
-                    <Input id="gemini-custom-url" placeholder="https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro" aria-label="Gemini Custom URL input" />
-                  </div>
-                </div>
-              )}
-
-              {aiProvider === 'openai' && (
-                <div className='space-y-4'>
-                  <div className="space-y-2">
-                    <Label htmlFor="openai-api-key">API Key</Label>
-                    <Input id="openai-api-key" type="password" placeholder="sk-..." aria-label="OpenAI API Key input" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="openai-model">Model</Label>
-                    <Select defaultValue="gpt-4o">
-                      <SelectTrigger id="openai-model" aria-label="Select OpenAI Model">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="gpt-4o">gpt-4o</SelectItem>
-                        <SelectItem value="gpt-4-turbo">gpt-4-turbo</SelectItem>
-                        <SelectItem value="gpt-3.5-turbo">gpt-3.5-turbo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="openai-custom-url">Custom URL (Optional)</Label>
-                    <Input id="openai-custom-url" placeholder="https://api.openai.com/v1" aria-label="OpenAI Custom URL input" />
-                  </div>
-                </div>
-              )}
-
-              {aiProvider === 'custom' && (
-                <div className='space-y-4'>
-                  <div className="space-y-2">
-                    <Label htmlFor="custom-provider-name">Provider Name</Label>
-                    <Input id="custom-provider-name" placeholder="My AI Provider" aria-label="Custom AI Provider Name input" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="custom-api-key">API Key</Label>
-                    <Input id="custom-api-key" type="password" placeholder="••••••••••••••••" aria-label="Custom AI API Key input" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="custom-base-url">Base URL</Label>
-                    <Input id="custom-base-url" placeholder="https://my-ai-provider.com/api" aria-label="Custom AI Base URL input" />
-                  </div>
-                </div>
-              )}
-
-              <div className='flex justify-between items-center'>
-                <Button variant="outline">Test Connection</Button>
-                <Button>Save AI Settings</Button>
-              </div>
-
-              <Alert>
-                <Bot className="h-4 w-4" />
-                <AlertTitle>Auto-Classify Evidence</AlertTitle>
-                <AlertDescription>
-                  Configure your AI to auto-classify diverse evidence (PDFs, images, logs, spreadsheets) for instant control matching.
-                  <Button variant="link" className="p-0 h-auto ml-1">Learn More</Button>
-                </AlertDescription>
-              </Alert>
+            <AccordionContent className="p-2 space-y-4">
+              <div className="text-sm text-muted-foreground mb-2">Receive notifications and alerts in Slack channels.</div>
+              <IntegrationForm
+                provider="slack"
+                initialConfig={integrations['slack']}
+                fields={[
+                  { key: 'webhookUrl', label: 'Webhook URL', placeholder: 'https://hooks.slack.com/services/...' },
+                ]}
+                onSave={saveIntegration}
+              />
             </AccordionContent>
           </AccordionItem>
+
         </Accordion>
       </CardContent>
     </Card>
+  );
+}
+
+function IntegrationForm({ provider, initialConfig, fields, onSave, videoUrl }: any) {
+  const [config, setConfig] = useState(initialConfig || {});
+
+  useEffect(() => {
+    if (initialConfig) setConfig(initialConfig);
+  }, [initialConfig]);
+
+  const handleChange = (key: string, value: string) => {
+    setConfig({ ...config, [key]: value });
+  };
+
+  return (
+    <div className="space-y-3">
+      {fields.map((f: any) => (
+        <div key={f.key} className="space-y-1">
+          <Label>{f.label}</Label>
+          <Input
+            type={f.type || 'text'}
+            placeholder={f.placeholder}
+            value={config[f.key] || ''}
+            onChange={(e) => handleChange(f.key, e.target.value)}
+          />
+        </div>
+      ))}
+      <div className="flex justify-between pt-2">
+        <Button variant="ghost" size="sm">Test Connection</Button>
+        <Button size="sm" onClick={() => onSave(provider, config)}>Save</Button>
+      </div>
+    </div>
   );
 }
 

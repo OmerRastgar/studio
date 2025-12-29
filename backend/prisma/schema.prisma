@@ -220,6 +220,9 @@ model User {
   resolvedFindings             Finding[]                   @relation("ResolvedFindings")
   findingComments              FindingComment[]            @relation("FindingComments")
   
+  bio                          String?                     // User biography/about me
+  integrations                 UserIntegration[]           // Personal integrations (Google, etc)
+  
   @@map("users")
 }
 
@@ -659,6 +662,21 @@ model IntegrationSyncLog {
   integration       CASBIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
   
   @@map("integration_sync_logs")
+}
+
+// User Integrations for external tools (Google, Jira, Slack)
+model UserIntegration {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  provider  String   // 'google', 'jira', 'slack'
+  config    Json     // Encrypted keys or tokens
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@map("user_integrations")
 }
 
 // Enums

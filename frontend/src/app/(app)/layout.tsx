@@ -35,6 +35,7 @@ import { GuideProvider } from '@/components/guide';
 import { useAuth } from '@/components/auth/kratos-auth-provider';
 import { ChatProvider } from '@/components/chat/ChatProvider';
 import { GlobalChatPanel, ChatButton } from '@/components/chat/GlobalChatPanel';
+import { Toaster } from 'sonner';
 
 function Nav() {
   const pathname = usePathname();
@@ -250,9 +251,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 {children}
               </main>
             </SidebarInset>
-            {/* Global Chat Components */}
             <ChatButton />
             <GlobalChatPanel />
+            <Toaster />
           </SidebarProvider>
         </GuideProvider>
       </ChatProvider>
