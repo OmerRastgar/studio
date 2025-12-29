@@ -2,6 +2,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import { sendPushNotification } from './lib/push';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
@@ -139,6 +140,28 @@ export function initializeSocket(httpServer: HTTPServer) {
                     message
                 });
                 console.log('[Socket] Message broadcast complete');
+
+                // Send push notifications to other participants
+                const otherParticipants = await prisma.conversationParticipant.findMany({
+                    where: {
+                        conversationId,
+                        userId: { not: userId }
+                    },
+                    select: { userId: true }
+                });
+
+                // Send pushes asynchronously
+                Promise.all(otherParticipants.map(participant => {
+                    return sendPushNotification(participant.userId, {
+                        title: `New message from ${message.sender.name}`,
+                        body: message.content,
+                        // Deep link to chat? For now just open app. 
+                        // The custom-sw.js handles data.url if provided.
+                        url: '/dashboard',
+                        icon: message.sender.avatarUrl || '/Logo.png'
+                    }).catch(err => console.error(`[Socket] Push failed for ${participant.userId}`, err));
+                })).catch(err => console.error('[Socket] Push notification handling error', err));
+
             } catch (error) {
                 console.error('[Socket] Send message error:', error);
                 socket.emit('error', { message: 'Failed to send message' });
