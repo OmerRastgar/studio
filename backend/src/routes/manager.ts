@@ -4,6 +4,7 @@ import { authenticate, requireRole } from '../middleware/auth';
 import { webhookService } from '../services/webhookService';
 import { GraphService } from '../services/graph.service';
 import bcrypt from 'bcryptjs';
+import { NotificationService } from '../services/notification';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -619,7 +620,10 @@ router.put('/projects/:id/approve', async (req: Request, res: Response) => {
         // Get project with framework
         const project = await prisma.project.findUnique({
             where: { id },
-            include: { framework: { include: { controls: true } } }
+            include: {
+                framework: { include: { controls: true } },
+                customer: { select: { id: true, name: true } }
+            }
         });
 
         if (!project) {
@@ -686,7 +690,34 @@ router.put('/projects/:id/approve', async (req: Request, res: Response) => {
 
             // Sync to Graph (Async)
             await GraphService.assignAuditor(id, auditorId);
+
+            // Notify Auditor
+            await NotificationService.create(
+                auditorId,
+                'project_assigned',
+                'New Project Assigned',
+                `You have been assigned as Auditor for project: ${project.name}`,
+                `/dashboard/auditor/projects/${id}`
+            );
+
+            // Notify Reviewer
+            await NotificationService.create(
+                reviewerAuditorId,
+                'project_assigned',
+                'New Project Review Assigned',
+                `You have been assigned as Reviewer for project: ${project.name}`,
+                `/dashboard/manager/projects/${id}`
+            );
         }
+
+        // Notify Customer
+        await NotificationService.create(
+            project.customer!.id,
+            'project_approved',
+            'Project Approved',
+            `Your project request '${project.name}' has been approved!`,
+            `/dashboard/customer/projects/`
+        );
 
         res.json({
             success: true,
@@ -708,7 +739,10 @@ router.put('/projects/:id/reject', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Rejection reason is required' });
         }
 
-        const project = await prisma.project.findUnique({ where: { id } });
+        const project = await prisma.project.findUnique({
+            where: { id },
+            include: { customer: { select: { id: true, name: true } } }
+        });
 
         if (!project) {
             return res.status(404).json({ error: 'Project not found' });
@@ -725,6 +759,15 @@ router.put('/projects/:id/reject', async (req: Request, res: Response) => {
                 rejectionReason: reason.trim()
             }
         });
+
+        // Notify Customer
+        await NotificationService.create(
+            project.customer!.id,
+            'project_rejected',
+            'Project Request Rejected',
+            `Your project request '${project.name}' has been rejected. Reason: ${reason}`,
+            `/dashboard/customer/projects/`
+        );
 
         res.json({ success: true, message: 'Project rejected' });
     } catch (error) {
@@ -751,6 +794,16 @@ router.put('/projects/:id/assign', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Auditor and Reviewer cannot be the same person.' });
         }
 
+        // Fetch project for notification details
+        const project = await prisma.project.findUnique({
+            where: { id },
+            include: { customer: { select: { id: true } } }
+        });
+
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
         // Verify auditor exists
         const auditor = await prisma.user.findFirst({
             where: { id: auditorId, role: 'auditor' }
@@ -771,6 +824,26 @@ router.put('/projects/:id/assign', async (req: Request, res: Response) => {
 
         // Sync to Graph (Async)
         await GraphService.assignAuditor(id, auditorId);
+
+        // Notify Auditor
+        await NotificationService.create(
+            auditorId,
+            'project_assigned',
+            'Project Re-Assigned',
+            `You have been assigned to project: ${project.name}`,
+            `/dashboard/auditor/projects/${id}`
+        );
+
+        // Notify Reviewer if present (and not same as auditor logic usually, but here explicit)
+        if (reviewerAuditorId) {
+            await NotificationService.create(
+                reviewerAuditorId,
+                'project_assigned',
+                'Project Review Re-Assigned',
+                `You have been assigned as Reviewer for project: ${project.name}`,
+                `/dashboard/manager/projects/${id}`
+            );
+        }
 
         res.json({ success: true, message: `Project assigned to ${auditor.name}` });
     } catch (error) {

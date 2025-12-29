@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
+import { NotificationService } from '../services/notification';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -286,6 +287,26 @@ router.post('/projects/:projectId/controls/:controlId/evidence', async (req, res
             }
         });
 
+        // Notify Auditor and Reviewer
+        if (project.auditorId) {
+            await NotificationService.create(
+                project.auditorId,
+                'evidence',
+                'New Evidence Uploaded',
+                `New evidence uploaded for ${project.name}, control ${projectControl.controlId}`,
+                `/dashboard/auditor/projects/${projectId}/assessment`
+            );
+        }
+        if (project.reviewerAuditorId) {
+            await NotificationService.create(
+                project.reviewerAuditorId,
+                'evidence',
+                'New Evidence Uploaded',
+                `New evidence uploaded for ${project.name}, control ${projectControl.controlId}`,
+                `/dashboard/manager/projects/${projectId}`
+            );
+        }
+
         res.json({ success: true, data: evidence });
     } catch (error) {
         console.error('Evidence upload error:', error);
@@ -376,6 +397,18 @@ router.post('/projects', async (req, res) => {
             },
             message: 'Project request submitted! Awaiting manager approval.'
         });
+
+        // Notify Admins
+        const admins = await prisma.user.findMany({ where: { role: 'admin' } });
+        for (const admin of admins) {
+            await NotificationService.create(
+                admin.id,
+                'project_created',
+                'New Project Request',
+                `${user.name} has requested a new project: ${name}`,
+                `/dashboard/admin/projects`
+            );
+        }
     } catch (error) {
         console.error('Create project error:', error);
         res.status(500).json({ error: 'Failed to create project request' });
@@ -494,6 +527,17 @@ router.post('/issues', async (req, res) => {
                 status: 'open'
             }
         });
+
+        // Notify Auditor and Reviewer
+        if (project.auditorId) {
+            await NotificationService.create(
+                project.auditorId,
+                'issue',
+                'New Issue Reported',
+                `Customer reported an issue in ${project.name}: ${title}`,
+                `/dashboard/auditor/projects/${projectId}`
+            );
+        }
 
         res.status(201).json({ success: true, data: issue });
     } catch (error) {

@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { authenticate, requireRole } from '../middleware/auth';
 import { webhookService } from '../services/webhookService';
 import { recalcEvidenceCounts } from '../utils/recalcCounts';
+import { NotificationService } from '../services/notification';
 
 const router = express.Router();
 
@@ -421,6 +422,15 @@ router.post('/requests', async (req, res) => {
             success: true,
             data: request
         });
+
+        // Notify Customer
+        await NotificationService.create(
+            customerId,
+            'request',
+            'New Audit Request',
+            `Auditor requested: ${title}`,
+            `/dashboard/customer/requests`
+        );
     } catch (error) {
         console.error('Create request error:', error);
         res.status(500).json({ error: 'Failed to create request' });
@@ -583,6 +593,17 @@ router.post('/events', async (req, res) => {
                 customer: { select: { name: true } }
             }
         });
+
+        // Notify Customer if applicable
+        if (event.customerId) {
+            await NotificationService.create(
+                event.customerId,
+                'event',
+                'New Meeting Scheduled',
+                `Auditor scheduled a meeting: ${title} at ${new Date(startTime).toLocaleString()}`,
+                `/dashboard/customer/dashboard`
+            );
+        }
 
         res.json({
             success: true,

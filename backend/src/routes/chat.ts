@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, requireRole } from '../middleware/auth';
+import { NotificationService } from '../services/notification';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -388,6 +389,25 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
             data: { lastReadAt: new Date() }
         });
 
+        // Notify other participants
+        const otherParticipants = await prisma.conversationParticipant.findMany({
+            where: {
+                conversationId: id,
+                userId: { not: userId }
+            },
+            select: { userId: true }
+        });
+
+        for (const p of otherParticipants) {
+            await NotificationService.create(
+                p.userId,
+                'message',
+                'New Message',
+                `You have a new message from ${message.sender.name || 'User'}: ${content.substring(0, 30)}${content.length > 30 ? '...' : ''}`,
+                `/dashboard/messages?conversationId=${id}`
+            );
+        }
+
         res.json({ success: true, data: message });
     } catch (error) {
         console.error('Send message error:', error);
@@ -435,6 +455,7 @@ router.post('/subscribe', async (req: Request, res: Response) => {
             where: { id: userId },
             data: { pushSubscription: subscription as any }
         });
+
 
         res.json({ success: true });
     } catch (error) {

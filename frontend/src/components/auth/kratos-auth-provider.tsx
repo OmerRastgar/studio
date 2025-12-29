@@ -228,8 +228,9 @@ export function KratosAuthProvider({ children }: { children: ReactNode }) {
 
         // Force Password Change Check
         if (!loading && user && (user as any).forcePasswordChange) {
-            const isSettingsSecurity = pathname === '/settings' && searchParams?.get('tab') === 'security';
-            if (!isSettingsSecurity) {
+            // Only redirect if NOT already on the settings page
+            // We rely on the Settings page to handle the specific tab and alerts
+            if (pathname !== '/settings') {
                 console.log("[KratosAuthProvider] Force Password Change detected. Redirecting to settings.");
                 router.replace("/settings?tab=security&reason=force_change");
             }

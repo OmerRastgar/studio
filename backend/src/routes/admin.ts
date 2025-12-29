@@ -4,6 +4,7 @@ import { GraphService } from '../services/graph.service';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { kratosAdmin } from '../lib/kratos';
 import bcrypt from 'bcryptjs';
+import { NotificationService } from '../services/notification';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -421,6 +422,15 @@ router.post('/users', async (req: Request, res: Response) => {
             }
         });
 
+        // Send Welcome Notification
+        await NotificationService.create(
+            user.id,
+            'system',
+            'Welcome to Audit Platform',
+            `Welcome ${user.name}! Your account has been created.`,
+            '/dashboard'
+        );
+
         res.status(201).json({ success: true, data: user });
     } catch (error: any) {
         console.error('Create user error:', error);
@@ -430,6 +440,7 @@ router.post('/users', async (req: Request, res: Response) => {
         }
         // If Prisma fails but Kratos succeeded, we ideally should rollback Kratos
         // For now, simpler error response
+        console.error('Failed to create user:', error);
         res.status(500).json({ error: 'Failed to create user' });
     }
 });

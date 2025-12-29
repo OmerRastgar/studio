@@ -12,10 +12,21 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { User } from '@/lib/types';
-import { LogOut, Settings, User as UserIcon, Bell, CheckCheck, HelpCircle, Briefcase, Calendar, MessageSquare } from 'lucide-react';
+import { LogOut, Settings, User as UserIcon, Bell, CheckCheck, HelpCircle, Briefcase, Calendar, MessageSquare, Menu, Plus, Search, FileText } from 'lucide-react';
+import { useNotifications } from '@/hooks/use-notifications';
 import Link from 'next/link';
 import { ThemeToggle } from './theme-toggle';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { useGuide } from './guide';
 import { useAuth } from '@/components/auth/kratos-auth-provider';
 
@@ -55,188 +66,279 @@ export function Header({ user, pageTitle, showSidebarTrigger = true }: HeaderPro
           fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auditor/customers`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
 
-        let fetchedNotifications: any[] = [];
+        // const [notifications, setNotifications] = useState<any[]>([]); // Removed
 
-        // Process Audit Requests (Work)
-        if (requestsRes.ok) {
-          const reqData = await requestsRes.json();
-          if (reqData.success && Array.isArray(reqData.data)) {
-            const pendingRequests = reqData.data.filter((r: any) => r.status === 'Pending').map((r: any) => ({
-              id: `req-${r.id}`,
-              title: "Audit Request",
-              description: `${r.projectId ? 'Project: ' + r.project?.name : 'General'}: ${r.title}`,
-              time: "Pending", // Could calculate relative time
-              type: "request"
-            }));
-            fetchedNotifications = [...fetchedNotifications, ...pendingRequests];
+        // useEffect(() => { // Removed
+        //   async function fetchNotifications() {
+        //     if (!token) return;
+
+        //     if (!user || !['auditor', 'manager', 'reviewer'].includes(user.role)) return;
+
+        //     try {
+        //       const [requestsRes, eventsRes, customersRes] = await Promise.all([
+        //         fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auditor/requests`, { headers: { Authorization: `Bearer ${token}` } }),
+        //         fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auditor/events`, { headers: { Authorization: `Bearer ${token}` } }),
+        //         fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auditor/customers`, { headers: { Authorization: `Bearer ${token}` } })
+        //       ]);
+
+        //       let fetchedNotifications: any[] = [];
+
+        //       // Process Audit Requests (Work)
+        //       if (requestsRes.ok) {
+        //         const reqData = await requestsRes.json();
+        //         if (reqData.success && Array.isArray(reqData.data)) {
+        //           const pendingRequests = reqData.data.filter((r: any) => r.status === 'Pending').map((r: any) => ({
+        //             id: `req-${r.id}`,
+        //             title: "Audit Request",
+        //             description: `${r.projectId ? 'Project: ' + r.project?.name : 'General'}: ${r.title}`,
+        //             time: "Pending", // Could calculate relative time
+        //             type: "request"
+        //           }));
+        //           fetchedNotifications = [...fetchedNotifications, ...pendingRequests];
+        //         }
+        //       }
+
+        //       // Process Events (Deadlines)
+        //       if (eventsRes.ok) {
+        //         const evtData = await eventsRes.json();
+        //         if (evtData.success && Array.isArray(evtData.data)) {
+        //           const dueEvents = evtData.data.filter((e: any) => e.title.includes('Due')).map((e: any) => ({
+        //             id: `evt-${e.id}`,
+        //             title: "Project Deadline",
+        //             description: `${e.title} is approaching.`,
+        //             time: new Date(e.startTime).toLocaleDateString(),
+        //             type: "event"
+        //           }));
+        //           fetchedNotifications = [...fetchedNotifications, ...dueEvents];
+        //         }
+        //       }
+
+        //       // Process Projects for Review Status (via Customers endpoint)
+        //       if (customersRes.ok) {
+        //         const custData = await customersRes.json();
+        //         if (custData.success && Array.isArray(custData.data)) {
+        //           const projects = custData.data.flatMap((c: any) => c.projects || []);
+
+        //           // Approved Projects
+        //           const approvedProjs = projects.filter((p: any) => p.status === 'approved').map((p: any) => ({
+        //             id: `proj-app-${p.id}`,
+        //             title: "Report Approved",
+        //             description: `The report for '${p.name}' has been approved.`,
+        //             time: "Recent",
+        //             type: "review-approved"
+        //           }));
+
+        //           // Returned Projects
+        //           const returnedProjs = projects.filter((p: any) => p.status === 'returned').map((p: any) => ({
+        //             id: `proj-ret-${p.id}`,
+        //             title: "Report Returned",
+        //             description: `The report for '${p.name}' was sent back for improvements.`,
+        //             time: "Action Required",
+        //             type: "review-returned"
+        //           }));
+
+        //           fetchedNotifications = [...fetchedNotifications, ...approvedProjs, ...returnedProjs];
+        //         }
+        //       }
+
+        //       // Merge with mocks (Messages only)
+        //       setNotifications([...mockMessages, ...fetchedNotifications]);
+
+        //     } catch (error) {
+        //       console.error("Failed to fetch notifications:", error);
+        //       // Fallback to mocks if API fails
+        //       setNotifications(mockMessages);
+        //     }
+        //   }
+
+        //   fetchNotifications();
+        // }, [token]);
+
+        // const getIcon = (type: string) => { // Removed
+        //   switch (type) {
+        //     case 'request': return <Briefcase className="h-4 w-4 text-orange-500" />;
+        //     case 'event': return <Calendar className="h-4 w-4 text-red-500" />;
+        //     case 'review': return <CheckCheck className="h-4 w-4 text-green-500" />;
+        //     case 'message': return <MessageSquare className="h-4 w-4 text-blue-500" />;
+        //     default: return <Bell className="h-4 w-4" />;
+        //   }
+        // };
+
+        // Use real notifications
+        const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+
+        const handleNotificationClick = async (n: any) => {
+          if (!n.read) {
+            await markAsRead(n.id);
           }
-        }
+        };
 
-        // Process Events (Deadlines)
-        if (eventsRes.ok) {
-          const evtData = await eventsRes.json();
-          if (evtData.success && Array.isArray(evtData.data)) {
-            const dueEvents = evtData.data.filter((e: any) => e.title.includes('Due')).map((e: any) => ({
-              id: `evt-${e.id}`,
-              title: "Project Deadline",
-              description: `${e.title} is approaching.`,
-              time: new Date(e.startTime).toLocaleDateString(),
-              type: "event"
-            }));
-            fetchedNotifications = [...fetchedNotifications, ...dueEvents];
-          }
-        }
+        // Dummy crumbs for demonstration, as the original HeaderProps doesn't include them
+        const crumbs = pageTitle.split('/').filter(Boolean);
 
-        // Process Projects for Review Status (via Customers endpoint)
-        if (customersRes.ok) {
-          const custData = await customersRes.json();
-          if (custData.success && Array.isArray(custData.data)) {
-            const projects = custData.data.flatMap((c: any) => c.projects || []);
+        return (
+          <header className="sticky top-0 z-30 flex h-16 w-full items-center gap-4 border-b bg-background px-6 shadow-sm transition-all duration-300 ease-in-out">
+            <SidebarTrigger />
+            <div className="flex flex-1 items-center gap-4">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  {crumbs.map((crumb, index) => {
+                    const isLast = index === crumbs.length - 1;
+                    const path = `/${crumbs.slice(0, index + 1).join('/')}`;
 
-            // Approved Projects
-            const approvedProjs = projects.filter((p: any) => p.status === 'approved').map((p: any) => ({
-              id: `proj-app-${p.id}`,
-              title: "Report Approved",
-              description: `The report for '${p.name}' has been approved.`,
-              time: "Recent",
-              type: "review-approved"
-            }));
+                    // Format crumb label
+                    let label = crumb.charAt(0).toUpperCase() + crumb.slice(1);
 
-            // Returned Projects
-            const returnedProjs = projects.filter((p: any) => p.status === 'returned').map((p: any) => ({
-              id: `proj-ret-${p.id}`,
-              title: "Report Returned",
-              description: `The report for '${p.name}' was sent back for improvements.`,
-              time: "Action Required",
-              type: "review-returned"
-            }));
+                    // Handle UUIDs or long strings
+                    if (crumb.length > 20 || /^[0-9a-f]{8}-/.test(crumb)) {
+                      label = 'Details';
+                    }
 
-            fetchedNotifications = [...fetchedNotifications, ...approvedProjs, ...returnedProjs];
-          }
-        }
+                    return (
+                      <BreadcrumbItem key={path}>
+                        {!isLast ? (
+                          <>
+                            <BreadcrumbLink asChild>
+                              <Link href={path}>{label}</Link>
+                            </BreadcrumbLink>
+                            <BreadcrumbSeparator />
+                          </>
+                        ) : (
+                          <BreadcrumbPage>{label}</BreadcrumbPage>
+                        )}
+                      </BreadcrumbItem>
+                    );
+                  })}
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
 
-        // Merge with mocks (Messages only)
-        setNotifications([...mockMessages, ...fetchedNotifications]);
-
-      } catch (error) {
-        console.error("Failed to fetch notifications:", error);
-        // Fallback to mocks if API fails
-        setNotifications(mockMessages);
-      }
-    }
-
-    fetchNotifications();
-  }, [token]);
-
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'request': return <Briefcase className="h-4 w-4 text-orange-500" />;
-      case 'event': return <Calendar className="h-4 w-4 text-red-500" />;
-      case 'review': return <CheckCheck className="h-4 w-4 text-green-500" />;
-      case 'message': return <MessageSquare className="h-4 w-4 text-blue-500" />;
-      default: return <Bell className="h-4 w-4" />;
-    }
-  };
-
-  return (
-    <header className="sticky top-0 z-20 flex h-16 w-full items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
-      <div className="flex items-center gap-2">
-        {showSidebarTrigger && <SidebarTrigger />}
-        <h1 className="text-xl font-semibold tracking-tight md:text-2xl font-headline">{pageTitle}</h1>
-      </div>
-      <div className="ml-auto flex items-center gap-2 md:gap-4">
-        <ThemeToggle />
-
-        {user?.role !== 'compliance' && (
-          <Button variant="ghost" className="h-10 w-10 rounded-full animate-bounce" onClick={restartTour}>
-            <HelpCircle className="h-5 w-5" />
-            <span className="sr-only">Start Tour</span>
-          </Button>
-        )}
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Bell className="h-5 w-5" />
-              {notifications.length > 0 && (
-                <Badge className="absolute top-2 right-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full p-0">
-                  {notifications.length}
-                </Badge>
-              )}
-              <span className="sr-only">Toggle notifications</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-80" align="end">
-            <DropdownMenuLabel>
-              <div className="flex items-center justify-between">
-                <span>Notifications</span>
-                <Button variant="outline" size="sm" className="h-7 gap-1">
-                  <CheckCheck className="h-3.5 w-3.5" />
-                  <span className="text-muted-foreground">Mark all as read</span>
-                </Button>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup className="max-h-[300px] overflow-y-auto">
-              {notifications.length > 0 ? notifications.map(notification => (
-                <DropdownMenuItem key={notification.id} className="flex flex-col items-start gap-1 cursor-pointer">
-                  <div className="flex items-center gap-2 w-full">
-                    {getIcon(notification.type)}
-                    <p className='font-medium text-sm truncate'>{notification.title}</p>
-                    <span className="ml-auto text-[10px] text-muted-foreground">{notification.time}</span>
+            <div className="flex items-center gap-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative transition-transform active:scale-95">
+                    <Bell className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
+                    {unreadCount > 0 && (
+                      <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground ring-2 ring-background animate-in zoom-in duration-300">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[380px] p-0 shadow-lg border-opacity-50 backdrop-blur-sm">
+                  <div className="flex items-center justify-between border-b px-4 py-3 bg-muted/30">
+                    <h4 className="font-semibold text-sm">Notifications</h4>
+                    {unreadCount > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto px-2 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        onClick={() => markAllAsRead()}
+                      >
+                        Mark all as read
+                      </Button>
+                    )}
                   </div>
-                  <p className='text-xs text-muted-foreground line-clamp-2 pl-6'>{notification.description}</p>
-                </DropdownMenuItem>
-              )) : <div className="p-4 text-center text-sm text-muted-foreground">No new notifications</div>}
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="justify-center text-sm font-medium text-primary">
-              <Link href="/audit-log">View all notifications</Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                  <ScrollArea className="h-[400px]">
+                    <div className="flex flex-col p-1">
+                      {notifications.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground text-sm opacity-80">
+                          <Bell className="mb-2 h-8 w-8 opacity-20" />
+                          <p>No notifications yet</p>
+                        </div>
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={cn(
+                              "group flex items-start gap-4 rounded-md p-3 transition-all hover:bg-accent cursor-pointer border-b border-border/40 last:border-0",
+                              !n.read ? "bg-primary/5 hover:bg-primary/10" : ""
+                            )}
+                            onClick={() => handleNotificationClick(n)}
+                          >
+                            <div className="mt-1 rounded-full bg-background p-1.5 shadow-sm ring-1 ring-border group-hover:ring-primary/20 transition-all">
+                              {n.type.includes('message') ? (
+                                <MessageSquare className="h-4 w-4 text-primary" />
+                              ) : n.type.includes('request') ? (
+                                <FileText className="h-4 w-4 text-orange-500" />
+                              ) : (
+                                <Bell className="h-4 w-4 text-primary" />
+                              )}
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <p className={cn("text-sm font-medium leading-none group-hover:text-primary transition-colors", !n.read && "text-primary")}>
+                                  {n.title}
+                                </p>
+                                <span className="text-[10px] text-muted-foreground/70">
+                                  {new Date(n.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {n.message}
+                              </p>
+                              {n.link && (
+                                <Link
+                                  href={n.link}
+                                  className="mt-2 inline-flex items-center text-[10px] font-medium text-primary hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  View Details
+                                </Link>
+                              )}
+                            </div>
+                            {!n.read && (
+                              <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary ring-2 ring-primary/20 animate-pulse" />
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={user?.avatarUrl} alt={user?.name || 'User'} data-ai-hint="person avatar" />
-                <AvatarFallback>{user ? getInitials(user.name) : 'U'}</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.name || 'Guest'}</p>
-                <p className="text-xs leading-none text-muted-foreground">{user?.email || ''}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {user?.role !== 'compliance' && (
-              <>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings">
-                    <UserIcon className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuItem onClick={logout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </header>
-  );
-}
+              <ThemeToggle />
+
+              {user && (
+                <DropdownMenu>
+                  {/* User Menu remains same */}
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full ring-2 ring-border hover:ring-primary/50 transition-all">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.avatarUrl} alt={user.name} />
+                        <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.name}</p>
+                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                        <Badge variant="outline" className="mt-1 w-fit text-[10px] capitalize">
+                          {user.role}
+                        </Badge>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/settings" className="cursor-pointer">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Settings</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                      onClick={() => logout()}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </header>
+        );
+      }

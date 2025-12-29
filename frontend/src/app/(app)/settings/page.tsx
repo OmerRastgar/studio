@@ -457,8 +457,20 @@ function SecuritySettings() {
 
   // Force Change Alert
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   const isForceChange = searchParams?.get('reason') === 'force_change' || user?.forcePasswordChange;
+
+  // Auto-switch to security tab if force change is required
+  useEffect(() => {
+    if (isForceChange) {
+      // Ensure we are on the security tab if forced
+      const currentTab = searchParams?.get('tab');
+      if (currentTab !== 'security') {
+        // Logic handled by Tab defaultValue mostly, but if user navigates manually...
+        // We can let them be.
+      }
+    }
+  }, [isForceChange, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -481,15 +493,20 @@ function SecuritySettings() {
       });
       setFlow(data);
 
-      // Check if password change was successful (no error messages and state is success-like or just check flow messages)
-      // Usually Kratos returns 'success' message.
+      // Check if password change was successful
       const hasSuccess = data.ui.messages?.some(m => m.type === 'success');
       if (hasSuccess) {
         // If we were in force change mode, ack it
         if (isForceChange) {
           await fetch('/api/auth/ack-password-change', { method: 'POST' });
+          await refreshSession(); // Update local user state immediately
+          toast.success("Password updated successfully");
           // Redirect to dashboard to clear params and re-check
-          router.push('/dashboard');
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 1000); // Small delay to let user see the toast and success state
+        } else {
+          toast.success("Settings updated successfully");
         }
       }
 
@@ -642,7 +659,7 @@ function SettingsContent() {
   }
 
   return (
-    <Tabs defaultValue={defaultTab} className="w-full">
+    <Tabs defaultValue={searchParams?.get('tab') || 'profile'} className="w-full">
       <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="profile">Profile</TabsTrigger>
         <TabsTrigger value="integrations">
