@@ -203,7 +203,7 @@ export function KratosAuthProvider({ children }: { children: ReactNode }) {
 
     // Protected Route Logic
     useEffect(() => {
-        const publicRoutes = ["/login", "/register", "/recovery", "/compliance", "/auth-loading"];
+        const publicRoutes = ["/login", "/register", "/recovery", "/compliance", "/auth-loading", "/privacy", "/terms"];
         const isRefresh = searchParams?.get("refresh");
 
         console.log("[KratosAuthProvider] Route check:", {
