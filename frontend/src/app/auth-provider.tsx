@@ -36,7 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       // Skip auth check for public routes
-      if (pathname === '/login') {
+      const publicRoutes = ['/login', '/privacy', '/terms'];
+      if (publicRoutes.includes(pathname)) {
         setLoading(false);
         return;
       }
@@ -46,7 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!storedToken) {
         setLoading(false);
-        if (pathname !== '/login') {
+        const publicRoutes = ['/login', '/privacy', '/terms'];
+        if (!publicRoutes.includes(pathname)) {
           router.push('/login');
         }
         return;
@@ -72,13 +74,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem('auth_token');
           document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
           setToken(null);
-          if (pathname !== '/login') {
+          setToken(null);
+          const publicRoutes = ['/login', '/privacy', '/terms'];
+          if (!publicRoutes.includes(pathname)) {
             router.push('/login');
           }
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        if (pathname !== '/login') {
+        const publicRoutes = ['/login', '/privacy', '/terms'];
+        if (!publicRoutes.includes(pathname)) {
           router.push('/login');
         }
       } finally {
