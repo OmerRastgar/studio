@@ -34,6 +34,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV SKIP_ENV_VALIDATION=1
 ENV JWT_SECRET=dummy_secret_for_build
 ENV SKIP_OBSERVABILITY=true
+# Install TypeScript explicitly to prevent Next.js auto-install from failing due to peer deps
+RUN npm install typescript @types/react @types/node --save-dev --legacy-peer-deps
 # Build with Docker optimizations to avoid timeout issues
 RUN npm run build:docker
 
