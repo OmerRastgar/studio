@@ -24,9 +24,6 @@ WORKDIR /app
 USER node
 # Copy installed dependencies from the 'dependencies' stage
 COPY --chown=node:node --from=dependencies /app/node_modules ./node_modules
-# DEBUG: Verify package installation
-RUN ls -d node_modules/@ducanh2912/next-pwa || echo "Package @ducanh2912/next-pwa NOT FOUND"
-RUN npm list @ducanh2912/next-pwa || echo "npm list failed to find package"
 # Copy the rest of the application source code
 COPY --chown=node:node . .
 # Ensure public directory exists (even if empty) to prevent COPY error
