@@ -112,19 +112,22 @@ function CustomerProjectsContent() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <Link href="/dashboard">
-                    <Button variant="ghost" size="sm">
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back to Dashboard
-                    </Button>
-                </Link>
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <Link href="/dashboard">
+                        <Button variant="ghost" size="sm" className="-ml-2">
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Back
+                        </Button>
+                    </Link>
+                </div>
                 <div className="flex-1">
                     <h1 className="text-2xl font-bold">My Projects</h1>
                     <p className="text-muted-foreground">View and manage your compliance projects</p>
                 </div>
-                <Link href="/dashboard?newProject=true">
-                    <Button size="sm">
+                <Link href="/dashboard?newProject=true" className="w-full md:w-auto">
+                    <Button size="sm" className="w-full md:w-auto">
                         <Plus className="w-4 h-4 mr-2" />
                         New Project
                     </Button>
@@ -153,14 +156,18 @@ function CustomerProjectsContent() {
                     <Card key={project.id} className="hover:shadow-lg transition-shadow h-full flex flex-col">
                         <Link href={`/dashboard/project/${project.id}`} className="flex-1 cursor-pointer">
                             <CardHeader className="pb-3">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <FolderOpen className="w-5 h-5 text-primary" />
-                                        <CardTitle className="text-lg hover:underline">{project.name}</CardTitle>
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <FolderOpen className="w-5 h-5 text-primary flex-shrink-0" />
+                                            <CardTitle className="text-lg hover:underline truncate">{project.name}</CardTitle>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                            {getStatusBadge(project.status)}
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col items-end gap-1">
-                                        <Badge variant="outline">{project.framework}</Badge>
-                                        {getStatusBadge(project.status)}
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="truncate max-w-full">{project.framework}</Badge>
                                     </div>
                                 </div>
                             </CardHeader>
@@ -180,14 +187,14 @@ function CustomerProjectsContent() {
                                 )}
 
                                 {/* Stats */}
-                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                                     <div className="flex items-center gap-2">
-                                        <FileCheck className="w-4 h-4 text-muted-foreground" />
-                                        <span>{project.controlsComplete}/{project.controlsTotal} Controls</span>
+                                        <FileCheck className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                        <span className="truncate">{project.controlsComplete}/{project.controlsTotal} Controls</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                                        <span>{project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'No due date'}</span>
+                                        <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                        <span className="truncate">{project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'No due date'}</span>
                                     </div>
                                 </div>
 

@@ -599,9 +599,9 @@ export function CustomerDashboardView() {
                                 </div>
                             ) : (
                                 requests.map((req) => (
-                                    <div key={req.id} className="flex items-start justify-between p-4 border rounded-lg">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
+                                    <div key={req.id} className="flex flex-col sm:flex-row items-start justify-between p-4 border rounded-lg gap-4">
+                                        <div className="w-full">
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
                                                 <h3 className="font-semibold">{req.title}</h3>
                                                 <Badge
                                                     className={
@@ -614,27 +614,26 @@ export function CustomerDashboardView() {
                                                     {req.status}
                                                 </Badge>
                                             </div>
-                                            <p className="text-sm text-muted-foreground mb-2">{req.description}</p>
-                                            <div className="flex items-center gap-4 text-xs text-muted-foreground/80">
+                                            <p className="text-sm text-muted-foreground mb-2 break-words">{req.description}</p>
+                                            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground/80">
                                                 <span className="flex items-center gap-1">
-                                                    <Users className="w-3 h-3" />
+                                                    <Users className="w-3 h-3 flex-shrink-0" />
                                                     {req.auditor.name}
                                                 </span>
                                                 {req.project && (
                                                     <span className="flex items-center gap-1">
-                                                        <Folder className="w-3 h-3" />
+                                                        <Folder className="w-3 h-3 flex-shrink-0" />
                                                         {req.project.name}
                                                     </span>
                                                 )}
                                                 {req.dueDate && (
                                                     <span className="flex items-center gap-1">
-                                                        <Calendar className="w-3 h-3" />
+                                                        <Calendar className="w-3 h-3 flex-shrink-0" />
                                                         Due: {new Date(req.dueDate).toLocaleDateString()}
                                                     </span>
                                                 )}
                                             </div>
                                         </div>
-                                        {/* Details button removed as requested */}
                                     </div>
                                 ))
                             )}

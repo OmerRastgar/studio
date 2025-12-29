@@ -181,23 +181,23 @@ export default function ProjectDetailPage() {
             {/* Project Header */}
             <Card>
                 <CardHeader>
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <CardTitle className="text-2xl">{project.name}</CardTitle>
-                            <CardDescription className="flex items-center gap-4 mt-2">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        <div className="min-w-0">
+                            <CardTitle className="text-2xl break-words">{project.name}</CardTitle>
+                            <CardDescription className="flex flex-wrap items-center gap-4 mt-2">
                                 {project.framework && (
-                                    <span className="flex items-center gap-1">
-                                        <Shield className="w-4 h-4" />
+                                    <span className="flex items-center gap-1 whitespace-nowrap">
+                                        <Shield className="w-4 h-4 flex-shrink-0" />
                                         {project.framework.name}
                                     </span>
                                 )}
-                                <span className="flex items-center gap-1">
-                                    <Calendar className="w-4 h-4" />
+                                <span className="flex items-center gap-1 whitespace-nowrap">
+                                    <Calendar className="w-4 h-4 flex-shrink-0" />
                                     {formatDate(project.dueDate)}
                                 </span>
                             </CardDescription>
                         </div>
-                        <Button variant="outline" size="sm" onClick={fetchProject}>
+                        <Button variant="outline" size="sm" onClick={fetchProject} className="flex-shrink-0">
                             <RefreshCw className="w-4 h-4 mr-2" />
                             Refresh
                         </Button>

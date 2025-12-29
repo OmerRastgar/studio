@@ -87,7 +87,7 @@ export function ControlItem({
                             <span className="font-medium truncate">{title}</span>
                         </div>
                         {!isExpanded && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-1 break-all">
                                 {description}
                             </p>
                         )}
@@ -115,9 +115,9 @@ export function ControlItem({
 
             {/* Expanded Content */}
             {isExpanded && (
-                <div className="mt-4 ml-7 space-y-4">
+                <div className="mt-4 ml-0 sm:ml-7 space-y-4 px-1 sm:px-0">
                     {/* Description */}
-                    <p className="text-sm text-muted-foreground">{description}</p>
+                    <p className="text-sm text-muted-foreground break-words">{description}</p>
 
                     {/* Tags */}
                     {tags.length > 0 && (

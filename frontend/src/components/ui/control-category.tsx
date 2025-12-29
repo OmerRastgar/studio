@@ -59,29 +59,31 @@ export function ControlCategory({
                 className="cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 w-full min-w-0">
                         {isExpanded ? (
-                            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                            <ChevronDown className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                         ) : (
-                            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                            <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                         )}
-                        <CardTitle className="text-lg">{name}</CardTitle>
-                        {isComplete ? (
-                            <Badge variant="default" className="bg-green-500">
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Complete
-                            </Badge>
-                        ) : (
-                            <Badge variant="secondary">
-                                <Clock className="w-3 h-3 mr-1" />
-                                {completedControls} / {totalControls}
-                            </Badge>
-                        )}
+                        <CardTitle className="text-lg truncate">{name}</CardTitle>
+                        <div className="flex-shrink-0 ml-auto sm:ml-0">
+                            {isComplete ? (
+                                <Badge variant="default" className="bg-green-500 whitespace-nowrap">
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Complete
+                                </Badge>
+                            ) : (
+                                <Badge variant="secondary" className="whitespace-nowrap">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    {completedControls} / {totalControls}
+                                </Badge>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <span className="text-sm font-medium">{progress}%</span>
-                        <Progress value={progress} className="w-24 h-2" />
+                    <div className="flex items-center gap-4 pl-8 sm:pl-0 w-full sm:w-auto">
+                        <Progress value={progress} className="flex-1 sm:w-24 h-2" />
+                        <span className="text-sm font-medium w-10 text-right">{progress}%</span>
                     </div>
                 </div>
             </CardHeader>
