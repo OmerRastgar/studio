@@ -5,6 +5,15 @@ import { Session } from "@ory/client";
 import { kratos } from "@/lib/kratos";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { UserProfile as User } from '@/lib/types';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface AuthContextType {
     user: User | null;
@@ -33,6 +42,7 @@ export function KratosAuthProvider({ children }: { children: ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const [showForceChangeAlert, setShowForceChangeAlert] = useState(false);
 
     const fetchJWTToken = async () => {
         try {

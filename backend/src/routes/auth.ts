@@ -50,11 +50,25 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
                 avatarUrl: true,
                 managerId: true,
                 lastActive: true,
-                forcePasswordChange: true
+                forcePasswordChange: true,
+                // Fetch status/role from DB as authority
+                status: true,
+                role: true
             }
         });
 
         // 3. Return Merged Data
+        // SECURITY: If local user exists, their role is the authority. 
+        // If not (shadow user missing), allow Kratos role UNLESS it is 'admin'.
+        let effectiveRole = traits.role || 'customer';
+        if (localUser?.role) {
+            effectiveRole = localUser.role;
+        } else if (effectiveRole === 'admin') {
+            // Self-service user claiming admin without a DB record -> Downgrade
+            console.warn(`[Auth Security] Downgrading spoofed admin role for ${identity.id} in /me response`);
+            effectiveRole = 'customer';
+        }
+
         res.json({
             success: true,
             user: {
@@ -63,8 +77,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
                     ? traits.name
                     : `${traits.name.first} ${traits.name.last}`,
                 email: traits.email,
-                role: traits.role,
-                status: identity.state === 'active' ? 'Active' : 'Inactive',
+                role: effectiveRole,
+                status: localUser?.status || (identity.state === 'active' ? 'Active' : 'Inactive'),
                 avatarUrl: localUser?.avatarUrl || `https://picsum.photos/seed/${identity.id}/100/100`,
                 lastActive: localUser?.lastActive?.toISOString(),
                 forcePasswordChange: localUser?.forcePasswordChange ?? false,

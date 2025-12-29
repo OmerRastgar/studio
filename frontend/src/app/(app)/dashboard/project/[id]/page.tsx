@@ -181,26 +181,31 @@ export default function ProjectDetailPage() {
             {/* Project Header */}
             <Card>
                 <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                        <div className="min-w-0">
-                            <CardTitle className="text-2xl break-words">{project.name}</CardTitle>
-                            <CardDescription className="flex flex-wrap items-center gap-4 mt-2">
-                                {project.framework && (
-                                    <span className="flex items-center gap-1 whitespace-nowrap">
-                                        <Shield className="w-4 h-4 flex-shrink-0" />
-                                        {project.framework.name}
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                                <CardTitle className="text-xl sm:text-2xl break-words pr-8">{project.name}</CardTitle>
+                                <CardDescription className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2">
+                                    {project.framework && (
+                                        <span className="flex items-center gap-1 whitespace-nowrap text-xs sm:text-sm">
+                                            <Shield className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                            {project.framework.name}
+                                        </span>
+                                    )}
+                                    <span className="flex items-center gap-1 whitespace-nowrap text-xs sm:text-sm">
+                                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                        {formatDate(project.dueDate)}
                                     </span>
-                                )}
-                                <span className="flex items-center gap-1 whitespace-nowrap">
-                                    <Calendar className="w-4 h-4 flex-shrink-0" />
-                                    {formatDate(project.dueDate)}
-                                </span>
-                            </CardDescription>
+                                </CardDescription>
+                            </div>
+                            <Button variant="outline" size="icon" onClick={fetchProject} className="flex-shrink-0 sm:hidden">
+                                <RefreshCw className="w-4 h-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={fetchProject} className="flex-shrink-0 hidden sm:flex">
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                Refresh
+                            </Button>
                         </div>
-                        <Button variant="outline" size="sm" onClick={fetchProject} className="flex-shrink-0">
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Refresh
-                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent>

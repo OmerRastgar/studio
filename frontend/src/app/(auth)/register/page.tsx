@@ -7,6 +7,13 @@ import { kratos } from "@/lib/kratos";
 import { FlowNodes } from "@/components/auth/FlowNodes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import Link from "next/link";
 import { unflatten } from "@/lib/unflatten";
 
@@ -182,7 +189,11 @@ function RegisterForm() {
 
                     <FlowNodes
                         nodes={(() => {
-                            const nodes = flow.ui.nodes.filter((n: any) => n.group !== 'oidc' && n.attributes.name !== 'provider');
+                            const nodes = flow.ui.nodes.filter((n: any) =>
+                                n.group !== 'oidc' &&
+                                n.attributes.name !== 'provider' &&
+                                n.attributes.name !== 'traits.role'
+                            );
                             const passwordIndex = nodes.findIndex((n: any) => n.attributes.name === 'password');
                             if (passwordIndex !== -1) {
                                 const confirmNode = {
@@ -213,7 +224,22 @@ function RegisterForm() {
                         })()}
                         isLoading={false}
                         onSubmit={onSubmit}
-                    />
+                    >
+                        {/* Custom Role Selection - Injected as children so it's INSIDE the form */}
+                        <div className="mt-4">
+                            <label className="text-sm font-medium mb-2 block">Role</label>
+                            <Select name="traits.role" defaultValue="customer">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="customer">Customer</SelectItem>
+                                    <SelectItem value="manager">Manager</SelectItem>
+                                    <SelectItem value="auditor">Auditor</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </FlowNodes>
 
                     <div className="mt-4">
                         <div className="relative">

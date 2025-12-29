@@ -410,21 +410,24 @@ export function CustomerDashboardView() {
     return (
 
         <div className="space-y-8 p-4 md:p-8 bg-background min-h-screen">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-card p-6 rounded-xl shadow-sm border border-border gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-card p-4 md:p-6 rounded-xl shadow-sm border border-border gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-primary-500">Welcome back, {user?.name}!</h1>
-                    <p className="mt-1">Manage your compliance projects and sharing</p>
+                    <h1 className="text-xl md:text-2xl font-bold text-primary-500">Welcome back, {user?.name}!</h1>
+                    <p className="mt-1 text-sm md:text-base">Manage your compliance projects and sharing</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setShowIssueDialog(true)}>
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    <Button variant="outline" size="sm" onClick={() => setShowIssueDialog(true)} className="flex-1 md:flex-none">
                         <AlertCircle className="w-4 h-4 mr-2" />
                         Report Issue
                     </Button>
-                    <Button variant="default" size="sm" onClick={openNewProjectDialog}>
+                    <Button variant="default" size="sm" onClick={openNewProjectDialog} className="flex-1 md:flex-none">
                         <Plus className="w-4 h-4 mr-2" />
                         New Project
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => { fetchDashboard(); fetchComplianceUsers(); }}>
+                    <Button variant="outline" size="icon" onClick={() => { fetchDashboard(); fetchComplianceUsers(); }} className="md:hidden flex-shrink-0">
+                        <RefreshCw className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => { fetchDashboard(); fetchComplianceUsers(); }} className="hidden md:flex">
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Refresh
                     </Button>
@@ -556,15 +559,15 @@ export function CustomerDashboardView() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {assignedAuditors.map((auditor) => (
-                            <div key={auditor.id} className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <Avatar className="h-10 w-10">
+                            <div key={auditor.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 rounded-lg border bg-muted/20">
+                                <div className="flex items-center gap-4 min-w-0">
+                                    <Avatar className="h-10 w-10 flex-shrink-0">
                                         <AvatarImage src={auditor.avatarUrl || undefined} alt={auditor.name} />
                                         <AvatarFallback>{auditor.name.split(" ").map((n: string) => n[0]).join("")}</AvatarFallback>
                                     </Avatar>
-                                    <div>
-                                        <p className="font-medium">{auditor.name}</p>
-                                        <p className="text-sm text-muted-foreground">{auditor.email}</p>
+                                    <div className="min-w-0">
+                                        <p className="font-medium truncate">{auditor.name}</p>
+                                        <p className="text-sm text-muted-foreground truncate">{auditor.email}</p>
                                     </div>
                                 </div>
                                 <Button
@@ -572,6 +575,7 @@ export function CustomerDashboardView() {
                                     size="sm"
                                     onClick={() => chatContext?.openChat(auditor.id)}
                                     disabled={!chatContext}
+                                    className="w-full sm:w-auto whitespace-nowrap"
                                 >
                                     <Mail className="w-4 h-4 mr-2" />
                                     Message

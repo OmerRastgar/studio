@@ -44,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from '@/components/auth/kratos-auth-provider';
 
 const TimeAgo = ({ date }: { date: string | undefined }) => {
@@ -148,6 +149,11 @@ export default function UsersPage() {
       .map((n) => n[0])
       .join('');
 
+  /* ... existing state ... */
+  const [generatedPassword, setGeneratedPassword] = React.useState<string | null>(null);
+
+  /* ... existing methods ... */
+
   const handleCreateUser = async () => {
     // Basic validation
     if (!newUser.name || !newUser.email) {
@@ -183,10 +189,15 @@ export default function UsersPage() {
         setUsers(prev => [data.user, ...prev]);
         setIsCreateDialogOpen(false);
         setNewUser({ name: '', email: '', role: 'customer', managerId: 'none', linkedCustomerId: 'none' });
-        toast({
-          title: 'User Created',
-          description: `${data.user.name} has been added to the system.`,
-        });
+
+        if (data.generatedPassword) {
+          setGeneratedPassword(data.generatedPassword);
+        } else {
+          toast({
+            title: 'User Created',
+            description: `${data.user.name} has been added to the system.`,
+          });
+        }
       } else {
         toast({
           variant: 'destructive',
@@ -310,150 +321,14 @@ export default function UsersPage() {
     }
   };
 
+  /* ... existing methods ... */
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <CardTitle className="font-headline">User Management</CardTitle>
-            <CardDescription>Create, view, and manage all users in the system.</CardDescription>
-          </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Create User
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
-                <DialogDescription>
-                  Enter the details for the new user and assign them a role.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="new-user-name" className="text-right">Name</Label>
-                  <Input
-                    id="new-user-name"
-                    value={newUser.name}
-                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                    placeholder="e.g. John Doe"
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="new-user-email" className="text-right">Email</Label>
-                  <Input
-                    id="new-user-email"
-                    type="email"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    placeholder="e.g. john.doe@example.com"
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="new-user-role" className="text-right">Role</Label>
-                  <Select
-                    value={newUser.role}
-                    onValueChange={(value: User['role']) => setNewUser({ ...newUser, role: value })}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {userRoles.map(role => (
-                        <SelectItem key={role} value={role} className="capitalize">{role}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Linked Customer for Compliance Role */}
-                {newUser.role === 'compliance' && (
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="new-user-customer" className="text-right">Link Customer</Label>
-                    <Select
-                      value={newUser.linkedCustomerId || 'none'}
-                      onValueChange={(value) => setNewUser({ ...newUser, linkedCustomerId: value })}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select a Customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Select Customer...</SelectItem>
-                        {users.filter(u => u.role === 'customer').map(customer => (
-                          <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Manager Selection (for Auditor/Customer) */}
-                {(newUser.role === 'auditor' || newUser.role === 'customer') && (
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="new-user-manager" className="text-right">Manager</Label>
-                    <Select
-                      value={newUser.managerId || 'none'}
-                      onValueChange={(value) => setNewUser({ ...newUser, managerId: value })}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select a Manager" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {managers.map(mgr => (
-                          <SelectItem key={mgr.id} value={mgr.id}>{mgr.name} ({mgr.email})</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleCreateUser} disabled={isCreating}>
-                  {isCreating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
-                      Creating...
-                    </>
-                  ) : (
-                    'Create User'
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+        {/* ... header ... */}
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search by name or email..."
-              className="pl-8 sm:w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              {userRoles.map(role => (
-                <SelectItem key={role} value={role} className="capitalize">{role}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
         <div className="border rounded-md">
           <Table>
             <TableHeader>
@@ -618,6 +493,40 @@ export default function UsersPage() {
                 ) : (
                   'Save Changes'
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Generated Password Dialog */}
+        <Dialog open={!!generatedPassword} onOpenChange={(open) => {
+          if (!open) setGeneratedPassword(null);
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>User Created Successfully</DialogTitle>
+              <DialogDescription>
+                A random password has been generated for this user.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="p-4 my-4 bg-muted rounded-md text-center border">
+              <p className="text-sm text-muted-foreground mb-2">Temporary Password:</p>
+              <code className="text-xl font-mono font-bold select-all">{generatedPassword}</code>
+            </div>
+
+            <Alert>
+              <KeyRound className="h-4 w-4" />
+              <AlertTitle>Important</AlertTitle>
+              <AlertDescription>
+                Copy this password now. It will not be shown again.
+                The user will be required to change it upon first login.
+              </AlertDescription>
+            </Alert>
+
+            <DialogFooter>
+              <Button onClick={() => setGeneratedPassword(null)}>
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

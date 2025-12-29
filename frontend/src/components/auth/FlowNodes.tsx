@@ -11,9 +11,10 @@ interface FlowNodesProps {
     onResend?: () => void;
     onMethodClick?: (value: string) => void;
     botProof?: boolean;
+    children?: React.ReactNode;
 }
 
-export const FlowNodes = ({ nodes, isLoading, onSubmit, onResend, onMethodClick, botProof }: FlowNodesProps) => {
+export const FlowNodes = ({ nodes, isLoading, onSubmit, onResend, onMethodClick, botProof, children }: FlowNodesProps) => {
     // Initialize state with default values from nodes
     const [values, setValues] = useState<Record<string, any>>(() => {
         const initialValues: Record<string, any> = {};
@@ -93,6 +94,9 @@ export const FlowNodes = ({ nodes, isLoading, onSubmit, onResend, onMethodClick,
 
                 return null;
             })}
+
+            {/* Custom Children (injected UI) */}
+            {children}
 
             {/* Render Submit Buttons */}
             <div className="flex flex-col gap-2 mt-4">
