@@ -835,7 +835,7 @@ function ReportsContent() {
               {/* Stats Cards */}
               {/* Removed create project dialog for simplicity */}
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 font-sans">
                 {/* Status Badge */}
                 {currentProjectDetails?.status && (
                   <Badge variant={

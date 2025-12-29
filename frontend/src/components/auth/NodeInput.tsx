@@ -60,9 +60,9 @@ export const NodeInput = ({ node, value, setValue, disabled, dispatchSubmit }: N
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 disabled={disabled}
-                className={node.messages.some(m => m.type === 'error') ? "border-destructive" : ""}
+                className={node.messages?.some(m => m.type === 'error') ? "border-destructive" : ""}
             />
-            {node.messages.map((msg) => (
+            {node.messages?.map((msg) => (
                 <p key={msg.id} className="text-[0.8rem] font-medium text-destructive mt-1">
                     {msg.text}
                 </p>

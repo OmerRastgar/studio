@@ -1,11 +1,13 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
 import { Client as MinioClient } from 'minio';
+import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
+const prisma = new PrismaClient();
 
 // MinIO client configuration
 const minioClient = new MinioClient({
@@ -181,9 +183,67 @@ router.get('/download/:projectId/:fileId', async (req: AuthRequest, res: Respons
     try {
         const { projectId, fileId } = req.params;
         const objectName = `${projectId}/${fileId}`;
+        const userId = req.user?.userId;
+        const userRole = req.user?.role?.toLowerCase();
 
-        const dataStream = await minioClient.getObject(BUCKET_NAME, objectName);
-        dataStream.pipe(res);
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        // 1. Verify Evidence Existence in DB (Strict Check)
+        // We look for an evidence record that points to this file.
+        // The fileUrl usually contains the fileId/UUID.
+        const evidence = await prisma.evidence.findFirst({
+            where: {
+                projectId,
+                fileUrl: { contains: fileId }
+            }
+        });
+
+        if (!evidence) {
+            return res.status(404).json({ error: 'File Not Found or Access Denied' });
+        }
+
+        // 2. Verify User Access to the Project
+        const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            include: { projectShares: true }
+        });
+
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        // Access Rule:
+        // - Admin/Manager: BLOCKED (View Only Metadata in UI)
+        // - Customer: Owner Only
+        // - Auditor: Assigned Only
+        // - Shared: Linked Only
+
+        let hasDownloadAccess = false;
+
+        if (userRole === 'admin' || userRole === 'manager') {
+            hasDownloadAccess = false; // Explicitly block
+        } else if (userRole === 'customer') {
+            hasDownloadAccess = (project.customerId === userId);
+        } else if (userRole === 'auditor' || userRole === 'reviewer') {
+            hasDownloadAccess = (project.auditorId === userId || project.reviewerAuditorId === userId);
+        } else {
+            // Check Project Shares
+            hasDownloadAccess = project.projectShares.some((s: any) => s.userId === userId);
+        }
+
+        if (!hasDownloadAccess) {
+            return res.status(403).json({ error: 'Access denied to this file.' });
+        }
+
+        // 3. Serve Stream
+        try {
+            const dataStream = await minioClient.getObject(BUCKET_NAME, objectName);
+            dataStream.pipe(res);
+        } catch (minioError) {
+            console.error('MinIO Error:', minioError);
+            return res.status(404).json({ error: 'File content not found in storage.' });
+        }
+
     } catch (error) {
         console.error('Error downloading file:', error);
         return res.status(500).json({ error: 'Failed to download file' });
@@ -191,13 +251,53 @@ router.get('/download/:projectId/:fileId', async (req: AuthRequest, res: Respons
 });
 
 /**
- * GET /api/uploads/:objectName
+ * GET /api/uploads/url/:projectId/:fileId
  * Get presigned URL for downloading a file
  */
 router.get('/url/:projectId/:fileId', async (req: AuthRequest, res: Response) => {
     try {
         const { projectId, fileId } = req.params;
         const objectName = `${projectId}/${fileId}`;
+        const userId = req.user?.userId;
+        const userRole = req.user?.role?.toLowerCase();
+
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        // 1. Verify Evidence Existence
+        const evidence = await prisma.evidence.findFirst({
+            where: {
+                projectId,
+                fileUrl: { contains: fileId }
+            }
+        });
+
+        if (!evidence) {
+            return res.status(404).json({ error: 'File Not Found or Access Denied' });
+        }
+
+        // 2. Verify Project Access
+        const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            include: { projectShares: true }
+        });
+
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+
+        let hasAccess = false;
+
+        if (userRole === 'admin' || userRole === 'manager') {
+            hasAccess = false;
+        } else if (userRole === 'customer') {
+            hasAccess = (project.customerId === userId);
+        } else if (userRole === 'auditor' || userRole === 'reviewer') {
+            hasAccess = (project.auditorId === userId || project.reviewerAuditorId === userId);
+        } else {
+            hasAccess = project.projectShares.some((s: any) => s.userId === userId);
+        }
+
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Access denied to this file.' });
+        }
 
         // Generate presigned URL (valid for 1 hour)
         const presignedUrl = await minioClient.presignedGetObject(BUCKET_NAME, objectName, 3600);

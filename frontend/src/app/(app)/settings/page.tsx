@@ -534,7 +534,8 @@ function SecuritySettings() {
           text: 'Confirm Password',
           type: 'info'
         }
-      }
+      },
+      messages: []
     };
     safePasswordNodes.splice(passwordNodeIndex + 1, 0, confirmNode);
   }

@@ -397,9 +397,9 @@ function ManagerProjectsContent() {
 
                             {/* Actions */}
                             <div className="flex gap-2 mt-4">
-                                <Link href={`/reports?project=${project.id}`} className="flex-1">
+                                <Link href={`/dashboard/project/${project.id}`} className="flex-1">
                                     <Button variant="outline" className="w-full">
-                                        View Report
+                                        View Controls
                                         <ChevronRight className="w-4 h-4 ml-2" />
                                     </Button>
                                 </Link>
