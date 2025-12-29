@@ -69,15 +69,17 @@ export default function UsersPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<UserProfile | null>(null);
+  /* ... (imports remain) ... */
+  // Add managerId to state definitions
   const [newUser, setNewUser] = React.useState<{
     name: string;
     email: string;
     role: User['role'];
-    linkedCustomerId?: string; // Optional for compliance
-  }>({ name: '', email: '', role: 'customer', linkedCustomerId: '' });
+    managerId?: string; // Add managerId
+    linkedCustomerId?: string;
+  }>({ name: '', email: '', role: 'customer', managerId: 'none', linkedCustomerId: 'none' });
   const [isCreating, setIsCreating] = React.useState(false);
   const [isUpdating, setIsUpdating] = React.useState(false);
-
   const { toast } = useToast();
 
   const userRoles: User['role'][] = React.useMemo(() => {
@@ -94,6 +96,9 @@ export default function UsersPage() {
       setNewUser(prev => ({ ...prev, role: 'customer' }));
     }
   }, [currentUser?.role, newUser.role]);
+
+  // Memoize managers list for dropdown
+  const managers = React.useMemo(() => users.filter(u => u.role === 'manager'), [users]);
 
   // Fetch users from API
   const fetchUsers = React.useCallback(async () => {
@@ -144,6 +149,7 @@ export default function UsersPage() {
       .join('');
 
   const handleCreateUser = async () => {
+    // Basic validation
     if (!newUser.name || !newUser.email) {
       toast({
         variant: 'destructive',
@@ -156,13 +162,19 @@ export default function UsersPage() {
     setIsCreating(true);
     try {
       if (!token) throw new Error('No authentication token');
+
+      // Clean up payload
+      const payload: any = { ...newUser };
+      if (payload.managerId === 'none') delete payload.managerId;
+      if (payload.linkedCustomerId === 'none') delete payload.linkedCustomerId;
+
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify(newUser),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -170,7 +182,7 @@ export default function UsersPage() {
       if (data.success) {
         setUsers(prev => [data.user, ...prev]);
         setIsCreateDialogOpen(false);
-        setNewUser({ name: '', email: '', role: 'customer' });
+        setNewUser({ name: '', email: '', role: 'customer', managerId: 'none', linkedCustomerId: 'none' });
         toast({
           title: 'User Created',
           description: `${data.user.name} has been added to the system.`,
@@ -213,17 +225,21 @@ export default function UsersPage() {
     setIsUpdating(true);
     try {
       if (!token) throw new Error('No authentication token');
+
+      const payload: any = {
+        name: editingUser.name,
+        role: editingUser.role,
+        status: editingUser.status,
+        managerId: editingUser.managerId === 'none' ? null : editingUser.managerId,
+      };
+
       const response = await fetch(`/api/users/${editingUser.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({
-          name: editingUser.name,
-          role: editingUser.role,
-          status: editingUser.status,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -360,15 +376,37 @@ export default function UsersPage() {
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="new-user-customer" className="text-right">Link Customer</Label>
                     <Select
-                      value={newUser.linkedCustomerId || ''}
+                      value={newUser.linkedCustomerId || 'none'}
                       onValueChange={(value) => setNewUser({ ...newUser, linkedCustomerId: value })}
                     >
                       <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select a Customer" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">Select Customer...</SelectItem>
                         {users.filter(u => u.role === 'customer').map(customer => (
                           <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Manager Selection (for Auditor/Customer) */}
+                {(newUser.role === 'auditor' || newUser.role === 'customer') && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="new-user-manager" className="text-right">Manager</Label>
+                    <Select
+                      value={newUser.managerId || 'none'}
+                      onValueChange={(value) => setNewUser({ ...newUser, managerId: value })}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select a Manager" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {managers.map(mgr => (
+                          <SelectItem key={mgr.id} value={mgr.id}>{mgr.name} ({mgr.email})</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -499,6 +537,7 @@ export default function UsersPage() {
             </TableBody>
           </Table>
         </div>
+
         {/* Edit User Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent>
@@ -525,7 +564,7 @@ export default function UsersPage() {
                     id="edit-user-email"
                     type="email"
                     value={editingUser.email}
-                    disabled // Typically email is not editable as it's a primary identifier
+                    disabled
                     className="col-span-3"
                   />
                 </div>
@@ -545,6 +584,27 @@ export default function UsersPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Manager Selection (Edit) */}
+                {(editingUser.role === 'auditor' || editingUser.role === 'customer') && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-user-manager" className="text-right">Manager</Label>
+                    <Select
+                      value={editingUser.managerId || 'none'}
+                      onValueChange={(value) => setEditingUser({ ...editingUser, managerId: value })}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select a Manager" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {managers.map(mgr => (
+                          <SelectItem key={mgr.id} value={mgr.id}>{mgr.name} ({mgr.email})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             )}
             <DialogFooter>

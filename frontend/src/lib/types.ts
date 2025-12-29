@@ -13,6 +13,8 @@ export type UserProfile = User & {
   lastActive?: string;
   createdAt?: string;
   forcePasswordChange?: boolean;
+  managerId?: string;
+  linkedCustomerId?: string;
 }
 
 export type Project = {
