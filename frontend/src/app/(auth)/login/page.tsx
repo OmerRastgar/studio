@@ -384,7 +384,9 @@ function LoginForm() {
             {/* Footer */}
             <footer className="mt-8 text-center text-xs text-muted-foreground">
                 <p>© {new Date().getFullYear()} All rights reserved to <span className="font-semibold text-foreground">Cybergaar</span></p>
-                <p className="mt-1">Secure • Compliant • Trusted</p>
+                <p className="mt-1">
+                    Secure • Compliant • Trusted • <Link href="/privacy" className="hover:text-foreground underline underline-offset-4">Privacy</Link> • <Link href="/terms" className="hover:text-foreground underline underline-offset-4">Terms</Link>
+                </p>
             </footer>
         </div >
     );
