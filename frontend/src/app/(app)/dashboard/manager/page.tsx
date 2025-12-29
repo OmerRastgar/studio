@@ -352,27 +352,30 @@ function ManagerDashboardContent() {
                                     className="block"
                                 >
                                     <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary hover:bg-accent/50 transition-all cursor-pointer group">
-                                        <div className="flex items-center gap-3">
-                                            <Avatar>
+                                        <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
+                                            <Avatar className="flex-shrink-0">
                                                 <AvatarImage src={auditor.avatarUrl || undefined} />
                                                 <AvatarFallback>
                                                     {auditor.name.split(' ').map((n: string) => n[0]).join('')}
                                                 </AvatarFallback>
                                             </Avatar>
-                                            <div>
-                                                <p className="font-medium group-hover:text-primary transition-colors">{auditor.name}</p>
-                                                <p className="text-sm text-muted-foreground">{auditor.email}</p>
+                                            <div className="min-w-0 truncate">
+                                                <p className="font-medium group-hover:text-primary transition-colors truncate">{auditor.name}</p>
+                                                <p className="text-sm text-muted-foreground truncate">{auditor.email}</p>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="text-right">
+                                        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                                            <div className="text-right hidden sm:block">
                                                 <p className="text-sm font-medium">{auditor.projectCount} projects</p>
                                                 <p className="text-xs text-muted-foreground">{auditor.avgCompletion}% avg completion</p>
+                                            </div>
+                                            <div className="text-right sm:hidden">
+                                                <p className="text-xs font-medium">{auditor.avgCompletion}%</p>
                                             </div>
                                             <Badge variant={
                                                 auditor.workload === 'high' ? 'destructive' :
                                                     auditor.workload === 'medium' ? 'secondary' : 'outline'
-                                            }>
+                                            } className="whitespace-nowrap">
                                                 {auditor.workload}
                                             </Badge>
                                             <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />

@@ -229,7 +229,7 @@ export default function AuditorDetailPage() {
                                 <div key={project.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-accent/50 transition-colors">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3">
-                                            <Link href={`/reports?projectId=${project.id}`} className="font-medium hover:text-primary hover:underline">
+                                            <Link href={`/dashboard/project/${project.id}`} className="font-medium hover:text-primary hover:underline">
                                                 {project.name}
                                             </Link>
                                             <Badge className={getStatusColor(project.status)}>
@@ -285,7 +285,7 @@ export default function AuditorDetailPage() {
                                 <div key={project.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-accent/50 transition-colors">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3">
-                                            <Link href={`/reports?projectId=${project.id}`} className="font-medium hover:text-primary hover:underline">
+                                            <Link href={`/dashboard/project/${project.id}`} className="font-medium hover:text-primary hover:underline">
                                                 {project.name}
                                             </Link>
                                             <Badge className={getStatusColor(project.status)}>
