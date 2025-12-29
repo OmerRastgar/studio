@@ -69,6 +69,29 @@ function RegisterForm() {
             }
         }
 
+        // Confirm Password Validation
+        const password = flatBody.password as string;
+        const confirmPassword = flatBody.confirm_password as string;
+
+        if (flatBody.method === 'password' && password !== confirmPassword) {
+            setFlow({
+                ...flow,
+                ui: {
+                    ...flow.ui,
+                    messages: [{
+                        id: 4000001,
+                        text: "Passwords do not match",
+                        type: "error",
+                        context: {}
+                    }]
+                }
+            });
+            return;
+        }
+
+        // Remove confirm_password before sending to Kratos
+        delete flatBody.confirm_password;
+
         // Unflatten for Kratos JSON API
         const body = unflatten(flatBody);
 
@@ -162,6 +185,22 @@ function RegisterForm() {
                         isLoading={false}
                         onSubmit={onSubmit}
                     />
+
+                    {/* Manually inject Confirm Password if password field exists */}
+                    {flow.ui.nodes.some((n: any) => n.attributes.name === 'password') && (
+                        <div className="mt-4 space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="confirm_password">
+                                Confirm Password
+                            </label>
+                            <input
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                id="confirm_password"
+                                name="confirm_password"
+                                type="password"
+                                required
+                            />
+                        </div>
+                    )}
 
                     <div className="mt-4">
                         <div className="relative">

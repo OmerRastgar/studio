@@ -313,6 +313,11 @@ function SecuritySettings() {
     );
   }
 
+  // Force Change Alert
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const isForceChange = searchParams?.get('reason') === 'force_change' || user?.forcePasswordChange;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!flow) return;
@@ -333,6 +338,19 @@ function SecuritySettings() {
         updateSettingsFlowBody: body as any
       });
       setFlow(data);
+
+      // Check if password change was successful (no error messages and state is success-like or just check flow messages)
+      // Usually Kratos returns 'success' message.
+      const hasSuccess = data.ui.messages?.some(m => m.type === 'success');
+      if (hasSuccess) {
+        // If we were in force change mode, ack it
+        if (isForceChange) {
+          await fetch('/api/users/ack-password-change', { method: 'POST' });
+          // Redirect to dashboard to clear params and re-check
+          router.push('/dashboard');
+        }
+      }
+
     } catch (err: any) {
       if (err.response?.status === 400) {
         setFlow(err.response.data);
@@ -371,6 +389,14 @@ function SecuritySettings() {
           <CardDescription>Update your password to keep your account secure.</CardDescription>
         </CardHeader>
         <CardContent>
+          {isForceChange && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertTitle>Action Required</AlertTitle>
+              <AlertDescription>
+                You must change your password before you can continue using the platform.
+              </AlertDescription>
+            </Alert>
+          )}
           {/* Success/Error Messages for flow */}
           {flow.ui.messages?.map(msg => (
             <Alert key={msg.id} variant={msg.type === 'error' ? 'destructive' : 'default'} className="mb-4">

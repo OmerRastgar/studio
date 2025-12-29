@@ -181,6 +181,7 @@ model User {
   createdById String?    @map("created_by_id")
   managerId   String?    @map("manager_id") // Link to Manager
   linkedCustomerId String? @map("linked_customer_id") // Link Compliance to Customer
+  forcePasswordChange Boolean @default(false) @map("force_password_change")
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
   

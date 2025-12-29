@@ -59,18 +59,23 @@ export default function UserManagementPage() {
     // Dialog states
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [showEditDialog, setShowEditDialog] = useState(false);
+    const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+    const [generatedPassword, setGeneratedPassword] = useState("");
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
     // Form states
     const [formData, setFormData] = useState({
         name: "",
         email: "",
-        password: "",
-        role: "customer"
+        role: "customer",
+        managerId: "none"
     });
     const [formLoading, setFormLoading] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
+    const managers = users.filter(u => u.role === 'manager');
+
+    // ... fetchUsers ...
     const fetchUsers = async () => {
         if (!token) return;
 
@@ -97,8 +102,8 @@ export default function UserManagementPage() {
     }, [token]);
 
     const handleCreateUser = async () => {
-        if (!formData.name || !formData.email || !formData.password) {
-            setFormError("All fields are required");
+        if (!formData.name || !formData.email) {
+            setFormError("Name and Email are required");
             return;
         }
 
@@ -107,13 +112,17 @@ export default function UserManagementPage() {
 
         try {
             const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
+
+            const payload: any = { ...formData };
+            if (payload.managerId === "none") delete payload.managerId;
+
             const res = await fetch(`${apiBase}/api/admin/users`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             const data = await res.json();
@@ -122,8 +131,15 @@ export default function UserManagementPage() {
             }
 
             setShowCreateDialog(false);
-            setFormData({ name: "", email: "", password: "", role: "customer" });
+            setFormData({ name: "", email: "", role: "customer", managerId: "none" });
             fetchUsers();
+
+            // Show generated password
+            if (data.generatedPassword) {
+                setGeneratedPassword(data.generatedPassword);
+                setShowPasswordDialog(true);
+            }
+
         } catch (err) {
             setFormError(err instanceof Error ? err.message : "Failed to create user");
         } finally {
@@ -143,10 +159,8 @@ export default function UserManagementPage() {
                 name: formData.name,
                 email: formData.email,
                 role: formData.role,
+                managerId: formData.managerId === "none" ? null : formData.managerId
             };
-            if (formData.password) {
-                updateData.password = formData.password;
-            }
 
             const res = await fetch(`${apiBase}/api/admin/users/${selectedUser.id}`, {
                 method: "PUT",
@@ -172,6 +186,7 @@ export default function UserManagementPage() {
         }
     };
 
+    // ... handleDeleteUser ...
     const handleDeleteUser = async (userId: string) => {
         if (!confirm("Are you sure you want to delete this user?")) return;
 
@@ -198,8 +213,8 @@ export default function UserManagementPage() {
         setFormData({
             name: user.name,
             email: user.email,
-            password: "",
-            role: user.role
+            role: user.role,
+            managerId: (user as any).managerId || "none"
         });
         setFormError(null);
         setShowEditDialog(true);
@@ -234,7 +249,7 @@ export default function UserManagementPage() {
                     <p className="text-muted-foreground">Manage system users and roles</p>
                 </div>
                 <Button onClick={() => {
-                    setFormData({ name: "", email: "", password: "", role: "customer" });
+                    setFormData({ name: "", email: "", role: "customer", managerId: "none" });
                     setFormError(null);
                     setShowCreateDialog(true);
                 }}>
@@ -334,7 +349,7 @@ export default function UserManagementPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Create User</DialogTitle>
-                        <DialogDescription>Add a new user to the system</DialogDescription>
+                        <DialogDescription>Add a new user to the system. A random password will be generated.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -354,15 +369,7 @@ export default function UserManagementPage() {
                                 placeholder="john@example.com"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label>Password</Label>
-                            <Input
-                                type="password"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                placeholder="••••••••"
-                            />
-                        </div>
+                        {/* Removed Password Field */}
                         <div className="space-y-2">
                             <Label>Role</Label>
                             <Select
@@ -381,6 +388,28 @@ export default function UserManagementPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+                        {(formData.role === 'auditor' || formData.role === 'customer') && (
+                            <div className="space-y-2">
+                                <Label>Manager</Label>
+                                <Select
+                                    value={formData.managerId}
+                                    onValueChange={(value) => setFormData({ ...formData, managerId: value })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a manager" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">None</SelectItem>
+                                        {managers.map(mgr => (
+                                            <SelectItem key={mgr.id} value={mgr.id}>
+                                                {mgr.name} ({mgr.email})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
                         {formError && (
                             <p className="text-sm text-destructive">{formError}</p>
                         )}
@@ -391,6 +420,28 @@ export default function UserManagementPage() {
                         </Button>
                         <Button onClick={handleCreateUser} disabled={formLoading}>
                             {formLoading ? "Creating..." : "Create User"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Generated Password Dialog */}
+            <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>User Created Successfully</DialogTitle>
+                        <DialogDescription>
+                            Please copy the following password and share it with the user. They will be required to change it upon first login.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-6 flex justify-center">
+                        <div className="bg-muted p-4 rounded-md font-mono text-xl select-all border border-primary/20">
+                            {generatedPassword}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setShowPasswordDialog(false)}>
+                            Close
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -419,15 +470,7 @@ export default function UserManagementPage() {
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label>New Password (leave blank to keep current)</Label>
-                            <Input
-                                type="password"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                placeholder="••••••••"
-                            />
-                        </div>
+                        {/* Password change removed - use Admin API or Kratos Recovery if needed, or leave blank */}
                         <div className="space-y-2">
                             <Label>Role</Label>
                             <Select
@@ -446,6 +489,27 @@ export default function UserManagementPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+                        {(formData.role === 'auditor' || formData.role === 'customer') && (
+                            <div className="space-y-2">
+                                <Label>Manager</Label>
+                                <Select
+                                    value={formData.managerId}
+                                    onValueChange={(value) => setFormData({ ...formData, managerId: value })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a manager" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">None</SelectItem>
+                                        {managers.map(mgr => (
+                                            <SelectItem key={mgr.id} value={mgr.id}>
+                                                {mgr.name} ({mgr.email})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                         {formError && (
                             <p className="text-sm text-destructive">{formError}</p>
                         )}

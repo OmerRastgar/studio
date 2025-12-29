@@ -11,6 +11,8 @@ export type UserProfile = User & {
   id: string;
   status: 'Active' | 'Inactive';
   lastActive?: string;
+  createdAt?: string;
+  forcePasswordChange?: boolean;
 }
 
 export type Project = {
@@ -36,7 +38,10 @@ export type AuditLog = {
   id: string;
   user: {
     name: string;
-    avatarUrl: string;
+    avatarUrl?: string;
+    lastActive?: string;
+    createdAt?: string; // ISO string
+    forcePasswordChange?: boolean;
   };
   action: string;
   details: string;

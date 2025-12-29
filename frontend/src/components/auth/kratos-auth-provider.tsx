@@ -146,6 +146,7 @@ export function KratosAuthProvider({ children }: { children: ReactNode }) {
                     avatarUrl: traits?.picture || undefined,
                     lastActive: data.expires_at ? new Date(data.expires_at).toISOString() : new Date().toISOString(),
                     createdAt: identity.created_at ? new Date(identity.created_at).toISOString() : new Date().toISOString(),
+                    forcePasswordChange: (data.identity?.metadata_public as any)?.forcePasswordChange ?? false
                 } as User);
 
                 // Fetch JWT token after session is validated
@@ -213,6 +214,15 @@ export function KratosAuthProvider({ children }: { children: ReactNode }) {
         if (!loading && user && publicRoutes.includes(pathname) && !isRefresh && !pathname.startsWith('/compliance/') && !isTransitPage) {
             console.log("[KratosAuthProvider] User logged in on public route, redirecting to /dashboard");
             router.replace("/dashboard");
+        }
+
+        // Force Password Change Check
+        if (!loading && user && (user as any).forcePasswordChange) {
+            const isSettingsSecurity = pathname === '/settings' && searchParams?.get('tab') === 'security';
+            if (!isSettingsSecurity) {
+                console.log("[KratosAuthProvider] Force Password Change detected. Redirecting to settings.");
+                router.replace("/settings?tab=security&reason=force_change");
+            }
         }
     }, [user, loading, pathname, router, searchParams]);
 

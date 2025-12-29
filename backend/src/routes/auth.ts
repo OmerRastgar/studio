@@ -49,7 +49,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
             select: {
                 avatarUrl: true,
                 managerId: true,
-                lastActive: true
+                lastActive: true,
+                forcePasswordChange: true
             }
         });
 
@@ -66,6 +67,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
                 status: identity.state === 'active' ? 'Active' : 'Inactive',
                 avatarUrl: localUser?.avatarUrl || `https://picsum.photos/seed/${identity.id}/100/100`,
                 lastActive: localUser?.lastActive?.toISOString(),
+                forcePasswordChange: localUser?.forcePasswordChange ?? false,
                 createdAt: identity.created_at
             }
         });

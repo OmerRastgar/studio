@@ -124,10 +124,9 @@ router.post('/', async (req, res) => {
         } else if (currentUser.role === 'admin') {
             // Admin Enforcements
             if (role === 'auditor' || role === 'customer') {
-                if (!req.body.managerId) {
-                    return res.status(400).json({ error: `A Manager must be selected for ${role} users` });
+                if (req.body.managerId) {
+                    managerId = req.body.managerId;
                 }
-                managerId = req.body.managerId;
             }
 
             if (role === 'compliance') {
@@ -149,8 +148,8 @@ router.post('/', async (req, res) => {
 
         // 2. Create Identity in Kratos
 
-        // Default password for users created via this flow (they should do recovery/reset)
-        const tempPassword = 'password123';
+        // Generate Random Password
+        const generatedPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
 
         const { data: identity } = await kratosAdmin.createIdentity({
             createIdentityBody: {
@@ -162,13 +161,13 @@ router.post('/', async (req, res) => {
                     role
                 },
                 credentials: {
-                    password: { config: { password: tempPassword } }
+                    password: { config: { password: generatedPassword } }
                 }
             }
         });
 
         // 3. Create Shadow User in Local DB
-        const defaultPassword = await hashPassword(tempPassword);
+        const defaultPassword = await hashPassword(generatedPassword);
 
         const user = await prisma.user.create({
             data: {
@@ -180,7 +179,8 @@ router.post('/', async (req, res) => {
                 avatarUrl: `https://picsum.photos/seed/${name.replace(/\s+/g, '')}/100/100`,
                 status: 'Active',
                 managerId,
-                linkedCustomerId
+                linkedCustomerId,
+                forcePasswordChange: true // NEW: Force change on first login
             },
             select: {
                 id: true,
@@ -225,6 +225,7 @@ router.post('/', async (req, res) => {
                 lastActive: user.lastActive?.toISOString(),
                 createdAt: user.createdAt.toISOString(),
             },
+            generatedPassword // CRITICAL: Return THIS ONCE for the UI to show
         });
     } catch (error: any) {
         console.error('Create user error:', error);
@@ -233,6 +234,29 @@ router.post('/', async (req, res) => {
             return res.status(409).json({ error: 'Email already exists' });
         }
         res.status(500).json({ error: 'Failed to create user' });
+    }
+});
+
+// POST /api/users/ack-password-change - Acknowledge forced password change
+router.post('/ack-password-change', async (req, res) => {
+    try {
+        const currentUser = (req as any).user;
+        const targetUserId = req.body.userId || currentUser.userId;
+
+        // Only allow self or admin
+        if (currentUser.role !== 'admin' && targetUserId !== currentUser.userId) {
+            return res.status(403).json({ error: 'Unauthorized to acknowledge for other users' });
+        }
+
+        await prisma.user.update({
+            where: { id: targetUserId },
+            data: { forcePasswordChange: false }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Ack password change error:', error);
+        res.status(500).json({ error: 'Failed to update user status' });
     }
 });
 
@@ -352,6 +376,7 @@ router.put('/:id', async (req, res) => {
                 name,
                 role,
                 status: status || undefined,
+                managerId: req.body.managerId, // Allow Manager reassignment
             },
             create: {
                 id: userId,
@@ -361,6 +386,7 @@ router.put('/:id', async (req, res) => {
                 status: status || 'Active',
                 password: await hashPassword('kratos_managed_user'),
                 avatarUrl: `https://picsum.photos/seed/${userId}/100/100`,
+                managerId: req.body.managerId,
             },
             select: {
                 id: true,
