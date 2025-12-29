@@ -27,6 +27,15 @@ export function middleware(request: NextRequest) {
         console.log(`[Middleware] Protected route accessed. Verified cookie: ${verified?.value}`);
 
         if (!verified) {
+            // Optimization: If no Kratos session cookie exists, the user is definitely not logged in.
+            // Redirect straight to login instead of the loader.
+            const hasSession = request.cookies.getAll().some(c => c.name.includes('ory_kratos_session'));
+
+            if (!hasSession) {
+                console.log(`[Middleware] No Kratos session cookie found. Redirecting to /login`);
+                return NextResponse.redirect(new URL('/login', request.url));
+            }
+
             console.log(`[Middleware] Redirecting to /auth-loading`);
             const loginUrl = new URL('/auth-loading', request.url);
             // Preserve full path including query parameters
