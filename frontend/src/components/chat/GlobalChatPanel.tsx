@@ -140,7 +140,7 @@ export function GlobalChatPanel() {
 
     return (
         <Sheet open={isChatOpen} onOpenChange={(open) => !open && closeChat()}>
-            <SheetContent className="w-full sm:w-[420px] h-[100dvh] sm:h-full flex flex-col p-0 gap-0">
+            <SheetContent className="w-full sm:w-[420px] h-full flex flex-col p-0 gap-0">
                 <SheetHeader className="p-4 border-b flex-row items-center justify-between">
                     <div className="flex items-center gap-2">
                         {(activeConversation || showContacts) && (

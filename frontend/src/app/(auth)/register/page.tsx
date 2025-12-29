@@ -181,26 +181,39 @@ function RegisterForm() {
                     )}
 
                     <FlowNodes
-                        nodes={flow.ui.nodes.filter((n: any) => n.group !== 'oidc' && n.attributes.name !== 'provider')}
+                        nodes={(() => {
+                            const nodes = flow.ui.nodes.filter((n: any) => n.group !== 'oidc' && n.attributes.name !== 'provider');
+                            const passwordIndex = nodes.findIndex((n: any) => n.attributes.name === 'password');
+                            if (passwordIndex !== -1) {
+                                const confirmNode = {
+                                    type: 'input',
+                                    group: 'password',
+                                    attributes: {
+                                        name: 'confirm_password',
+                                        type: 'password',
+                                        node_type: 'input',
+                                        required: true,
+                                        disabled: false,
+                                        value: ''
+                                    },
+                                    messages: [],
+                                    meta: {
+                                        label: {
+                                            text: 'Confirm Password',
+                                            type: 'info'
+                                        }
+                                    }
+                                };
+                                // Insert after password
+                                const newNodes = [...nodes];
+                                newNodes.splice(passwordIndex + 1, 0, confirmNode as any);
+                                return newNodes;
+                            }
+                            return nodes;
+                        })()}
                         isLoading={false}
                         onSubmit={onSubmit}
                     />
-
-                    {/* Manually inject Confirm Password if password field exists */}
-                    {flow.ui.nodes.some((n: any) => n.attributes.name === 'password') && (
-                        <div className="mt-4 space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="confirm_password">
-                                Confirm Password
-                            </label>
-                            <input
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                id="confirm_password"
-                                name="confirm_password"
-                                type="password"
-                                required
-                            />
-                        </div>
-                    )}
 
                     <div className="mt-4">
                         <div className="relative">
