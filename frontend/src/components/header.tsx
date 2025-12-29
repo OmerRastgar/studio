@@ -180,6 +180,15 @@ export function Header({ user, pageTitle, showSidebarTrigger = true }: HeaderPro
           </DropdownMenuContent>
         </DropdownMenu>
 
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => restartTour()}
+          title="Start Walkthrough"
+        >
+          <HelpCircle className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+        </Button>
+
         <ThemeToggle />
 
         {user && (

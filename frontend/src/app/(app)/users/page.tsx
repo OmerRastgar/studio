@@ -285,6 +285,43 @@ export default function UsersPage() {
     }
   };
 
+  const handleResetPassword = async (user: UserProfile) => {
+    if (!confirm(`Are you sure you want to reset the password for ${user.name}? They will be required to change it on next login.`)) {
+      return;
+    }
+
+    try {
+      if (!token) throw new Error('No authentication token');
+
+      const response = await fetch(`/api/users/${user.id}/reset-password`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.generatedPassword) {
+        setGeneratedPassword(data.generatedPassword);
+        toast({
+          title: 'Password Reset Successful',
+          description: `A new password has been generated for ${user.name}.`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: data.error || 'Failed to reset password',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to reset password',
+      });
+    }
+  };
+
   const handleDeleteUser = async (user: UserProfile) => {
     if (!confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
       return;
@@ -513,7 +550,10 @@ export default function UsersPage() {
                             <Edit className="mr-2 h-4 w-4" />
                             Edit User
                           </DropdownMenuItem>
-                          <DropdownMenuItem><KeyRound className="mr-2 h-4 w-4" />Reset Password</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleResetPassword(user)}>
+                            <KeyRound className="mr-2 h-4 w-4" />
+                            Reset Password
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"

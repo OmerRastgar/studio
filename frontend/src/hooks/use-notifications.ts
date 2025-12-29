@@ -31,7 +31,13 @@ export const useNotifications = () => {
     useEffect(() => {
         if (!user || !token) return;
 
-        const socketUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000';
+        // Use API_URL root or default to current origin (for Kong/Gateway)
+        const socketUrl = process.env.NEXT_PUBLIC_API_URL
+            ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, '')
+            : '';
+
+        // If empty, io() connects to window.location.origin which is correct if served from same domain
+
         const newSocket = io(socketUrl, {
             path: '/socket.io',
             auth: { token }

@@ -165,6 +165,11 @@ export const auditorSteps: Step[] = [
     placement: 'right',
   },
   {
+    target: '[data-tour-id="findings"]',
+    content: 'Track and manage finding page report issues and remediation efforts.',
+    placement: 'right',
+  },
+  {
     target: 'body',
     content: 'Ready to start auditing? Select a project from the sidebar to begin.',
     placement: 'center',
@@ -250,6 +255,11 @@ export const customerSteps: Step[] = [
   {
     target: '[data-tour-id="agents"]',
     content: 'Download and deploy agents to automatically collect evidence from your systems.',
+    placement: 'right',
+  },
+  {
+    target: '[data-tour-id="casb"]',
+    content: 'Connect your cloud accounts via CASB to automatically monitor security configurations.',
     placement: 'right',
   },
   {

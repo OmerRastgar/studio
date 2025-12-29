@@ -37,7 +37,10 @@ export class NotificationService {
 
             // 2. Real-time Socket Emisison
             if (ioInstance) {
+                console.log(`[NotificationService] Emitting 'new_notification' to user:${userId}`);
                 ioInstance.to(`user:${userId}`).emit('new_notification', notification);
+            } else {
+                console.warn('[NotificationService] ioInstance is not set! Socket emission skipped.');
             }
 
             // 3. Push Notification (for urgent items or generally)
