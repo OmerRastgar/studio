@@ -433,7 +433,7 @@ export default function DashboardPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Auditor</TableHead>
-                    <TableHead>Current Projects</TableHead>
+                    <TableHead className="hidden md:table-cell">Current Projects</TableHead>
                     <TableHead>Progress</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>
@@ -463,7 +463,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {auditor.projects.map((project: any, index: number) => (
                           <div key={index} className="flex items-center gap-2 mb-1 last:mb-0">
                             <div className="flex-1">

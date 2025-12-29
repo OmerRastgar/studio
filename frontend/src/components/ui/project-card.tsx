@@ -48,12 +48,12 @@ export function ProjectCard({
                 className
             )}
         >
-            <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-primary/10">
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+                <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
                     <Folder className="w-5 h-5 text-primary" />
                 </div>
-                <div>
-                    <h3 className="font-medium text-foreground">{name}</h3>
+                <div className="min-w-0 flex-1">
+                    <h3 className="font-medium text-foreground truncate pr-2">{name}</h3>
                     <p className="text-sm text-muted-foreground">{framework}</p>
                     <div className="flex flex-col items-start gap-1 mt-1 text-xs text-muted-foreground">
                         {auditor && (

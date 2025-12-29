@@ -103,21 +103,21 @@ export function ComplianceProjectionCard({ onStartProject }: ComplianceProjectio
                     {!loading && !error && projections.length > 0 ? (
                         projections.map((proj) => (
                             <div key={proj.id} className="group cursor-pointer hover:bg-muted/50 p-2 rounded-lg transition-colors">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <h4 className="font-semibold text-sm">{proj.name}</h4>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+                                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                        <h4 className="font-semibold text-sm truncate max-w-[200px] sm:max-w-none">{proj.name}</h4>
                                         {proj.percentage > 0 && (
-                                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 whitespace-nowrap">
                                                 {proj.percentage}% ready
                                             </Badge>
                                         )}
                                         {proj.percentage === 0 && (
-                                            <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600 border-gray-200">
+                                            <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600 border-gray-200 whitespace-nowrap">
                                                 Add evidence with tags
                                             </Badge>
                                         )}
                                         {proj.hasProject && (
-                                            <Badge variant="secondary" className="text-xs">
+                                            <Badge variant="secondary" className="text-xs whitespace-nowrap">
                                                 {proj.projectStatus === 'approved' && '✓ Active'}
                                                 {proj.projectStatus === 'in_progress' && '⏳ In Progress'}
                                                 {proj.projectStatus === 'review_pending' && '👁 Under Review'}
@@ -125,8 +125,8 @@ export function ComplianceProjectionCard({ onStartProject }: ComplianceProjectio
                                             </Badge>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground">
+                                    <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+                                        <span className="text-xs text-muted-foreground whitespace-nowrap">
                                             {proj.covered}/{proj.total} controls
                                         </span>
                                         {!proj.hasProject && proj.percentage > 0 && (
@@ -134,7 +134,10 @@ export function ComplianceProjectionCard({ onStartProject }: ComplianceProjectio
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 text-xs"
-                                                onClick={() => onStartProject?.(proj.id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onStartProject?.(proj.id);
+                                                }}
                                             >
                                                 Start Project
                                             </Button>

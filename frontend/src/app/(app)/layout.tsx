@@ -247,7 +247,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Sidebar>
             <SidebarInset>
               <Header user={user} pageTitle={pageTitle} />
-              <main className="flex-1 p-4 md:p-6" data-tour-id="main-content">
+              <main className="flex-1 p-3 md:p-6 max-w-[100vw] overflow-x-hidden" data-tour-id="main-content">
                 {children}
               </main>
             </SidebarInset>

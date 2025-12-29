@@ -717,7 +717,7 @@ export function CustomerDashboardView() {
                                     {complianceUsers.map((user) => (
                                         <TableRow key={user.id}>
                                             <TableCell className="font-medium">{user.name}</TableCell>
-                                            <TableCell>{user.email}</TableCell>
+                                            <TableCell className="hidden md:table-cell">{user.email}</TableCell>
                                             <TableCell>
                                                 <div className="flex flex-wrap gap-2">
                                                     {projects.map((project) => {

@@ -401,7 +401,7 @@ export function EvidenceUploadDialog({
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-[550px]">
+            <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Upload Evidence</DialogTitle>
                     <DialogDescription>
