@@ -237,29 +237,6 @@ router.post('/', async (req, res) => {
     }
 });
 
-// POST /api/users/ack-password-change - Acknowledge forced password change
-router.post('/ack-password-change', async (req, res) => {
-    try {
-        const currentUser = (req as any).user;
-        const targetUserId = req.body.userId || currentUser.userId;
-
-        // Only allow self or admin
-        if (currentUser.role !== 'admin' && targetUserId !== currentUser.userId) {
-            return res.status(403).json({ error: 'Unauthorized to acknowledge for other users' });
-        }
-
-        await prisma.user.update({
-            where: { id: targetUserId },
-            data: { forcePasswordChange: false }
-        });
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Ack password change error:', error);
-        res.status(500).json({ error: 'Failed to update user status' });
-    }
-});
-
 // PUT /api/users/:id - Update user
 router.put('/:id', async (req, res) => {
     try {

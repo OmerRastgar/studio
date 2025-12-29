@@ -222,8 +222,24 @@ model User {
   
   bio                          String?                     // User biography/about me
   integrations                 UserIntegration[]           // Personal integrations (Google, etc)
-  
+  notifications                Notification[]
+
   @@map("users")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String   // 'message', 'meeting', 'audit_request', 'project_status', 'evidence_comment', 'deadline', 'issue', 'evidence_upload', 'assignment', 'user_created', 'password_reset'
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }
 
 model Auditor {

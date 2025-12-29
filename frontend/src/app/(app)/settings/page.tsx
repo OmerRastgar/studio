@@ -487,7 +487,7 @@ function SecuritySettings() {
       if (hasSuccess) {
         // If we were in force change mode, ack it
         if (isForceChange) {
-          await fetch('/api/users/ack-password-change', { method: 'POST' });
+          await fetch('/api/auth/ack-password-change', { method: 'POST' });
           // Redirect to dashboard to clear params and re-check
           router.push('/dashboard');
         }
@@ -558,9 +558,9 @@ function SecuritySettings() {
         </CardHeader>
         <CardContent>
           {isForceChange && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertTitle>Action Required</AlertTitle>
-              <AlertDescription>
+            <Alert variant="destructive" className="mb-6 border-red-600 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-100">
+              <AlertTitle className="text-red-900 dark:text-red-100 font-bold">Action Required</AlertTitle>
+              <AlertDescription className="text-red-900 dark:text-red-100">
                 You must change your password before you can continue using the platform.
               </AlertDescription>
             </Alert>

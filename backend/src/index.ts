@@ -88,9 +88,16 @@ import profileRoutes from './routes/profile';
 app.use('/api/profile', profileRoutes);
 import systemRoutes from './routes/system';
 import maintenanceRoutes from './routes/maintenance';
+import notificationRoutes from './routes/notifications';
+import { setIO } from './services/notification';
+
+// Initialize Notification Service with IO
+setIO(io);
 
 console.log('[DEBUG] Registering /api/system routes');
 app.use('/api/system', systemRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 

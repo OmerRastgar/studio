@@ -95,5 +95,30 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
 // Token issuance endpoints (for Kong JWT authorization)
 router.use(tokenRoutes);
 
+// POST /api/auth/ack-password-change - Acknowledge forced password change
+router.post('/ack-password-change', authenticate, async (req: AuthRequest, res: any) => {
+    try {
+        const currentUser = req.user;
+        if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
+
+        const targetUserId = req.body.userId || currentUser.userId;
+
+        // Only allow self or admin
+        if (currentUser.role !== 'admin' && targetUserId !== currentUser.userId) {
+            return res.status(403).json({ error: 'Unauthorized to acknowledge for other users' });
+        }
+
+        await prisma.user.update({
+            where: { id: targetUserId },
+            data: { forcePasswordChange: false }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Ack password change error:', error);
+        res.status(500).json({ error: 'Failed to acknowledge password change' });
+    }
+});
+
 export default router;
 
