@@ -425,6 +425,95 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+// POST /api/users/:id/reset-password - Reset user password (Admin/Manager)
+router.post('/:id/reset-password', async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const currentUser = (req as any).user;
+
+        console.log(`[User Reset Password] Request by ${currentUser.name} for target ${userId}`);
+
+        // 1. Fetch Target User (to verify permissions)
+        const targetUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, role: true, managerId: true, email: true, name: true }
+        });
+
+        if (!targetUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // 2. Permission Check
+        if (currentUser.role === 'manager') {
+            // Managers can only reset their own Auditors/Customers
+            if (targetUser.managerId !== currentUser.userId) {
+                return res.status(403).json({ error: 'Unauthorized to reset password for this user' });
+            }
+            if (!['auditor', 'customer'].includes(targetUser.role)) {
+                return res.status(403).json({ error: 'Managers can only reset Auditor or Customer passwords' });
+            }
+        }
+        // Admins can reset anyone (implicit)
+
+        // 3. Generate Random Password
+        const generatedPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
+
+        // 4. Update Kratos Credentials
+        try {
+            await kratosAdmin.updateIdentity({
+                id: userId,
+                updateIdentityBody: {
+                    schema_id: 'default',
+                    state: 'active',
+                    traits: {
+                        email: targetUser.email,
+                        name: targetUser.name,
+                        role: targetUser.role
+                    },
+                    credentials: {
+                        password: { config: { password: generatedPassword } }
+                    }
+                }
+            });
+        } catch (kratosErr: any) {
+            console.error('[User Reset Password] Kratos update failed:', kratosErr);
+            return res.status(500).json({ error: 'Failed to update identity provider credentials' });
+        }
+
+        // 5. Update Local DB (Hash + Force Change Flag)
+        const hashedPassword = await hashPassword(generatedPassword);
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                password: hashedPassword,
+                forcePasswordChange: true
+            }
+        });
+
+        // 6. Audit Log
+        await prisma.auditLog.create({
+            data: {
+                id: `LOG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                userName: currentUser.name || 'System Admin',
+                action: 'Password Reset',
+                details: `Password reset for user ${targetUser.name} (${targetUser.email})`,
+                severity: 'High',
+            },
+        });
+
+        console.log(`[User Reset Password] Success for ${targetUser.email}`);
+
+        res.json({
+            success: true,
+            generatedPassword // Return to admin to share with user
+        });
+
+    } catch (error) {
+        console.error('[User Reset Password] Error:', error);
+        res.status(500).json({ error: 'Failed to reset password' });
+    }
+});
+
 // DELETE /api/users/:id - Delete user
 router.delete('/:id', async (req, res) => {
     try {
