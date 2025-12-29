@@ -428,7 +428,7 @@ export default function DashboardPage() {
                 className="pl-8 w-full"
               />
             </div>
-            <div className="border rounded-md">
+            <div className="border rounded-md overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -678,49 +678,51 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockAuditLogs.slice(0, 5).map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage
-                              src={log.user.avatarUrl}
-                              alt={log.user.name}
-                            />
-                            <AvatarFallback>
-                              {getInitials(log.user.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{log.user.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            log.action.includes('Generated')
-                              ? 'default'
-                              : 'secondary'
-                          }
-                        >
-                          {log.action}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        <TimeAgo date={log.timestamp} />
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Time</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {mockAuditLogs.slice(0, 5).map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage
+                                src={log.user.avatarUrl}
+                                alt={log.user.name}
+                              />
+                              <AvatarFallback>
+                                {getInitials(log.user.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{log.user.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              log.action.includes('Generated')
+                                ? 'default'
+                                : 'secondary'
+                            }
+                          >
+                            {log.action}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <TimeAgo date={log.timestamp} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         ) : (

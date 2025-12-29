@@ -182,6 +182,7 @@ model User {
   managerId   String?    @map("manager_id") // Link to Manager
   linkedCustomerId String? @map("linked_customer_id") // Link Compliance to Customer
   forcePasswordChange Boolean @default(false) @map("force_password_change")
+  pushSubscription Json?     @map("push_subscription")
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
   

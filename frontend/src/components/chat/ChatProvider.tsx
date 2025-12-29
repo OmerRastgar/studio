@@ -406,6 +406,69 @@ export function ChatProvider({ children }: ChatProviderProps) {
         ));
     }, [socket, activeConversation]);
 
+    // Push Subscription Logic
+    useEffect(() => {
+        if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+        const urlBase64ToUint8Array = (base64String: string) => {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/\-/g, '+')
+                .replace(/_/g, '/');
+
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        };
+
+        const subscribeToPush = async () => {
+            // Wait for auth
+            if (authLoading || !user) return;
+            const token = getToken();
+            if (!token) return;
+
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+                if (!publicKey) {
+                    console.warn('No VAPID public key found in environment');
+                    return;
+                }
+
+                const existingSub = await registration.pushManager.getSubscription();
+                let subscription = existingSub;
+
+                if (!subscription) {
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(publicKey)
+                    });
+                    console.log('User subscribed to push notifications');
+                }
+
+                // Send to backend
+                await fetch(`${API_URL}/api/chat/subscribe`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify(subscription)
+                });
+
+            } catch (error) {
+                console.error('Failed to subscribe to push:', error);
+            }
+        };
+
+        subscribeToPush();
+    }, [user, authLoading, API_URL]);
+
     return (
         <ChatContext.Provider value={{
             socket,

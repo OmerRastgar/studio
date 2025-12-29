@@ -88,77 +88,79 @@ export function CustomerAssignmentList() {
                 </div>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Customer</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Active Projects</TableHead>
-                            <TableHead>Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredCustomers.length === 0 ? (
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                    No customers found
-                                </TableCell>
+                                <TableHead>Customer</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Active Projects</TableHead>
+                                <TableHead>Actions</TableHead>
                             </TableRow>
-                        ) : (
-                            filteredCustomers.map((customer) => (
-                                <TableRow key={customer.id}>
-                                    <TableCell className="flex items-center gap-3">
-                                        <Avatar>
-                                            <AvatarImage src={customer.avatarUrl || undefined} />
-                                            <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <div className="font-medium">{customer.name}</div>
-                                            <div className="text-xs text-muted-foreground">{customer.email}</div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={customer.status === 'Active' ? 'default' : 'secondary'}>
-                                            {customer.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1">
-                                            {customer.projects.map(p => (
-                                                <div key={p.id} className="flex items-center justify-between mb-2 last:mb-0">
-                                                    <Link href={`/dashboard/project/${p.id}`} className="block flex-1 mr-2">
-                                                        <div className="flex items-center gap-2 text-sm hover:underline cursor-pointer group">
-                                                            <span className="truncate max-w-[150px] font-medium group-hover:text-primary transition-colors">{p.name}</span>
-                                                            <Badge variant={p.status === 'approved' ? 'default' : p.status === 'returned' ? 'destructive' : 'outline'} className="text-[10px] px-1 py-0 h-5 capitalize">{p.status?.replace('_', ' ') || 'In Progress'}</Badge>
-                                                        </div>
-                                                    </Link>
-                                                    <div className="flex gap-1">
-                                                        <Link href={`/dashboard/project/${p.id}`}>
-                                                            <Button variant="ghost" size="icon" className="h-6 w-6" title="View Details">
-                                                                <ExternalLink className="h-3 w-3" />
-                                                            </Button>
-                                                        </Link>
-                                                        <Link href={`/reports?projectId=${p.id}`}>
-                                                            <Button variant="ghost" size="icon" className="h-6 w-6" title="Open Audit Report">
-                                                                <FileText className="h-3 w-3" />
-                                                            </Button>
-                                                        </Link>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            {customer.projects.length === 0 && (
-                                                <span className="text-muted-foreground text-sm">No active projects</span>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="text-muted-foreground text-xs">--</span>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredCustomers.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                        No customers found
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                            ) : (
+                                filteredCustomers.map((customer) => (
+                                    <TableRow key={customer.id}>
+                                        <TableCell className="flex items-center gap-3">
+                                            <Avatar>
+                                                <AvatarImage src={customer.avatarUrl || undefined} />
+                                                <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <div className="font-medium">{customer.name}</div>
+                                                <div className="text-xs text-muted-foreground">{customer.email}</div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={customer.status === 'Active' ? 'default' : 'secondary'}>
+                                                {customer.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col gap-1">
+                                                {customer.projects.map(p => (
+                                                    <div key={p.id} className="flex items-center justify-between mb-2 last:mb-0">
+                                                        <Link href={`/dashboard/project/${p.id}`} className="block flex-1 mr-2">
+                                                            <div className="flex items-center gap-2 text-sm hover:underline cursor-pointer group">
+                                                                <span className="truncate max-w-[150px] font-medium group-hover:text-primary transition-colors">{p.name}</span>
+                                                                <Badge variant={p.status === 'approved' ? 'default' : p.status === 'returned' ? 'destructive' : 'outline'} className="text-[10px] px-1 py-0 h-5 capitalize">{p.status?.replace('_', ' ') || 'In Progress'}</Badge>
+                                                            </div>
+                                                        </Link>
+                                                        <div className="flex gap-1">
+                                                            <Link href={`/dashboard/project/${p.id}`}>
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6" title="View Details">
+                                                                    <ExternalLink className="h-3 w-3" />
+                                                                </Button>
+                                                            </Link>
+                                                            <Link href={`/reports?projectId=${p.id}`}>
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6" title="Open Audit Report">
+                                                                    <FileText className="h-3 w-3" />
+                                                                </Button>
+                                                            </Link>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {customer.projects.length === 0 && (
+                                                    <span className="text-muted-foreground text-sm">No active projects</span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-muted-foreground text-xs">--</span>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </CardContent>
         </Card >
     );

@@ -417,4 +417,30 @@ router.put('/conversations/:id/read', async (req: Request, res: Response) => {
     }
 });
 
+// POST /api/chat/subscribe - Save push subscription
+router.post('/subscribe', async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user?.userId;
+        const subscription = req.body;
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        if (!subscription || !subscription.endpoint) {
+            return res.status(400).json({ error: 'Invalid subscription' });
+        }
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { pushSubscription: subscription as any }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Subscribe error:', error);
+        res.status(500).json({ error: 'Failed to subscribe' });
+    }
+});
+
 export default router;

@@ -705,7 +705,7 @@ export function CustomerDashboardView() {
                         </Button>
                     </CardHeader>
                     <CardContent>
-                        <div className="max-h-[400px] overflow-y-auto">
+                        <div className="max-h-[400px] overflow-y-auto overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>

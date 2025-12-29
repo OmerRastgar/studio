@@ -365,61 +365,63 @@ export function RequestTracker() {
                     </Select>
                 </div>
 
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Customer</TableHead>
-                            <TableHead>Project</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Due Date</TableHead>
-                            <TableHead>Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredRequests.length === 0 ? (
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                    No requests found
-                                </TableCell>
+                                <TableHead>Title</TableHead>
+                                <TableHead>Customer</TableHead>
+                                <TableHead>Project</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Due Date</TableHead>
+                                <TableHead>Actions</TableHead>
                             </TableRow>
-                        ) : (
-                            filteredRequests.map((request) => (
-                                <TableRow key={request.id}>
-                                    <TableCell className="font-medium">{request.title}</TableCell>
-                                    <TableCell>{request.customer.name}</TableCell>
-                                    <TableCell>{request.project?.name || '-'}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={
-                                            request.status === 'Resolved' ? 'default' :
-                                                request.status === 'Escalated' ? 'destructive' : 'secondary'
-                                        }>
-                                            {request.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        {request.dueDate ? new Date(request.dueDate).toLocaleDateString() : '-'}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Select
-                                            defaultValue={request.status}
-                                            onValueChange={(val) => handleStatusUpdate(request.id, val)}
-                                        >
-                                            <SelectTrigger className="w-[110px] h-8">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Pending">Pending</SelectItem>
-                                                <SelectItem value="Resolved">Resolved</SelectItem>
-                                                <SelectItem value="Escalated">Escalated</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredRequests.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                        No requests found
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                            ) : (
+                                filteredRequests.map((request) => (
+                                    <TableRow key={request.id}>
+                                        <TableCell className="font-medium">{request.title}</TableCell>
+                                        <TableCell>{request.customer.name}</TableCell>
+                                        <TableCell>{request.project?.name || '-'}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={
+                                                request.status === 'Resolved' ? 'default' :
+                                                    request.status === 'Escalated' ? 'destructive' : 'secondary'
+                                            }>
+                                                {request.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {request.dueDate ? new Date(request.dueDate).toLocaleDateString() : '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Select
+                                                defaultValue={request.status}
+                                                onValueChange={(val) => handleStatusUpdate(request.id, val)}
+                                            >
+                                                <SelectTrigger className="w-[110px] h-8">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Pending">Pending</SelectItem>
+                                                    <SelectItem value="Resolved">Resolved</SelectItem>
+                                                    <SelectItem value="Escalated">Escalated</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </CardContent>
         </Card>
     );

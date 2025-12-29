@@ -108,6 +108,10 @@ services:
       LOKI_URL: ${LOKI_URL:-http://loki:3100}
       TEMPO_URL: ${TEMPO_URL:-http://tempo:4318/v1/traces}
       KRATOS_PUBLIC_URL: "http://demo.cybergaar.com/kratos"
+      # VAPID Keys (Push Notifications)
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
     extra_hosts:
       - "demo.cybergaar.com:host-gateway"
     networks:
@@ -161,6 +165,7 @@ services:
       # Force Webpack to poll for changes (Fixes Windows/Docker sync issues)
       WATCHPACK_POLLING: "true"
       KRATOS_INTERNAL_URL: "http://studio-kratos:4433"
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
     volumes:
       - ./frontend:/app
       - /app/node_modules

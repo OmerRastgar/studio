@@ -70,7 +70,7 @@ export function ControlItem({
         )}>
             {/* Control Header */}
             <div
-                className="flex items-start justify-between cursor-pointer"
+                className="flex flex-col sm:flex-row items-start justify-between cursor-pointer gap-4 sm:gap-0"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-start gap-3 flex-1">
@@ -94,7 +94,7 @@ export function ControlItem({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 ml-4">
+                <div className="flex items-center gap-4 ml-0 sm:ml-4 self-end sm:self-auto w-full sm:w-auto justify-between sm:justify-start">
                     <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm">{evidenceCount}</span>

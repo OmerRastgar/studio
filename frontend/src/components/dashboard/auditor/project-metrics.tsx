@@ -170,7 +170,7 @@ export function ProjectMetrics() {
                         <CardTitle>Project Timelines</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-[400px] w-full overflow-hidden">
+                        <div className="h-[400px] w-full overflow-x-auto">
                             <Chart
                                 chartType="Gantt"
                                 width="100%"
