@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { File, ExternalLink, Tag, Calendar, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface Evidence {
     id: string;
@@ -70,6 +71,8 @@ export function EvidenceList({ evidence }: EvidenceListProps) {
         return url;
     };
 
+    const router = useRouter();
+
     return (
         <div className="space-y-2">
             {evidence.map((item) => (
@@ -131,7 +134,7 @@ export function EvidenceList({ evidence }: EvidenceListProps) {
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(getDownloadUrl(item.fileUrl), "_blank")}
+                            onClick={() => router.push(`/evidence/${item.id}/view`)}
                         >
                             <ExternalLink className="w-4 h-4" />
                         </Button>
