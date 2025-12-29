@@ -598,120 +598,114 @@ function EvidencePageComponent() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {role === 'manager' ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border rounded-md bg-slate-50/50">
-                            <FolderArchive className="h-12 w-12 mb-4 opacity-50" />
-                            <p className="font-medium">Access Restricted</p>
-                            <p className="text-sm mt-1">Managers can view project details but cannot access raw evidence files.</p>
-                        </div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>File Name</TableHead>
-                                    <TableHead>Control</TableHead>
-                                    <TableHead>Tags</TableHead>
-                                    <TableHead>Uploaded By</TableHead>
-                                    <TableHead className="hidden md:table-cell">Uploaded At</TableHead>
-                                    <TableHead>
-                                        <span className="sr-only">Actions</span>
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredEvidence.map((evidence) => (
-                                    <TableRow key={evidence.id}>
-                                        <TableCell className="font-medium">
-                                            <div className="flex items-center gap-2">
-                                                <a
-                                                    href={`/evidence/${evidence.id}/view`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="hover:underline text-primary flex items-center gap-2"
-                                                >
-                                                    {evidence.fileName}
-                                                    <ExternalLink className="h-3 w-3" />
-                                                </a>
-                                                {evidence.annotationCount > 0 && (
-                                                    <div className="flex items-center text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 ml-2" title={`${evidence.annotationCount} comments`}>
-                                                        <MessageSquare className="h-3 w-3 mr-1" />
-                                                        {evidence.annotationCount}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-wrap gap-1">
-                                                {evidence.controls && evidence.controls.length > 0 ? (
-                                                    evidence.controls.map(c => (
-                                                        <Badge key={c.id} variant="outline">
-                                                            {c.control.code}
-                                                        </Badge>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-muted-foreground">—</span>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-wrap gap-1">
-                                                {evidence.tags?.map((tag) => (
-                                                    <Badge key={tag} variant="secondary">
-                                                        {tag}
+
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>File Name</TableHead>
+                                <TableHead>Control</TableHead>
+                                <TableHead>Tags</TableHead>
+                                <TableHead>Uploaded By</TableHead>
+                                <TableHead className="hidden md:table-cell">Uploaded At</TableHead>
+                                <TableHead>
+                                    <span className="sr-only">Actions</span>
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredEvidence.map((evidence) => (
+                                <TableRow key={evidence.id}>
+                                    <TableCell className="font-medium">
+                                        <div className="flex items-center gap-2">
+                                            <a
+                                                href={`/evidence/${evidence.id}/view`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="hover:underline text-primary flex items-center gap-2"
+                                            >
+                                                {evidence.fileName}
+                                                <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                            {evidence.annotationCount > 0 && (
+                                                <div className="flex items-center text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 ml-2" title={`${evidence.annotationCount} comments`}>
+                                                    <MessageSquare className="h-3 w-3 mr-1" />
+                                                    {evidence.annotationCount}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {evidence.controls && evidence.controls.length > 0 ? (
+                                                evidence.controls.map(c => (
+                                                    <Badge key={c.id} variant="outline">
+                                                        {c.control.code}
                                                     </Badge>
-                                                ))}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={evidence.agent ? 'default' : 'outline'}>
-                                                {evidence.agent?.name || evidence.uploadedBy?.name || 'Unknown'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="hidden md:table-cell">
-                                            {format(new Date(evidence.uploadedAt), 'PPP')}
-                                        </TableCell>
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button aria-haspopup="true" size="icon" variant="ghost" className={isViewOnly ? "opacity-50" : ""}>
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                        <span className="sr-only">Toggle menu</span>
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem
-                                                        onClick={() => !isViewOnly ? handleEditClick(evidence) : toast({
-                                                            variant: "destructive",
-                                                            title: "Permission Denied",
-                                                            description: "You cannot edit this evidence."
-                                                        })}
-                                                        disabled={isViewOnly}
-                                                    >
-                                                        <Edit className="mr-2 h-4 w-4" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        className="text-destructive focus:text-destructive"
-                                                        onClick={() => !isViewOnly ? setItemToDelete(evidence.id) : toast({
-                                                            variant: "destructive",
-                                                            title: "Permission Denied",
-                                                            description: "You cannot delete this evidence."
-                                                        })}
-                                                        disabled={isViewOnly}
-                                                    >
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
+                                                ))
+                                            ) : (
+                                                <span className="text-muted-foreground">—</span>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {evidence.tags?.map((tag) => (
+                                                <Badge key={tag} variant="secondary">
+                                                    {tag}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={evidence.agent ? 'default' : 'outline'}>
+                                            {evidence.agent?.name || evidence.uploadedBy?.name || 'Unknown'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="hidden md:table-cell">
+                                        {format(new Date(evidence.uploadedAt), 'PPP')}
+                                    </TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button aria-haspopup="true" size="icon" variant="ghost" className={isViewOnly ? "opacity-50" : ""}>
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                    <span className="sr-only">Toggle menu</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem
+                                                    onClick={() => !isViewOnly ? handleEditClick(evidence) : toast({
+                                                        variant: "destructive",
+                                                        title: "Permission Denied",
+                                                        description: "You cannot edit this evidence."
+                                                    })}
+                                                    disabled={isViewOnly}
+                                                >
+                                                    <Edit className="mr-2 h-4 w-4" />
+                                                    Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    className="text-destructive focus:text-destructive"
+                                                    onClick={() => !isViewOnly ? setItemToDelete(evidence.id) : toast({
+                                                        variant: "destructive",
+                                                        title: "Permission Denied",
+                                                        description: "You cannot delete this evidence."
+                                                    })}
+                                                    disabled={isViewOnly}
+                                                >
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+
                     {/* Delete Confirmation Dialog - Moved outside Table for stability */}
                     <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
                         <AlertDialogContent>
