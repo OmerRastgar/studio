@@ -85,9 +85,12 @@ app.use('/api/casb', casbRoutes);
 app.use('/api/findings', findingsRoutes);
 app.use('/api/agents', agentsRoutes);
 import systemRoutes from './routes/system';
+import maintenanceRoutes from './routes/maintenance';
+
 console.log('[DEBUG] Registering /api/system routes');
 app.use('/api/system', systemRoutes);
 app.use('/api/uploads', uploadsRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
 
 httpServer.listen(PORT, () => {
     console.log(`Backend service running on port ${PORT}`);

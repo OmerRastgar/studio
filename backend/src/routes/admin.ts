@@ -286,42 +286,69 @@ router.get('/users', async (req: Request, res: Response) => {
         const { data: identities } = await kratosAdmin.listIdentities();
         console.log(`[Admin Users] Kratos returned ${identities.length} identities`);
 
-        // 2. Fetch local user stats (project counts)
+        // 2. Fetch all local users
         const localUsers = await prisma.user.findMany({
             select: {
                 id: true,
+                name: true,
+                email: true,
+                role: true,
+                avatarUrl: true,
+                createdAt: true,
+                managerId: true,
+                status: true,
                 _count: {
                     select: {
                         customerProjects: true,
                         auditorProjects: true
                     }
-                },
-                managerId: true,
-                status: true // Local status might differ? Ideally sync them.
+                }
             }
         });
 
-        // 3. Merge data
-        // Kratos is the source of truth for Identity (Name, Email, Role)
-        const users = identities.map((identity: any) => {
+        // 3. Merge data (Full Outer Join strategy)
+        const combinedUsers: any[] = [];
+        const processedIds = new Set<string>();
+
+        // Process Kratos Identities
+        identities.forEach((identity: any) => {
             const localUser = localUsers.find(u => u.id === identity.id);
             const traits = identity.traits || {};
+            processedIds.add(identity.id);
 
-            return {
+            combinedUsers.push({
                 id: identity.id,
-                name: traits.name?.first ? `${traits.name.first} ${traits.name.last}` : (traits.name || 'Unknown'),
-                email: traits.email || '',
-                role: traits.role || 'customer',
-                avatarUrl: traits.picture || `https://picsum.photos/seed/${identity.id}/100/100`,
+                name: traits.name?.first ? `${traits.name.first} ${traits.name.last}` : (traits.name || localUser?.name || 'Unknown'),
+                email: traits.email || localUser?.email || '',
+                role: traits.role || localUser?.role || 'customer',
+                avatarUrl: traits.picture || localUser?.avatarUrl || `https://picsum.photos/seed/${identity.id}/100/100`,
                 status: identity.state === 'active' ? 'Active' : 'Inactive',
                 createdAt: identity.created_at,
-                // Local stats
                 _count: localUser?._count || { customerProjects: 0, auditorProjects: 0 },
-                managerId: localUser?.managerId || null
-            };
+                managerId: localUser?.managerId || null,
+                source: 'kratos' // Flag that this comes from Kratos
+            });
         });
 
-        res.json({ success: true, data: users });
+        // Process Prisma-only Users (Zombie/Seed Users)
+        localUsers.forEach((user) => {
+            if (!processedIds.has(user.id)) {
+                combinedUsers.push({
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role,
+                    avatarUrl: user.avatarUrl || `https://picsum.photos/seed/${user.id}/100/100`,
+                    status: 'Missing Identity', // Distinct status for frontend
+                    createdAt: user.createdAt.toISOString(),
+                    _count: user._count,
+                    managerId: user.managerId,
+                    source: 'postgres_only' // Debug info
+                });
+            }
+        });
+
+        res.json({ success: true, data: combinedUsers });
     } catch (error) {
         console.error('Admin users error:', error);
         res.status(500).json({ error: 'Failed to fetch users' });
