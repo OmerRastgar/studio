@@ -3,6 +3,7 @@ import { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { sendPushNotification } from './lib/push';
+import { NotificationService } from './services/notification';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
@@ -141,7 +142,7 @@ export function initializeSocket(httpServer: HTTPServer) {
                 });
                 console.log('[Socket] Message broadcast complete');
 
-                // Send push notifications to other participants
+                // Send push notifications and create persistent notifications for other participants
                 const otherParticipants = await prisma.conversationParticipant.findMany({
                     where: {
                         conversationId,
@@ -150,17 +151,30 @@ export function initializeSocket(httpServer: HTTPServer) {
                     select: { userId: true }
                 });
 
-                // Send pushes asynchronously
-                Promise.all(otherParticipants.map(participant => {
-                    return sendPushNotification(participant.userId, {
-                        title: `New message from ${message.sender.name}`,
-                        body: message.content,
-                        // Deep link to chat? For now just open app. 
-                        // The custom-sw.js handles data.url if provided.
-                        url: '/dashboard',
-                        icon: message.sender.avatarUrl || '/Logo.png'
-                    }).catch(err => console.error(`[Socket] Push failed for ${participant.userId}`, err));
-                })).catch(err => console.error('[Socket] Push notification handling error', err));
+                // Send pushes and create notifications asynchronously
+                Promise.all(otherParticipants.map(async (participant) => {
+                    // 1. Create persistent notification (which also handles socket emission to user:id)
+                    try {
+                        await NotificationService.create(
+                            participant.userId,
+                            'message',
+                            `New message from ${message.sender.name}`,
+                            `${message.content.substring(0, 50)}${message.content.length > 50 ? '...' : ''}`,
+                            `/dashboard/chat?conversationId=${conversationId}`
+                        );
+                    } catch (error) {
+                        console.error(`[Socket] Failed to create notification for ${participant.userId}`, error);
+                    }
+
+                    // 2. Send Push (handled by NotificationService now, but keeping specific logic if needed or relying on service)
+                    // The service already sends a push, so we might not need to call sendPushNotification manually here 
+                    // IF NotificationService.create does it.
+                    // Checking NotificationService: Yes, it calls sendPushNotification.
+                    // So we can technically remove the manual sendPushNotification here to avoid duplicates,
+                    // OR if we want specific icon/data, we might keep it. 
+                    // The service uses generic title/body. 
+                    // Let's rely on NotificationService for consistency and to ensure the "Header" notification shows up.
+                })).catch(err => console.error('[Socket] Notification handling error', err));
 
             } catch (error) {
                 console.error('[Socket] Send message error:', error);
