@@ -253,6 +253,17 @@ export function ChatProvider({ children }: ChatProviderProps) {
             if (data.conversationId === activeConversation) {
                 setMessages(prev => [...prev, data.message]);
             }
+
+            // Show notification if window is hidden or chat is closed or different conversation
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                if (document.hidden || !isChatOpen || data.conversationId !== activeConversation) {
+                    new Notification(`New message from ${data.message.sender.name}`, {
+                        body: data.message.content,
+                        icon: data.message.sender.avatarUrl || '/Logo.png'
+                    });
+                }
+            }
+
             // Refresh conversations to update last message
             refreshConversations();
         });
@@ -297,6 +308,13 @@ export function ChatProvider({ children }: ChatProviderProps) {
             refreshConversations();
         }
     }, [fetchContacts, refreshConversations, authLoading]);
+
+    // Request notification permission
+    useEffect(() => {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }, []);
 
     // Load messages when active conversation changes
     useEffect(() => {

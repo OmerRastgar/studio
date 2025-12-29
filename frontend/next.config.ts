@@ -1,4 +1,13 @@
 import type { NextConfig } from 'next';
+// @ts-ignore: next-pwa does not have types
+import withPWAInit from 'next-pwa';
+
+const withPWA = withPWAInit({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development',
+});
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -7,7 +16,6 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   async rewrites() {
     return [
-
       {
         source: '/kratos/:path*',
         destination: process.env.KRATOS_INTERNAL_URL
@@ -65,7 +73,7 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  webpack: (config, { isServer }) => {
+  webpack: (config: any, { isServer }: { isServer: boolean }) => {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -84,4 +92,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);

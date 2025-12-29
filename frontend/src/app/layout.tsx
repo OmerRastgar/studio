@@ -1,5 +1,5 @@
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,15 @@ import { KratosAuthProvider as AuthProvider } from '@/components/auth/kratos-aut
 export const metadata: Metadata = {
   title: 'CyberGaar Audit Platform',
   description: 'AI-Powered Auditing Platform',
+  manifest: '/manifest.json',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#000000',
 };
 
 export default function RootLayout({

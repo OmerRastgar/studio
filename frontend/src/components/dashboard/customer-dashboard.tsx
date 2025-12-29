@@ -409,8 +409,8 @@ export function CustomerDashboardView() {
 
     return (
 
-        <div className="space-y-8 p-8 bg-background min-h-screen">
-            <div className="flex justify-between items-center bg-card p-6 rounded-xl shadow-sm border border-border">
+        <div className="space-y-8 p-4 md:p-8 bg-background min-h-screen">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-card p-6 rounded-xl shadow-sm border border-border gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-primary-500">Welcome back, {user?.name}!</h1>
                     <p className="mt-1">Manage your compliance projects and sharing</p>

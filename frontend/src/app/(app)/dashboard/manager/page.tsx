@@ -227,7 +227,7 @@ function ManagerDashboardContent() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Manager Dashboard</h1>
                     <p className="text-muted-foreground">Team oversight and project approvals</p>
@@ -301,7 +301,7 @@ function ManagerDashboardContent() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {pendingAlerts.map((alert: Alert) => (
-                            <div key={alert.entityId} className="flex items-center justify-between p-4 rounded-lg bg-white dark:bg-gray-900 border shadow-sm">
+                            <div key={alert.entityId} className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg bg-white dark:bg-gray-900 border shadow-sm gap-4">
                                 <div>
                                     <p className="font-medium">{alert.title.replace('Project Approval Required: ', '')}</p>
                                     <p className="text-sm text-muted-foreground">{alert.description}</p>
