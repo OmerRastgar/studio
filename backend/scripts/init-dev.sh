@@ -8,6 +8,14 @@ done
 
 echo "PostgreSQL is up - executing command"
 
+# Ensure dependencies are installed (fix for missing node_modules or binaries)
+if [ ! -f "./node_modules/.bin/tsx" ] || [ ! -d "./node_modules/web-push" ]; then
+    echo "Dependencies missing or incomplete. Running npm install..."
+    npm install
+    # Re-run generate after install just in case
+    npx prisma generate
+fi
+
 # Generate Prisma Client
 echo "Generating Prisma Client..."
 npx prisma generate
