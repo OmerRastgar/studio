@@ -89,7 +89,9 @@ export class DeadlineChecker {
             // 3 Days Warning
             for (const p of dueIn3Days) {
                 // Notify Customer
-                await NotificationService.create(p.customerId, 'deadline', 'Project Deadline Approaching', `Project ${p.name} is due in 3 days.`, `/dashboard/customer/projects`);
+                if (p.customerId) {
+                    await NotificationService.create(p.customerId, 'deadline', 'Project Deadline Approaching', `Project ${p.name} is due in 3 days.`, `/dashboard/customer/projects`);
+                }
                 // Notify Auditor
                 if (p.auditorId) {
                     await NotificationService.create(p.auditorId, 'deadline', 'Project Deadline Approaching', `Project ${p.name} is due in 3 days.`, `/dashboard/auditor/projects/${p.id}`);
@@ -99,7 +101,9 @@ export class DeadlineChecker {
             // 1 Day Warning
             for (const p of dueIn1Day) {
                 // Notify Customer
-                await NotificationService.create(p.customerId, 'deadline', 'Project Deadline Tomorrow', `Project ${p.name} is due tomorrow!`, `/dashboard/customer/projects`);
+                if (p.customerId) {
+                    await NotificationService.create(p.customerId, 'deadline', 'Project Deadline Tomorrow', `Project ${p.name} is due tomorrow!`, `/dashboard/customer/projects`);
+                }
                 // Notify Auditor
                 if (p.auditorId) {
                     await NotificationService.create(p.auditorId, 'deadline', 'Project Deadline Tomorrow', `Project ${p.name} is due tomorrow!`, `/dashboard/auditor/projects/${p.id}`);
@@ -109,15 +113,17 @@ export class DeadlineChecker {
             // Overdue
             for (const p of overdue) {
                 // Notify Customer
-                await NotificationService.create(p.customerId, 'overdue', 'Project Overdue', `Project ${p.name} is overdue! Please contact support.`, `/dashboard/customer/projects`);
+                if (p.customerId) {
+                    await NotificationService.create(p.customerId, 'overdue', 'Project Overdue', `Project ${p.name} is overdue! Please contact support.`, `/dashboard/customer/projects`);
+                }
                 // Notify Auditor
                 if (p.auditorId) {
                     await NotificationService.create(p.auditorId, 'overdue', 'Project Overdue', `Project ${p.name} is overdue!`, `/dashboard/auditor/projects/${p.id}`);
                 }
 
                 // Notify Manager of Customer if exists
-                if (p.customer!.managerId) {
-                    await NotificationService.create(p.customer!.managerId, 'overdue', 'Project Overdue', `Managed project ${p.name} is overdue.`, `/dashboard/manager/projects/${p.id}`);
+                if (p.customer?.managerId) {
+                    await NotificationService.create(p.customer.managerId, 'overdue', 'Project Overdue', `Managed project ${p.name} is overdue.`, `/dashboard/manager/projects/${p.id}`);
                 }
             }
 
