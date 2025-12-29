@@ -153,7 +153,7 @@ function CustomerProjectsContent() {
             {/* Projects Grid */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredProjects.map((project) => (
-                    <Card key={project.id} className="hover:shadow-lg transition-shadow h-full flex flex-col">
+                    <Card key={project.id} className="hover:shadow-lg transition-all duration-200 active:scale-[0.98] h-full flex flex-col">
                         <Link href={`/dashboard/project/${project.id}`} className="flex-1 cursor-pointer">
                             <CardHeader className="pb-3">
                                 <div className="flex flex-col gap-2">

@@ -66,7 +66,7 @@ export function ControlCategory({
                         ) : (
                             <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                         )}
-                        <CardTitle className="text-lg truncate">{name}</CardTitle>
+                        <CardTitle className="text-lg break-words">{name}</CardTitle>
                         <div className="flex-shrink-0 ml-auto sm:ml-0">
                             {isComplete ? (
                                 <Badge variant="default" className="bg-green-500 whitespace-nowrap">

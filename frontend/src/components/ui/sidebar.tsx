@@ -199,7 +199,7 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground"
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -559,7 +559,7 @@ const SidebarMenuButton = React.forwardRef<
     ref
   ) => {
     const Comp = asChild ? Slot : "button"
-    const { isMobile, state } = useSidebar()
+    const { isMobile, setOpenMobile, state } = useSidebar()
 
     const effectiveSize = isMobile ? 'lg' : size
 
@@ -570,6 +570,10 @@ const SidebarMenuButton = React.forwardRef<
         data-size={effectiveSize}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size: effectiveSize }), className, isMobile && "text-base font-medium")}
+        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+          props.onClick?.(e)
+          if (isMobile) setOpenMobile(false)
+        }}
         {...props}
       />
     )
@@ -720,6 +724,7 @@ const SidebarMenuSubButton = React.forwardRef<
     isActive?: boolean
   }
 >(({ asChild = false, size = "md", isActive, className, ...props }, ref) => {
+  const { isMobile, setOpenMobile } = useSidebar()
   const Comp = asChild ? Slot : "a"
 
   return (
@@ -736,6 +741,11 @@ const SidebarMenuSubButton = React.forwardRef<
         "group-data-[collapsible=icon]:hidden",
         className
       )}
+      onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+        // @ts-ignore
+        props.onClick?.(e)
+        if (isMobile) setOpenMobile(false)
+      }}
       {...props}
     />
   )

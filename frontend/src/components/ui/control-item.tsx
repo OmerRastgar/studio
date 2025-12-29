@@ -84,7 +84,7 @@ export function ControlItem({
                             <Badge variant="outline" className="font-mono text-xs">
                                 {code}
                             </Badge>
-                            <span className="font-medium truncate">{title}</span>
+                            <span className="font-medium break-words">{title}</span>
                         </div>
                         {!isExpanded && (
                             <p className="text-sm text-muted-foreground mt-1 line-clamp-1 break-all">

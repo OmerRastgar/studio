@@ -44,7 +44,7 @@ export function ProjectCard({
         <div
             onClick={onClick}
             className={cn(
-                "flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-0 justify-between p-4 rounded-lg bg-card border border-border hover:bg-accent/50 cursor-pointer transition-colors",
+                "flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-0 justify-between p-4 rounded-lg bg-card border border-border hover:bg-accent/50 cursor-pointer transition-all duration-200 active:scale-[0.98]",
                 className
             )}
         >
