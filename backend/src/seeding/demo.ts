@@ -557,9 +557,15 @@ export async function seedDemo() {
                         matchedCodes.forEach(c => {
                             const cTags = codeToTags.get(c);
                             if (cTags) {
+                                console.log(`      🔗 Linking tags from ${c}: [${cTags.join(', ')}]`);
                                 cTags.forEach(t => {
                                     if (!tagsList.includes(t)) tagsList.push(t);
                                 });
+                            } else {
+                                console.warn(`      ⚠️  No tags found in legacy cache for control code: "${c}" (Map size: ${codeToTags.size})`);
+                                // Debug: check similar keys?
+                                // const similar = Array.from(codeToTags.keys()).filter(k => k.includes(c));
+                                // console.log(`         Did you mean? ${similar.join(', ')}`);
                             }
                         });
                     }
