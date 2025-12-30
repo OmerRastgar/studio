@@ -218,10 +218,19 @@ export async function seedDemo() {
     // Map Code -> ProjectControlId for faster lookup
     const codeToPCId = new Map<string, string>();
 
-    const controls = await prisma.control.findMany({ where: { frameworkId: framework.id } });
+    const controls = await prisma.control.findMany({
+        where: { frameworkId: framework.id },
+        include: { tags: true } // Fetch tags to populate cache
+    });
+
     if (controls.length > 0) {
         console.log(`   🔸 Linking ${controls.length} controls to project...`);
         for (const control of controls) {
+            // Populate/Refresh codeToTags map from DB (robust against CSV skip)
+            if (control.tags && control.tags.length > 0) {
+                codeToTags.set(control.code, control.tags.map(t => t.name));
+            }
+
             // Generate random progress between 80 and 100 for a "mostly complete" feel
             const randomProgress = Math.floor(Math.random() * (100 - 80 + 1)) + 80;
 
