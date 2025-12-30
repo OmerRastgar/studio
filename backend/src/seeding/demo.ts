@@ -114,19 +114,27 @@ export async function seedDemo() {
         const rows = csvContent.split('\n').slice(1); // Skip header
 
         for (const row of rows) {
-            // Simple CSV parse (handling quotes roughly)
-            const match = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-            if (!match || match.length < 4) continue;
+            // Robust parsing for fully quoted CSV: "col1","col2","col3"...
+            // Remove leading/trailing quotes and newlines/returns
+            const cleanRow = row.trim().replace(/^"|"$/g, '');
+            if (!cleanRow) continue;
 
-            const clean = (s: string) => s.replace(/^"|"$/g, '').trim();
-            const code = clean(match[0] || '');
-            const title = clean(match[1] || '');
-            const description = clean(match[2] || '');
-            const category = clean(match[3] || '');
-            const tagsRaw = clean(match[4] || '');
+            const cols = cleanRow.split('","');
+            if (cols.length < 5) continue;
+
+            const code = cols[0].trim();
+            const title = cols[1].trim();
+            const description = cols[2].trim();
+            const category = cols[3].trim();
+            const tagsRaw = cols[4].trim();
 
             // Parse tags (semicolon separated in CSV: "policy;governance")
             const tagNames = tagsRaw ? tagsRaw.split(';').map(t => t.trim()).filter(t => t.length > 0) : [];
+
+            // Debug Log for Tags
+            if (code === 'A.5.1' || code === 'A.8.20') {
+                console.log(`   🐛 DEBUG: Parsed ${code} tags: [${tagNames.join(', ')}] (Raw: "${tagsRaw}")`);
+            }
 
             if (!code || !title) continue;
 
