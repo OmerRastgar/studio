@@ -27,7 +27,10 @@ async function ensureKratosIdentity(user: typeof DEMO_USERS[0]) {
     } catch (error: any) {
         if (error.response?.status === 409) {
             const existing = await axios.get(`${KRATOS_ADMIN_URL}/admin/identities?credentials_identifier=${user.email}`);
-            return existing.data.identities[0].id; // Re-use ID if exists
+            if (Array.isArray(existing.data) && existing.data.length > 0) {
+                return existing.data[0].id;
+            }
+            throw new Error(`User ${user.email} exists (409) but could not be retrieved via Admin API.`);
         }
         throw error;
     }
