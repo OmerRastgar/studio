@@ -100,29 +100,94 @@ export async function seedDemo() {
         framework = await prisma.framework.create({ data: { name: 'ISO 27001', description: 'Information Security Management' } });
     }
 
+    // Seed Controls from CSV
+    const csvPath = path.join(__dirname, 'data', 'ISO27001.csv');
+    if (fs.existsSync(csvPath)) {
+        console.log('   🔸 Seeding ISO 27001 Controls...');
+        const csvContent = fs.readFileSync(csvPath, 'utf-8');
+        const rows = csvContent.split('\n').slice(1); // Skip header
+
+        for (const row of rows) {
+            // Simple CSV parse (handling quotes roughly)
+            const match = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+            if (!match || match.length < 4) continue;
+
+            const clean = (s: string) => s.replace(/^"|"$/g, '').trim();
+            const code = clean(match[0] || '');
+            const title = clean(match[1] || '');
+            const description = clean(match[2] || '');
+            const category = clean(match[3] || '');
+            // const tags = clean(match[4] || '');
+
+            if (!code || !title) continue;
+
+            await prisma.control.upsert({
+                where: { frameworkId_code: { frameworkId: framework.id, code } },
+                update: { title, description, category },
+                create: {
+                    frameworkId: framework.id,
+                    code,
+                    title,
+                    description,
+                    category
+                }
+            });
+        }
+    }
+
     const project = await prisma.project.upsert({
         where: { id: 'demo-project-master-id' },
         update: {
             auditorId,
             reviewerAuditorId: reviewerId,
-            status: 'approved'
+            status: 'approved',
+            customerName: 'PaperWorks Online Ltd.',
+            description: `PaperWorks Online Ltd. – a fictional small e-commerce stationery retailer. Address: 123 Stationery Ave, Dublin, Ireland.\n\nMission Statement: “Deliver high-quality, sustainable paper products to customers with convenience and excellent service.”\n\nBusiness Description: PaperWorks sells paper and stationery via an online store with e-commerce checkout. The site collects customer data and processes credit card payments.`,
+            scope: 'Entire Organization (PaperWorks Online Ltd.) - EU Customers (GDPR applies)'
         },
         create: {
             id: 'demo-project-master-id',
             name: DEMO_PROJECT_NAME,
-            customerName: 'Demo Organization', // Placeholder
+            customerName: 'PaperWorks Online Ltd.',
             customerId: null,
             auditorId: auditorId,
             reviewerAuditorId: reviewerId,
             frameworkId: framework.id,
             status: 'approved',
-            description: 'A fully populated standard ISO 27001 demo environment.',
-            scope: 'Entire Organization',
+            description: `PaperWorks Online Ltd. – a fictional small e-commerce stationery retailer. Address: 123 Stationery Ave, Dublin, Ireland.\n\nMission Statement: “Deliver high-quality, sustainable paper products to customers with convenience and excellent service.”\n\nBusiness Description: PaperWorks sells paper and stationery via an online store with e-commerce checkout. The site collects customer data and processes credit card payments.`,
+            scope: 'Entire Organization (PaperWorks Online Ltd.) - EU Customers (GDPR applies)',
             startDate: new Date(),
             endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
             dueDate: new Date(new Date().setMonth(new Date().getMonth() + 3))
         }
     });
+
+    // Link Controls to Project (ProjectControl)
+    // Map Code -> ProjectControlId for faster lookup
+    const codeToPCId = new Map<string, string>();
+
+    const controls = await prisma.control.findMany({ where: { frameworkId: framework.id } });
+    if (controls.length > 0) {
+        console.log(`   🔸 Linking ${controls.length} controls to project...`);
+        for (const control of controls) {
+            // Generate random progress between 80 and 100 for a "mostly complete" feel
+            const randomProgress = Math.floor(Math.random() * (100 - 80 + 1)) + 80;
+
+            const pc = await prisma.projectControl.upsert({
+                where: { projectId_controlId: { projectId: project.id, controlId: control.id } },
+                update: {
+                    progress: randomProgress // Enforce progress on re-seed
+                },
+                create: {
+                    projectId: project.id,
+                    controlId: control.id,
+                    progress: randomProgress,
+                    evidenceCount: 0
+                }
+            });
+            codeToPCId.set(control.code, pc.id);
+        }
+    }
 
     console.log(`   ✅ Project "${project.name}" ready (ID: ${project.id})`);
 
@@ -130,32 +195,140 @@ export async function seedDemo() {
     // Findings
     const countFindings = await prisma.finding.count();
     if (countFindings === 0) {
-        console.log('   🔸 Seeding Findings...');
-        // Placeholder for finding seeding
+        console.log('   🔸 Seeding Findings (Password Complexity)...');
+
+        const findingsData = [
+            { id: 'FIND-001', user: "dwight@dundermifflin.com", name: "Dwight (Admin)", description: 'Password "SchruteFarms123" has low complexity (common pattern, no special chars).', severity: "medium", evidence: "Hash analysis shows entropy < 50 bits; common farm reference.", remediation: "Enforce 12+ chars, mix case/symbols; rotate immediately." },
+            { id: 'FIND-002', user: "michael@dundermifflin.com", name: "Michael (Exec)", description: 'Password "ThatsWhatSheSaid!" is dictionary-based with low complexity.', severity: "high", evidence: "Easily guessable phrase; failed brute-force simulation in 10 attempts.", remediation: "Implement MFA; train on passphrase best practices." },
+            { id: 'FIND-003', user: "ryan@dundermifflin.com", name: "Ryan (Dev)", description: 'Password "Temp123" extremely low complexity (short, sequential numbers).', severity: "critical", evidence: "Dev account; exposed in logs; entropy ~20 bits.", remediation: "Lock account; enforce password manager usage." },
+            { id: 'FIND-004', user: "pam@dundermifflin.com", name: "Pam (User)", description: 'Password "BeeslyArt456" moderate but low complexity (predictable personal ref).', severity: "low", evidence: "Includes name variant; passes basic checks but weak against targeted attacks.", remediation: "Suggest random generation; annual audit." },
+            { id: 'FIND-005', user: "angela@dundermifflin.com", name: "Angela (Finance)", description: 'Password "CatLover789" low complexity (common hobby word + numbers).', severity: "medium", evidence: "Finance scope; PCI risk if breached.", remediation: "Add complexity rules in policy; monitor login attempts." },
+            { id: 'FIND-006', user: "kevin@dundermifflin.com", name: "Kevin (Accounting)", description: 'Password "ChiliRecipe1" very low complexity (simple word + number).', severity: "high", evidence: "High mishandling risk; evidence from reset logs.", remediation: "Force reset; provide training on password hygiene." },
+            { id: 'FIND-007', user: "toby@dundermifflin.com", name: "Toby (HR)", description: 'Password "FlendersonHR" low complexity (surname + role, no variation).', severity: "medium", evidence: "Privacy role; weak against social engineering.", remediation: "Enable auto-expiration; integrate with SSO." }
+        ];
+
+        for (const f of findingsData) {
+            await prisma.finding.create({
+                data: {
+                    title: `Low Password Complexity: ${f.name}`,
+                    description: `${f.description}\n\nEvidence: ${f.evidence}`,
+                    severity: f.severity as any,
+                    category: 'vulnerability',
+                    type: 'infrastructure_scan',
+                    status: 'open',
+                    affectedUser: f.user,
+                    source: 'Security Audit',
+                    remediationSteps: f.remediation,
+                    firstSeenAt: new Date(),
+                    lastSeenAt: new Date()
+                }
+            });
+        }
     }
 
-    // CASB
+    // CASB & Findings
     const countCASB = await prisma.cASBIntegration.count();
     if (countCASB === 0) {
-        console.log('   🔸 Seeding CASB...');
-        await prisma.cASBIntegration.createMany({
-            data: [
-                { name: 'Demo M365', type: 'saas_office365', status: 'active', authType: 'oauth2', createdById: managerId },
-                { name: 'Demo AWS', type: 'saas_aws', status: 'active', authType: 'api_key', createdById: managerId }
-            ]
+        console.log('   🔸 Seeding CASB & Findings...');
+
+        // 1. Create Integrations
+        const gWorkspace = await prisma.cASBIntegration.create({
+            data: {
+                name: 'Dunder Mifflin Google Workspace',
+                type: 'saas_google_workspace',
+                status: 'active',
+                authType: 'oauth2',
+                createdById: managerId,
+                vendor: 'Google'
+            }
         });
+
+        await prisma.cASBIntegration.create({
+            data: {
+                name: 'PaperWorks AWS Prod',
+                type: 'saas_aws',
+                status: 'active',
+                authType: 'api_key',
+                createdById: managerId,
+                vendor: 'AWS'
+            }
+        });
+
+        // 2. Seed Findings (CASB Logs)
+        const casbData = [
+            { user: "dwight@dundermifflin.com", action: "File Upload", service: "Google Drive", volume: "5 MB", risk: "medium", details: "Uploaded customer order spreadsheet; shared with team.", compliance: "GDPR: Data classification needed; potential PII exposure.", category: "data_leak" },
+            { user: "michael@dundermifflin.com", action: "Email Send", service: "Gmail", volume: "2 KB", risk: "low", details: "Sent policy approval email without attachments.", compliance: "No issues; policy signed blindly.", category: "policy_violation" },
+            { user: "ryan@dundermifflin.com", action: "App Integration", service: "Google Workspace API", volume: "10 KB", risk: "high", details: "Integrated insecure third-party app; API keys exposed.", compliance: "Flagged: Reckless integration; audit required.", category: "misconfiguration" },
+            { user: "pam@dundermifflin.com", action: "Document Edit", service: "Google Docs", volume: "1 MB", risk: "low", details: "Edited inventory list; no external shares.", compliance: "Standard user activity; compliant.", category: "other" },
+            { user: "angela@dundermifflin.com", action: "File Download", service: "Google Drive", volume: "3 MB", risk: "medium", details: "Downloaded PCI-related financials to local device.", compliance: "PCI/GDPR: Monitor for offline handling.", category: "compliance_gap" },
+            { user: "kevin@dundermifflin.com", action: "Sheet Access", service: "Google Sheets", volume: "4 KB", risk: "high", details: "Accessed sensitive accounting sheet; multiple failed logins prior.", compliance: "Risk of mishandling; low security awareness.", category: "suspicious_activity" },
+            { user: "toby@dundermifflin.com", action: "Calendar Share", service: "Google Calendar", volume: "500 B", risk: "low", details: "Shared HR privacy meeting invite.", compliance: "Weak enforcement; no data leak", category: "policy_violation" }
+        ];
+
+        for (const log of casbData) {
+            await prisma.finding.create({
+                data: {
+                    title: `${log.action}: ${log.service}`,
+                    description: `${log.details}\n\nCompliance Note: ${log.compliance}\nData Volume: ${log.volume}`,
+                    severity: log.risk as any,
+                    category: log.category as any,
+                    type: 'casb_log',
+                    status: 'open',
+                    integrationId: gWorkspace.id,
+                    affectedUser: log.user,
+                    cloudService: log.service,
+                    source: 'CASB',
+                    firstSeenAt: new Date(),
+                    lastSeenAt: new Date()
+                }
+            });
+        }
     }
 
-    // Agents
+    // Agents & Audit Logs
     const countAgents = await prisma.agent.count();
     if (countAgents === 0) {
-        console.log('   🔸 Seeding Agents...');
-        await prisma.agent.createMany({
-            data: [
-                { id: 'agent-demo-01', name: 'CEO-LAPTOP', platform: 'windows', status: 'Active', projectId: project.id },
-                { id: 'agent-demo-02', name: 'WEB-SERVER-PROD', platform: 'linux', status: 'Active', projectId: project.id }
-            ]
-        });
+        console.log('   🔸 Seeding Agents & Logs...');
+
+        const agentsData = [
+            { name: "Dwight's Office PC", ip: "192.168.1.101", platform: "windows", os: "Windows NT 10.0", user: "Dwight (Admin)", action: "POST /api/orders/create", status: 200, note: "Authorized admin access; logged customer data (GDPR compliant)." },
+            { name: "Michael's Laptop", ip: "192.168.1.102", platform: "macos", os: "macOS 10.15.7", user: "Michael (Exec)", action: "GET /admin/dashboard", status: 200, note: "Policy view only; no data modification." },
+            { name: "Angela's Secure Workstation", ip: "192.168.1.103", platform: "windows", os: "Windows NT 10.0", user: "Angela (Finance)", action: "POST /api/payments/process", status: 200, note: "PCI-compliant gateway integration." },
+            { name: "Pam's Mobile", ip: "192.168.1.104", platform: "macos", os: "iOS 17.1", user: "Pam (Standard)", action: "PUT /user/profile/update", status: 200, note: "User data update; consent banner logged." },
+            { name: "Ryan's Dev Script", ip: "192.168.1.105", platform: "linux", os: "curl/7.68.0", user: "Ryan (Dev)", action: "GET /api/inventory/check", status: 403, note: "Unauthorized script access; flagged." },
+            { name: "Toby's Old PC", ip: "192.168.1.106", platform: "windows", os: "Windows 7", user: "Toby (HR)", action: "GET /hr/privacy/review", status: 200, note: "Privacy policy access; weak enforcement noted." },
+            { name: "Kevin's Tablet", ip: "192.168.1.107", platform: "linux", os: "Android 13", user: "Kevin (Accounting)", action: "GET /accounting/export", status: 200, note: "Data export; high risk of mishandling." }
+        ];
+
+        for (const data of agentsData) {
+            const agentId = `agent-${data.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`;
+
+            // Create Agent
+            await prisma.agent.create({
+                data: {
+                    id: agentId,
+                    name: data.name,
+                    platform: data.platform as any,
+                    osVersion: data.os,
+                    ipAddress: data.ip,
+                    status: 'Active',
+                    projectId: project.id,
+                    hostname: data.name.toLowerCase().replace(/\s/g, '-')
+                }
+            });
+
+            // Create Associated Audit Log
+            await prisma.auditLog.create({
+                data: {
+                    id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    userName: data.user,
+                    action: data.action.split(' ')[0], // Method
+                    details: `${data.action} - ${data.note} (Status: ${data.status})`,
+                    severity: data.status === 403 ? 'High' : (data.note.includes('risk') ? 'Medium' : 'Low'),
+                    timestamp: new Date()
+                }
+            });
+        }
     }
 
     // 5. Upload Evidence to MinIO (Bulk)
@@ -173,6 +346,87 @@ export async function seedDemo() {
 
     const bucketName = process.env.MINIO_BUCKET || 'evidence';
     const filesDir = path.join(__dirname, 'files');
+
+    // MAPPING: Auditor Comments -> Evidence Filenames
+    const EVIDENCE_COMMENTS: Record<string, string> = {
+        "Information Security Policy.pdf": "Confirm policy is dated, approved by top-management, communicated to all staff & reviewed at planned intervals (keep evidence of review minutes).",
+        "ACCESS CONTROL POLICY.pdf": "Ensure policy defines rule-of-least-privilege, access-provisioning / de-provisioning workflow, and unique ID requirements; sample a few user accounts for compliance.",
+        "Acceptable Use Policy.pdf": "Check that employees & contractors sign acknowledgement; verify policy covers e-mail, internet, BYOD and cloud services.",
+        "HR_Personnel Security Policy.pdf": "Validate background-check matrix (how deep per role), clause in employment contracts, training log completeness, and access-revocation checklist on exit.",
+        "DATA PROTECTION & PRIVACY POLICY.pdf": "Cross-map to GDPR/CCPA clauses; confirm classification scheme is linked to retention & labelling rules; spot-check if confidential print-outs are labelled.",
+        "PCI Compliance Policy.pdf": "Ensure scope of card-holder environment is documented; verify policy references PCI-DSS v4.0 Req. 12 & includes quarterly compliance attestation.",
+        "INCIDENT RESPONSE & BREACH NOTIFICATION POLICY.pdf": "Review incident response plan for defined roles, SLA (e.g., 72 h GDPR), evidence-chain form, and post-incident lessons-learned log.",
+        "Business Continuity & Disaster Recovery Policy.md": "Check RTO/RPO alignment to risk assessment, last failover test report, and ICT redundancy (backup power, mirrored site).",
+        "Logging & Monitoring Policy.pdf": "Confirm log retention ≥ 1 year, logs synchronized, SIEM rules tuned, and access to logs is role-restricted.",
+        "Information Asset Inventory.pdf": "Sample a few assets: verify owner, classification, location, and license status; ensure inventory is ≤ 30 days old.",
+        "Supplier Security Policy.odt": "Ensure policy covers risk tiering, security schedule in contracts, right-to-audit clause, and annual review of critical suppliers.",
+        "Supplier Security Policy.docx": "Ensure policy covers risk tiering, security schedule in contracts, right-to-audit clause, and annual review of critical suppliers.",
+        "Statement of Applicability (SoA).docx": "Validate SoA contains justification for inclusion/exclusion of every control, version, and approval; cross-link to risk treatment plan.",
+        "PENETRATION TEST REPORT - PAPERWORKS ONLINE LTD.pdf": "Check scope, methodology (OWASP Top-10 / PTES), critical findings closed within SLA, and retest evidence; confirm independence of tester.",
+        "Awareness training.wav": "Verify training frequency (at least annual), content covers phishing & password hygiene, attendance tracking, and pass-rate metrics.",
+        "GDPR & PCI Security Training.pptx": "Ensure material is up-to-date (include AI threats) and mapped to role-based curricula.",
+        "sshd_config": "Inspect config for root-login=no, key-auth only, approved ciphers (no CBC), idle-timeout ≤ 15 min, and centralised syslog forwarding.",
+        "redis.conf": "Confirm bind to localhost only where applicable, password set, maxmemory policy defined, and latest stable patch installed.",
+        "nginx.conf": "Verify TLS 1.2/1.3 only, strong cipher suite, security headers (HSTS, X-Content-Type), rate-limiting, and current version.",
+        "Network Firewall Logs.log": "Sample rule-base for deny-all default, check change tickets match timestamps, and ensure logs are shipped to SIEM unaltered.",
+        "Web Application Firewall (WAF) Events.logs.txt": "Validate WAF in block-mode (not just detect), rule-set updated within 30 days, and false-positive rate tracked.",
+        "Administrative Actions Log.txt": "Trace a few privileged commands to approved change ticket; verify log cannot be edited by admins (WORM/storage).",
+        "Failed Authentication Attempts.log": "Check threshold lockout (e.g., 5 failures), alert routed to SOC, and no service accounts exempted unjustifiably.",
+        "Successful Administrative Access.log": "Ensure logs show MFA used, access reason captured, and quarterly review of dormant admin accounts.",
+        "Privacy Policy _ Paperworks.pdf": "Confirm policy is public-facing, aligns with legal register, and records processor vs controller responsibilities.",
+        "Terms of Service _ Paperworks.pdf": "Verify ToS covers IP ownership, user-generated content, and governing law; check last review date.",
+        "git scanning.png": "Ensure scan covers secrets/keys in repos, high-severity findings resolved within 15 days, and tool integrated into CI.",
+        "Google workspace MDM.png": "Verify MDM enforces screen-lock, encrypted storage, remote-wipe, and jailbreak detection.",
+        "google workspace roles.webp": "Cross-check role definitions follow least-privilege, no custom roles with wildcard permissions, and quarterly recertification.",
+        "GCP mfa.png": "Confirm MFA is mandatory for console & API keys, hardware-token allowed, and no legacy SMS-only on privileged accounts.",
+        "GCP db roles.png": "Validate separation of database admin vs cloud admin roles; check default service account disabled.",
+        "GCP roles.png": "Ensure IAM policies attached to groups, not individuals, and excess accounts pruned.",
+        "GCP deployment.png": "Verify CI/CD pipeline requires peer review, automated security tests, and change log in ticketing system.",
+        "GCP network.png": "Inspect VPC flow-logs enabled, subnet segregation mirrors data-classification zones, and firewall rules tagged.",
+        "GCP logging.jpg": "Ensure Cloud Audit Logs (Admin, Data Access) are immutable (bucket with retention lock) and exported to SIEM.",
+        "network diagram.png": "Confirm diagram shows security zones (DMZ, internal, restricted), IDS/IPS placement, and aligns with actual firewall rules."
+    };
+
+    // MAPPING: Evidence Filenames -> Control Codes
+    const EVIDENCE_MAP: Record<string, string[]> = {
+        "Information Security Policy .pdf": ["A.5.1"], // Note space in filename from previous log
+        "Information Security Policy.pdf": ["A.5.1"],
+        "ACCESS CONTROL POLICY.pdf": ["A.5.15", "A.5.16", "A.5.18"],
+        "Acceptable Use Policy.pdf": ["A.5.10"],
+        "HR _ Personnel Security Policy.pdf": ["A.6.1", "A.6.2", "A.6.3", "A.6.5"],
+        "DATA PROTECTION & PRIVACY POLICY.pdf": ["A.5.34", "A.5.12", "A.5.13"],
+        "PCI Compliance Policy.pdf": ["A.5.31", "A.5.32", "A.5.36"],
+        "INCIDENT RESPONSE & BREACH NOTIFICATION POLICY.pdf": ["A.5.24", "A.5.25", "A.5.26", "A.5.27", "A.5.28"],
+        "Business Continuity & Disaster Recovery Policy.md": ["A.5.29", "A.5.30"],
+        "Logging & Monitoring Policy.pdf": ["A.8.15", "A.8.16"],
+        "Information Asset Inventory.pdf": ["A.5.9"],
+        "Supplier Security Policy.odt": ["A.5.19", "A.5.20", "A.5.22"],
+        "Supplier Security Policy.docx": ["A.5.19", "A.5.20", "A.5.22"],
+        "Statement of Applicability (SoA).docx": ["A.5.35"],
+        "PENETRATION TEST REPORT - PAPERWORKS ONLINE LTD.pdf": ["A.8.29"],
+        "Awareness training.wav": ["A.6.3"],
+        "GDPR & PCI Security Training.pptx": ["A.6.3"],
+        "sshd_config": ["A.8.9", "A.8.20"],
+        "redis.conf": ["A.8.9", "A.8.6", "A.8.8"],
+        "nginx.conf": ["A.8.9", "A.8.20", "A.8.21"],
+        "Network Firewall Logs.log": ["A.8.20", "A.8.22"],
+        "Web Application Firewall (WAF) Events.logs.txt": ["A.8.20", "A.8.23"],
+        "Administrative Actions Log.txt": ["A.8.15", "A.8.16"],
+        "Failed Authentication Attempts.log": ["A.8.15", "A.8.5"],
+        "Successful Administrative Access.log": ["A.8.15", "A.5.18"],
+        "Privacy Policy _ Paperworks.pdf": ["A.5.34"],
+        "Terms of Service _ Paperworks.pdf": ["A.5.31", "A.5.32"],
+        "git scanning.png": ["A.8.8", "A.8.29"],
+        "Google workspace MDM.png": ["A.8.1", "A.8.5"],
+        "google workspace roles.webp": ["A.5.2", "A.5.16"],
+        "GCP mfa.png": ["A.8.5", "A.5.17"],
+        "GCP db roles.png": ["A.8.2", "A.5.18"],
+        "GCP roles.png": ["A.5.2", "A.5.16"],
+        "GCP deployment.png": ["A.8.32", "A.8.9"],
+        "GCP network.png": ["A.8.20", "A.8.22"],
+        "GCP logging.jpg": ["A.8.15", "A.8.16"],
+        "network diagram.png": ["A.8.20", "A.8.22"]
+    };
 
     try {
         // Ensure bucket
@@ -197,27 +451,46 @@ export async function seedDemo() {
             console.log(`      found ${files.length} files to upload.`);
 
             for (const file of files) {
+                // Skip the CSV data file if it ended up here
+                if (file.endsWith('.csv')) continue;
+
                 const filePath = path.join(filesDir, file);
                 const fileStats = fs.statSync(filePath);
 
                 if (fileStats.isFile()) {
                     const fileBuffer = fs.readFileSync(filePath);
-                    const objectName = `demo/${file}`;
+                    // Match the structure used by uploads.ts: ${projectId}/${filename}
+                    const objectName = `${project.id}/${file}`;
 
                     await minioClient.putObject(bucketName, objectName, fileBuffer);
-                    console.log(`      ✅ Uploaded ${file}`);
+
+                    // Determine Controls to link
+                    const matchedCodes = EVIDENCE_MAP[file] || [];
+                    const connectControls = matchedCodes
+                        .map(code => codeToPCId.get(code))
+                        .filter(id => !!id)
+                        .map(id => ({ id: id! }));
+
+                    if (connectControls.length > 0) {
+                        console.log(`      ✅ Uploaded ${file} (Linked to: ${matchedCodes.join(', ')})`);
+                    } else {
+                        console.log(`      ✅ Uploaded ${file} (No controls linked)`);
+                    }
 
                     // Create Tags based on filename
                     const tagsList = ['ISO 27001', 'Demo'];
                     if (file.toLowerCase().includes('policy')) tagsList.push('Policy');
                     if (file.toLowerCase().includes('procedure')) tagsList.push('Procedure');
 
+                    // Proxy URL matching /api/uploads/download logic
+                    const fileUrl = `/api/uploads/download/${project.id}/${file}`;
+
                     // Create Evidence Record
                     const evidence = await prisma.evidence.create({
                         data: {
                             projectId: project.id,
                             fileName: file,
-                            fileUrl: `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || '9000'}/${bucketName}/${objectName}`,
+                            fileUrl: fileUrl,
                             type: 'document',
                             uploadedById: managerId,
                             tags: {
@@ -225,9 +498,31 @@ export async function seedDemo() {
                                     where: { name: t },
                                     create: { name: t }
                                 }))
+                            },
+                            // Explicit link to Project Controls
+                            controls: {
+                                connect: connectControls
                             }
                         }
                     });
+
+                    // Add Auditor Comment if exists
+                    if (EVIDENCE_COMMENTS[file]) {
+                        await prisma.evidenceAnnotation.create({
+                            data: {
+                                evidenceId: evidence.id,
+                                authorId: auditorId, // Assign comment to the Demo Auditor
+                                text: EVIDENCE_COMMENTS[file],
+                                page: 1,
+                                x: 10, // Arbitrary position
+                                y: 10
+                            }
+                        });
+                        console.log(`         📝 Added auditor comment.`);
+                    }
+
+                    // Update evidence counts on controls (Optional, but good for consistency if sync is slow)
+                    // The triggers or application logic usually handle this, but for seed we can leave it.
 
                     // Sync Evidence to Neo4j
                     try {
