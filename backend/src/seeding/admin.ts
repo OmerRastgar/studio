@@ -37,9 +37,11 @@ export async function seedAdmin() {
         } catch (error: any) {
             if (error.response?.status === 409) {
                 console.log(`   ℹ️  Kratos Identity already exists`);
-                // Fetch existing ID
-                const existing = await axios.get(`${KRATOS_ADMIN_URL}/admin/identities?credentials_identifier=${adminEmail}`);
-                kratosId = existing.data.identities[0].id;
+                if (Array.isArray(existing.data) && existing.data.length > 0) {
+                    kratosId = existing.data[0].id;
+                } else {
+                    throw new Error('Admin identity mismatch found but not retrievable.');
+                }
             } else {
                 throw error;
             }
