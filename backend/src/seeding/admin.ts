@@ -35,44 +35,45 @@ export async function seedAdmin() {
             kratosId = response.data.id;
             console.log(`   ✅ Kratos Identity created: ${kratosId}`);
         } catch (error: any) {
-            // Fetch existing ID
-            const existing = await axios.get(`${KRATOS_ADMIN_URL}/admin/identities?credentials_identifier=${adminEmail}`);
+            if (error.response?.status === 409) {
+                // Fetch existing ID
+                const existing = await axios.get(`${KRATOS_ADMIN_URL}/admin/identities?credentials_identifier=${adminEmail}`);
 
-            if (Array.isArray(existing.data) && existing.data.length > 0) {
-                kratosId = existing.data[0].id;
+                if (Array.isArray(existing.data) && existing.data.length > 0) {
+                    kratosId = existing.data[0].id;
+                } else {
+                    throw new Error('Admin identity mismatch found but not retrievable.');
+                }
             } else {
-                throw new Error('Admin identity mismatch found but not retrievable.');
+                throw error;
             }
-        } else {
-            throw error;
         }
-    }
 
         // 2. Sync to Database
         const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
-    await prisma.user.upsert({
-        where: { email: adminEmail },
-        update: {
-            id: kratosId, // Ensure ID sync if email matches
-            role: 'admin',
-            password: hashedPassword
-        },
-        create: {
-            id: kratosId,
-            email: adminEmail,
-            name: 'System Admin',
-            role: 'admin',
-            password: hashedPassword,
-            status: 'Active',
-            avatarUrl: 'https://github.com/shadcn.png'
-        }
-    });
+        await prisma.user.upsert({
+            where: { email: adminEmail },
+            update: {
+                id: kratosId, // Ensure ID sync if email matches
+                role: 'admin',
+                password: hashedPassword
+            },
+            create: {
+                id: kratosId,
+                email: adminEmail,
+                name: 'System Admin',
+                role: 'admin',
+                password: hashedPassword,
+                status: 'Active',
+                avatarUrl: 'https://github.com/shadcn.png'
+            }
+        });
 
-    console.log(`   ✅ Database System Admin synced`);
+        console.log(`   ✅ Database System Admin synced`);
 
-} catch (error) {
-    console.error('   ❌ Failed to seed admin:', error);
-    throw error;
-}
+    } catch (error) {
+        console.error('   ❌ Failed to seed admin:', error);
+        throw error;
+    }
 }
