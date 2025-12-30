@@ -20,9 +20,14 @@ router.get('/dashboard', async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        // Get customer's projects with framework and auditor info
+        // Get customer's projects (owned OR shared)
         const projects = await prisma.project.findMany({
-            where: { customerId: userId },
+            where: {
+                OR: [
+                    { customerId: userId },
+                    { projectShares: { some: { userId: userId } } }
+                ]
+            },
             include: {
                 framework: true,
                 auditor: {
@@ -110,7 +115,12 @@ router.get('/projects', async (req, res) => {
         }
 
         const projects = await prisma.project.findMany({
-            where: { customerId: userId },
+            where: {
+                OR: [
+                    { customerId: userId },
+                    { projectShares: { some: { userId: userId } } }
+                ]
+            },
             include: {
                 framework: true,
                 auditor: {
@@ -138,7 +148,13 @@ router.get('/projects/:id', async (req, res) => {
         }
 
         const project = await prisma.project.findFirst({
-            where: { id, customerId: userId },
+            where: {
+                id,
+                OR: [
+                    { customerId: userId },
+                    { projectShares: { some: { userId: userId } } }
+                ]
+            },
             include: {
                 framework: true,
                 auditor: {

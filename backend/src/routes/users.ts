@@ -4,6 +4,7 @@ import { hashPassword } from '../lib/jwt';
 import { authenticate, requireRole } from '../middleware/auth';
 import { kratosAdmin } from '../lib/kratos';
 import { neo4jSyncQueue } from '../lib/queue';
+import { NotificationService } from '../services/notification';
 
 const router = express.Router();
 
@@ -339,6 +340,27 @@ router.put('/:id', async (req, res) => {
             }
         }
 
+        // 2.5 New User Transition Logic (Demo Project Unlinking)
+        let isNewUserUpdate: boolean | undefined = undefined;
+        if (req.body.managerId) {
+            const currentUserState = await prisma.user.findUnique({ where: { id: userId }, select: { isNewUser: true } });
+            if (currentUserState?.isNewUser) {
+                console.log(`[User Update] Transitioning user ${userId} from New User (Demo access) to Standard User`);
+                isNewUserUpdate = false;
+
+                // Remove Demo Project Share
+                const demoProject = await prisma.project.findFirst({ where: { name: 'ISO 27001 Master Demo' } });
+                if (demoProject) {
+                    await prisma.projectShare.deleteMany({
+                        where: {
+                            userId: userId,
+                            projectId: demoProject.id
+                        }
+                    });
+                }
+            }
+        }
+
         // 3. Update/Create Local DB (Sync)
         const emailToSync = (identity.traits as any).email;
         if (!emailToSync) {
@@ -354,6 +376,7 @@ router.put('/:id', async (req, res) => {
                 role,
                 status: status || undefined,
                 managerId: req.body.managerId, // Allow Manager reassignment
+                isNewUser: isNewUserUpdate // Update flag if transitioning
             },
             create: {
                 id: userId,
@@ -364,6 +387,7 @@ router.put('/:id', async (req, res) => {
                 password: await hashPassword('kratos_managed_user'),
                 avatarUrl: `https://picsum.photos/seed/${userId}/100/100`,
                 managerId: req.body.managerId,
+                isNewUser: true // Default for manual sync create if not specified? Or true? True is safer for boarding.
             },
             select: {
                 id: true,
@@ -374,6 +398,7 @@ router.put('/:id', async (req, res) => {
                 avatarUrl: true,
                 lastActive: true,
                 createdAt: true,
+                isNewUser: true
             },
         });
 
@@ -500,6 +525,39 @@ router.post('/:id/reset-password', async (req, res) => {
                 severity: 'High',
             },
         });
+
+        // 7. Notification (Target User)
+        await NotificationService.create(
+            userId,
+            'system',
+            'Password Reset',
+            `Your password has been reset by ${currentUser.name || 'an administrator'}.`,
+            '/settings/security'
+        );
+
+        // 8. Notification (Admin/Manager - Confirmation)
+        if (currentUser.userId !== userId) {
+            await NotificationService.create(
+                currentUser.userId,
+                'system',
+                'Password Reset Successful',
+                `You successfully reset the password for user ${targetUser.name}.`,
+                `/dashboard/users`
+            );
+        }
+
+        // 9. Notification (Manager - Supervision)
+        // If the user has a manager, and that manager is NOT the one who performed the reset (e.g. an Admin did it), 
+        // notify the manager so they are aware.
+        if (targetUser.managerId && targetUser.managerId !== currentUser.userId) {
+            await NotificationService.create(
+                targetUser.managerId, // Notify the manager
+                'system',
+                'User Password Reset',
+                `Password for your team member ${targetUser.name} was reset by ${currentUser.name || 'an administrator'}.`,
+                `/dashboard/users`
+            );
+        }
 
         console.log(`[User Reset Password] Success for ${targetUser.email}`);
 

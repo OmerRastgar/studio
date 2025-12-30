@@ -57,12 +57,79 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
             }
         });
 
-        // 3. Return Merged Data
+        // 3. JIT Provisioning & Demo Linking
+        // If local user is missing, create them (JIT) and link to Demo Project if they are a customer.
+        if (!localUser) {
+            console.log(`[Auth JIT] Provisioning new user for ${userId} (${traits.email})`);
+
+            // Default to 'customer' if role missing
+            const role = traits.role || 'customer';
+            const email = traits.email;
+
+            // Create User
+            const newUser = await prisma.user.create({
+                data: {
+                    id: userId,
+                    email: email,
+                    name: computedName,
+                    role: role,
+                    status: 'Active',
+                    password: 'kratos_managed_user', // Placeholder
+                    avatarUrl: `https://ui-avatars.com/api/?name=${computedName.replace(' ', '+')}`,
+                    isNewUser: true
+                }
+            });
+
+            // Demo Project Linking (Only for Customers)
+            if (role === 'customer') {
+                const DEMO_PROJECT_NAME = 'ISO 27001 Master Demo'; // Must match seed
+
+                // Find Demo Project (by name or specific logic)
+                const demoProject = await prisma.project.findFirst({
+                    where: { name: DEMO_PROJECT_NAME }
+                });
+
+                if (demoProject) {
+                    console.log(`[Auth JIT] Linking new customer to Demo Project ${demoProject.id}`);
+                    await prisma.projectShare.create({
+                        data: {
+                            userId: newUser.id,
+                            projectId: demoProject.id
+                        }
+                    });
+                } else {
+                    console.warn('[Auth JIT] Demo Project not found. Skipping link.');
+                }
+            }
+
+            // Refresh localUser reference
+            // Re-fetch or cast newUser
+            // We can just use newUser properties for the response, but to keep the flow below clean:
+            // Let's just override the response object construction below or assume localUser is now newUser-like.
+            // Actually, the code below checks `localUser?.role`. 
+            // We can reload or just manually construct the response. 
+        }
+
+        // Re-fetch to be safe and consistent with the types used below
+        const finalizedLocalUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                avatarUrl: true,
+                managerId: true,
+                lastActive: true,
+                forcePasswordChange: true,
+                status: true,
+                role: true,
+                isNewUser: true
+            }
+        });
+
+        // 4. Return Merged Data
         // SECURITY: If local user exists, their role is the authority. 
         // If not (shadow user missing), allow Kratos role UNLESS it is 'admin'.
         let effectiveRole = traits.role || 'customer';
-        if (localUser?.role) {
-            effectiveRole = localUser.role;
+        if (finalizedLocalUser?.role) {
+            effectiveRole = finalizedLocalUser.role;
         } else if (effectiveRole === 'admin') {
             // Self-service user claiming admin without a DB record -> Downgrade
             console.warn(`[Auth Security] Downgrading spoofed admin role for ${identity.id} in /me response`);
@@ -78,10 +145,11 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
                     : `${traits.name.first} ${traits.name.last}`,
                 email: traits.email,
                 role: effectiveRole,
-                status: localUser?.status || (identity.state === 'active' ? 'Active' : 'Inactive'),
-                avatarUrl: localUser?.avatarUrl || `https://picsum.photos/seed/${identity.id}/100/100`,
-                lastActive: localUser?.lastActive?.toISOString(),
-                forcePasswordChange: localUser?.forcePasswordChange ?? false,
+                status: finalizedLocalUser?.status || (identity.state === 'active' ? 'Active' : 'Inactive'),
+                avatarUrl: finalizedLocalUser?.avatarUrl || `https://picsum.photos/seed/${identity.id}/100/100`,
+                lastActive: finalizedLocalUser?.lastActive?.toISOString(),
+                forcePasswordChange: finalizedLocalUser?.forcePasswordChange ?? false,
+                isNewUser: finalizedLocalUser?.isNewUser ?? true,
                 createdAt: identity.created_at
             }
         });
