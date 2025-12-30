@@ -217,7 +217,7 @@ export async function seedDemo() {
                     type: 'infrastructure_scan',
                     status: 'open',
                     affectedUser: f.user,
-                    source: 'Security Audit',
+
                     remediationSteps: f.remediation,
                     firstSeenAt: new Date(),
                     lastSeenAt: new Date()
@@ -277,7 +277,7 @@ export async function seedDemo() {
                     integrationId: gWorkspace.id,
                     affectedUser: log.user,
                     cloudService: log.service,
-                    source: 'CASB',
+
                     firstSeenAt: new Date(),
                     lastSeenAt: new Date()
                 }
