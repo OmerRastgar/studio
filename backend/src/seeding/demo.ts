@@ -363,8 +363,19 @@ export async function seedDemo() {
         const agentId = `agent-${data.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`;
 
         // Create Agent
-        await prisma.agent.create({
-            data: {
+        // Create Agent
+        await prisma.agent.upsert({
+            where: { id: agentId },
+            update: {
+                name: data.name,
+                platform: data.platform as any,
+                osVersion: data.os,
+                ipAddress: data.ip,
+                status: 'Active',
+                projectId: project.id,
+                hostname: data.name.toLowerCase().replace(/\s/g, '-')
+            },
+            create: {
                 id: agentId,
                 name: data.name,
                 platform: data.platform as any,
