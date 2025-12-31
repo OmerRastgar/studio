@@ -121,13 +121,11 @@ export async function seedDemo() {
 
     // Sync Framework as Standard to Neo4j
     try {
-        await neo4jSyncQueue.add('update_node_property', {
+        await neo4jSyncQueue.add('standard_created', {
             eventId: `SEED-${Date.now()}`,
             payload: {
-                label: 'Standard',
                 id: framework.id,
-                property: 'name',
-                value: framework.name
+                name: framework.name
             }
         });
     } catch (e) {
