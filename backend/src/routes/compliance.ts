@@ -41,7 +41,7 @@ router.get('/projection', authenticate, async (req: Request, res: Response) => {
         // Get user email from Postgres (Neo4j uses email as identifier)
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { email: true }
+            select: { email: true, isNewUser: true }
         });
 
         if (!user) {
@@ -58,7 +58,7 @@ router.get('/projection', authenticate, async (req: Request, res: Response) => {
                 // Find controls covered by Evidence (using OPTIONAL MATCH to preserve standards with 0 coverage)
                 OPTIONAL MATCH (s)<-[:BELONGS_TO]-(c:Control)-[:HAS_TAG]->(t:Tag)<-[:HAS_TAG]-(e:Evidence)
                 WHERE ( (:User {email: $userEmail})-[:UPLOADED]->(e) )
-                   OR ( e.projectId = 'demo-project-master-id' AND $userEmail IN ['manager@example.com', 'auditor@example.com', 'reviewer@example.com'] )
+                   OR ( $isNewUser = true AND e.projectId = 'demo-project-master-id' )
                 
                 // Aggregate
                 
@@ -67,8 +67,8 @@ router.get('/projection', authenticate, async (req: Request, res: Response) => {
                 ORDER BY covered DESC
             `;
 
-        console.log(`[Compliance] Running projection query for user: ${userId} (${user.email})`);
-        const result = await session.run(query, { userEmail: user.email });
+        console.log(`[Compliance] Running projection query for user: ${userId} (${user.email}), isNewUser: ${user.isNewUser}`);
+        const result = await session.run(query, { userEmail: user.email, isNewUser: user.isNewUser ?? false });
         console.log(`[Compliance] Query returned ${result.records.length} records`);
 
         // 2. Get existing Active projects for this user to check for duplicates
