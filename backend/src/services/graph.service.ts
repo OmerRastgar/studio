@@ -273,4 +273,20 @@ export class GraphService {
         });
         console.log(`[GraphService] Enqueued standard_created event: ${eventId}`);
     }
+
+    /**
+     * Enqueues an event to delete a Standard (Framework) and its Controls from the Graph.
+     * This is an async operation (Eventual Consistency).
+     */
+    static async deleteStandard(id: string) {
+        const eventId = uuidv4();
+        await neo4jSyncQueue.add('standard_deleted', {
+            eventId,
+            payload: { id },
+            timestamp: new Date().toISOString()
+        }, {
+            jobId: eventId // Dedup ID
+        });
+        console.log(`[GraphService] Enqueued standard_deleted event: ${eventId}`);
+    }
 }

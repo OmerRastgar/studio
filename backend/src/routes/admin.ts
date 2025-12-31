@@ -636,6 +636,9 @@ router.delete('/frameworks/:id', async (req: Request, res: Response) => {
             where: { id }
         });
 
+        // Sync to Graph
+        await GraphService.deleteStandard(id);
+
         res.json({ success: true, message: 'Framework deleted' });
     } catch (error) {
         console.error('Delete framework error:', error);

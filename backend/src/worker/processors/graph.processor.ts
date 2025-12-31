@@ -280,6 +280,14 @@ export const graphProcessor = async (job: Job) => {
                 s.updatedAt = datetime(),
                 s.eventId = $eventId
         `, { id, name, eventId });
+      } else if (job.name === 'standard_deleted') {
+        const { id } = payload;
+        // Delete Standard and all its Controls
+        await tx.run(`
+            MATCH (s:Standard {id: $id})
+            OPTIONAL MATCH (c:Control)-[:BELONGS_TO]->(s)
+            DETACH DELETE c, s
+        `, { id });
       }
 
       // MARK EVENT AS PROCESSED
