@@ -175,6 +175,69 @@ export const graphProcessor = async (job: Job) => {
                   MATCH (u:User {id: $id})
                   DETACH DELETE u
                `, { id: payload.id });
+      } else if (job.name === 'control_updated') {
+        // Create/Update Control and link Tags
+        await tx.run(`
+            MERGE (c:Control {id: $id})
+            SET c.code = $code, 
+                c.title = $title, 
+                c.description = $description, 
+                c.category = $category, 
+                c.frameworkId = $frameworkId,
+                c.updatedAt = datetime(),
+                c.eventId = $eventId
+            
+            WITH c
+            UNWIND $tags AS tagName
+            MERGE (t:Tag {id: tagName}) // Assuming tag ID is name for simplicity in demo
+            ON CREATE SET t.name = tagName
+            MERGE (c)-[r:HAS_TAG]->(t)
+            ON CREATE SET r.createdAt = datetime()
+        `, {
+          id: payload.id,
+          code: payload.code,
+          title: payload.title,
+          description: payload.description,
+          category: payload.category,
+          frameworkId: payload.frameworkId,
+          tags: payload.tags || [],
+          eventId
+        });
+
+      } else if (job.name === 'evidence_uploaded') {
+        // Create Evidence and link Tags + Project + Uploader
+        await tx.run(`
+            MERGE (e:Evidence {id: $id})
+            SET e.fileName = $fileName,
+                e.projectId = $projectId,
+                e.updatedAt = datetime(),
+                e.eventId = $eventId
+
+            WITH e
+            UNWIND $tags AS tagName
+            MERGE (t:Tag {id: tagName})
+            ON CREATE SET t.name = tagName
+            MERGE (e)-[r:HAS_TAG]->(t)
+            ON CREATE SET r.createdAt = datetime()
+
+            WITH e
+            MATCH (u:User {id: $uploadedById})
+            MERGE (u)-[ru:UPLOADED]->(e)
+            ON CREATE SET ru.createdAt = datetime()
+
+            WITH e
+            MERGE (p:Project {id: $projectId})
+            MERGE (e)-[rp:BELONGS_TO]->(p)
+            ON CREATE SET rp.createdAt = datetime()
+        `, {
+          id: payload.id,
+          fileName: payload.fileName,
+          projectId: payload.projectId,
+          uploadedById: payload.uploadedById,
+          tags: payload.tags || [],
+          eventId
+        });
+
       } else if (job.name === 'update_node_property') {
         const { label, id, property, value } = payload;
         // Construct query safely with dynamic property lookup not being purely dynamic but parameter usage
