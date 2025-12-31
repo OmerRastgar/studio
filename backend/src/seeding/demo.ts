@@ -66,6 +66,19 @@ export async function seedDemo() {
         });
         userMap.set(u.email, id);
         console.log(`   ✅ Synced ${u.email}`);
+
+        // Sync User to Neo4j
+        try {
+            await neo4jSyncQueue.add('user_created', {
+                id,
+                email: u.email,
+                name: u.name,
+                role: u.role,
+                eventId: `SEED-${Date.now()}`
+            });
+        } catch (e) {
+            // ignore
+        }
     }
 
     const managerId = userMap.get('manager@example.com')!;
