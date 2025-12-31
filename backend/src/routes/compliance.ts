@@ -55,15 +55,12 @@ router.get('/projection', authenticate, async (req: Request, res: Response) => {
                 MATCH (total_c:Control)-[:BELONGS_TO]->(s:Standard)
                 WITH s, count(DISTINCT total_c) as total
                 
-                // Find controls covered by Evidence
-                // 1. Evidence uploaded by the User
-                // 2. OR Evidence linked to the Demo Project (Special Case for Demo Users)
-                OPTIONAL MATCH (e:Evidence)
+                // Find controls covered by Evidence (using OPTIONAL MATCH to preserve standards with 0 coverage)
+                OPTIONAL MATCH (s)<-[:BELONGS_TO]-(c:Control)-[:HAS_TAG]->(t:Tag)<-[:HAS_TAG]-(e:Evidence)
                 WHERE ( (:User {email: $userEmail})-[:UPLOADED]->(e) )
                    OR ( e.projectId = 'demo-project-master-id' AND $userEmail IN ['manager@example.com', 'auditor@example.com', 'reviewer@example.com'] )
-
-                // Traverse to Controls via Tags
-                MATCH (e)-[:HAS_TAG]->(t:Tag)<-[:HAS_TAG]-(c:Control)-[:BELONGS_TO]->(s)
+                
+                // Aggregate
                 
                 // Aggregate
                 RETURN s.id as id, s.name as name, count(DISTINCT c) as covered, total
