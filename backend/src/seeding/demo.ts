@@ -70,11 +70,13 @@ export async function seedDemo() {
         // Sync User to Neo4j
         try {
             await neo4jSyncQueue.add('user_created', {
-                id,
-                email: u.email,
-                name: u.name,
-                role: u.role,
-                eventId: `SEED-${Date.now()}`
+                eventId: `SEED-${Date.now()}`,
+                payload: {
+                    id,
+                    email: u.email,
+                    name: u.name,
+                    role: u.role
+                }
             });
         } catch (e) {
             // ignore
@@ -120,11 +122,13 @@ export async function seedDemo() {
     // Sync Framework as Standard to Neo4j
     try {
         await neo4jSyncQueue.add('update_node_property', {
-            label: 'Standard',
-            id: framework.id,
-            property: 'name',
-            value: framework.name,
-            eventId: `SEED-${Date.now()}`
+            eventId: `SEED-${Date.now()}`,
+            payload: {
+                label: 'Standard',
+                id: framework.id,
+                property: 'name',
+                value: framework.name
+            }
         });
     } catch (e) {
         // ignore
@@ -270,21 +274,25 @@ export async function seedDemo() {
             try {
                 // Ensure Control Node Exists
                 await neo4jSyncQueue.add('control_updated', {
-                    id: control.id,
-                    frameworkId: framework.id,
-                    code: control.code,
-                    title: control.title,
-                    description: control.description,
-                    category: control.category,
-                    tags: tagNames,
-                    eventId: `SEED-${Date.now()}`
+                    eventId: `SEED-${Date.now()}`,
+                    payload: {
+                        id: control.id,
+                        frameworkId: framework.id,
+                        code: control.code,
+                        title: control.title,
+                        description: control.description,
+                        category: control.category,
+                        tags: tagNames
+                    }
                 });
 
                 // Link to Standard (Framework)
                 await neo4jSyncQueue.add('link_control_to_standard', {
-                    controlId: control.id,
-                    standardId: framework.id,
-                    eventId: `SEED-${Date.now()}`
+                    eventId: `SEED-${Date.now()}`,
+                    payload: {
+                        controlId: control.id,
+                        standardId: framework.id
+                    }
                 });
             } catch (error) {
                 // ignore
