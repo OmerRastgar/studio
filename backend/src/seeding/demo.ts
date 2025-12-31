@@ -260,8 +260,34 @@ export async function seedDemo() {
         console.log(`   🔸 Linking ${controls.length} controls to project...`);
         for (const control of controls) {
             // Populate/Refresh codeToTags map from DB (robust against CSV skip)
+            let tagNames: string[] = [];
             if (control.tags && control.tags.length > 0) {
-                codeToTags.set(control.code, control.tags.map(t => t.name));
+                tagNames = control.tags.map(t => t.name);
+                codeToTags.set(control.code, tagNames);
+            }
+
+            // Ensure Graph is synced (Idempotency)
+            try {
+                // Ensure Control Node Exists
+                await neo4jSyncQueue.add('control_updated', {
+                    id: control.id,
+                    frameworkId: framework.id,
+                    code: control.code,
+                    title: control.title,
+                    description: control.description,
+                    category: control.category,
+                    tags: tagNames,
+                    eventId: `SEED-${Date.now()}`
+                });
+
+                // Link to Standard (Framework)
+                await neo4jSyncQueue.add('link_control_to_standard', {
+                    controlId: control.id,
+                    standardId: framework.id,
+                    eventId: `SEED-${Date.now()}`
+                });
+            } catch (error) {
+                // ignore
             }
 
             // Generate random progress between 80 and 100 for a "mostly complete" feel
