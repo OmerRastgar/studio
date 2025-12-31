@@ -250,12 +250,34 @@ export const graphProcessor = async (job: Job) => {
                 SET n.updatedAt = datetime()
             `, { id, value });
         }
+      } else if (job.name === 'project_updated') {
+        const { id, name, managerId, customerId } = payload;
+        await tx.run(`
+        MERGE(p: Project { id: $id })
+            SET p.name = $name,
+          p.updatedAt = datetime(),
+          p.eventId = $eventId
+            
+            WITH p
+            OPTIONAL MATCH(m: User { id: $managerId })
+        FOREACH(_ IN CASE WHEN m IS NOT NULL THEN[1] ELSE[] END |
+          MERGE(p) < -[rm: MANAGES] - (m)
+                ON CREATE SET rm.createdAt = datetime()
+        )
+            
+            WITH p
+            OPTIONAL MATCH(c: User { id: $customerId })
+        FOREACH(_ IN CASE WHEN c IS NOT NULL THEN[1] ELSE[] END |
+          MERGE(p) < -[ro: OWNS] - (c)
+                ON CREATE SET ro.createdAt = datetime()
+        )
+          `, { id, name, managerId, customerId, eventId });
       }
 
       // MARK EVENT AS PROCESSED
       await tx.run(`
-        CREATE (e:Event {id: $eventId, timestamp: datetime()})
-      `, { eventId });
+        CREATE(e: Event { id: $eventId, timestamp: datetime() })
+          `, { eventId });
 
       await tx.commit();
     } catch (err) {

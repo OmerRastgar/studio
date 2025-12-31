@@ -200,21 +200,25 @@ export async function seedDemo() {
             // Sync Control to Neo4j
             try {
                 await neo4jSyncQueue.add('control_updated', {
-                    id: control.id,
-                    frameworkId: framework.id,
-                    code: control.code,
-                    title: control.title,
-                    description: control.description,
-                    category: control.category,
-                    tags: tagNames,
-                    eventId: `SEED-${Date.now()}`
+                    eventId: `SEED-${Date.now()}`,
+                    payload: {
+                        id: control.id,
+                        frameworkId: framework.id,
+                        code: control.code,
+                        title: control.title,
+                        description: control.description,
+                        category: control.category,
+                        tags: tagNames
+                    }
                 });
 
                 // Link to Standard (Framework)
                 await neo4jSyncQueue.add('link_control_to_standard', {
-                    controlId: control.id,
-                    standardId: framework.id,
-                    eventId: `SEED-${Date.now()}`
+                    eventId: `SEED-${Date.now()}`,
+                    payload: {
+                        controlId: control.id,
+                        standardId: framework.id
+                    }
                 });
             } catch (error) {
                 // ignore
@@ -584,11 +588,13 @@ export async function seedDemo() {
         // Sync Project Node first
         try {
             await neo4jSyncQueue.add('project_updated', {
-                id: project.id,
-                name: project.name,
-                managerId,
-                customerId: null,
-                eventId: `SEED-${Date.now()}`
+                eventId: `SEED-${Date.now()}`,
+                payload: {
+                    id: project.id,
+                    name: project.name,
+                    managerId,
+                    customerId: null
+                }
             });
         } catch (e) { console.warn('Neo4j project sync warn'); }
 
@@ -691,12 +697,14 @@ export async function seedDemo() {
                     // Sync Evidence to Neo4j
                     try {
                         await neo4jSyncQueue.add('evidence_uploaded', {
-                            id: evidence.id,
-                            projectId: project.id,
-                            fileName: evidence.fileName,
-                            tags: tagsList,
-                            uploadedById: managerId,
-                            eventId: `SEED-${Date.now()}`
+                            eventId: `SEED-${Date.now()}`,
+                            payload: {
+                                id: evidence.id,
+                                projectId: project.id,
+                                fileName: evidence.fileName,
+                                tags: tagsList,
+                                uploadedById: managerId
+                            }
                         });
                     } catch (err) {
                         // ignore redis errors during seed
