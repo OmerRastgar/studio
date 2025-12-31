@@ -221,7 +221,7 @@ export const graphProcessor = async (job: Job) => {
             ON CREATE SET r.createdAt = datetime()
 
             WITH e
-            MATCH (u:User {id: $uploadedById})
+            MERGE (u:User {id: $uploadedById})
             MERGE (u)-[ru:UPLOADED]->(e)
             ON CREATE SET ru.createdAt = datetime()
 
