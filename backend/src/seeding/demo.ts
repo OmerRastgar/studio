@@ -104,6 +104,19 @@ export async function seedDemo() {
         framework = await prisma.framework.create({ data: { name: 'ISO 27001', description: 'Information Security Management' } });
     }
 
+    // Sync Framework as Standard to Neo4j
+    try {
+        await neo4jSyncQueue.add('update_node_property', {
+            label: 'Standard',
+            id: framework.id,
+            property: 'name',
+            value: framework.name,
+            eventId: `SEED-${Date.now()}`
+        });
+    } catch (e) {
+        // ignore
+    }
+
 
 
     // Seed Controls from CSV
@@ -177,6 +190,13 @@ export async function seedDemo() {
                     description: control.description,
                     category: control.category,
                     tags: tagNames,
+                    eventId: `SEED-${Date.now()}`
+                });
+
+                // Link to Standard (Framework)
+                await neo4jSyncQueue.add('link_control_to_standard', {
+                    controlId: control.id,
+                    standardId: framework.id,
                     eventId: `SEED-${Date.now()}`
                 });
             } catch (error) {
