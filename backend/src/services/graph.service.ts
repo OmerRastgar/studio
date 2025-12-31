@@ -257,4 +257,20 @@ export class GraphService {
         });
         console.log(`[GraphService] Enqueued update_node_property event: ${eventId}`);
     }
+
+    /**
+     * Enqueues an event to create a Standard (Framework) in the Graph.
+     * This is an async operation (Eventual Consistency).
+     */
+    static async createStandard(id: string, name: string) {
+        const eventId = uuidv4();
+        await neo4jSyncQueue.add('standard_created', {
+            eventId,
+            payload: { id, name },
+            timestamp: new Date().toISOString()
+        }, {
+            jobId: eventId // Dedup ID
+        });
+        console.log(`[GraphService] Enqueued standard_created event: ${eventId}`);
+    }
 }

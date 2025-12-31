@@ -272,6 +272,14 @@ export const graphProcessor = async (job: Job) => {
                 ON CREATE SET ro.createdAt = datetime()
         )
           `, { id, name, managerId, customerId, eventId });
+      } else if (job.name === 'standard_created') {
+        const { id, name } = payload;
+        await tx.run(`
+            MERGE (s:Standard {id: $id})
+            SET s.name = $name,
+                s.updatedAt = datetime(),
+                s.eventId = $eventId
+        `, { id, name, eventId });
       }
 
       // MARK EVENT AS PROCESSED

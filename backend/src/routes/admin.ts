@@ -593,6 +593,9 @@ router.post('/frameworks', async (req: Request, res: Response) => {
             }
         });
 
+        // Sync to Graph
+        await GraphService.createStandard(framework.id, framework.name);
+
         res.status(201).json({ success: true, data: framework });
     } catch (error) {
         console.error('Create framework error:', error);
